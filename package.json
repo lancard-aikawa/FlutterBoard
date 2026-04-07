@@ -1,0 +1,14 @@
+{
+  "name": "flutterboard",
+  "version": "0.1.0",
+  "description": "Flutter + Firebase project dashboard",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": ["flutter", "firebase", "dashboard"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

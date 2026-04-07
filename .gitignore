@@ -1,0 +1,8 @@
+node_modules/
+
+# ユーザー固有の設定（コミット不要）
+config/history.json
+config/pins_*.json
+
+# Claude Code ローカル設定
+.claude/

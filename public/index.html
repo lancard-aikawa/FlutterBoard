@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlutterBoard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <header>
+    <h1>FlutterBoard</h1>
+    <div id="current-project">プロジェクト未選択</div>
+    <button id="change-project-btn" class="btn-ghost">変更</button>
+  </header>
+
+  <main>
+    <!-- フォルダ選択パネル -->
+    <section id="project-panel">
+      <h2>プロジェクトフォルダを選択</h2>
+      <div id="path-bar">
+        <input type="text" id="path-input" placeholder="パスを入力（例: C:\Repos\myapp）">
+        <button id="open-btn">開く</button>
+      </div>
+      <div id="browser-area">
+        <div id="breadcrumb"></div>
+        <ul id="folder-list"></ul>
+      </div>
+      <div id="history-area">
+        <h3>最近使ったプロジェクト</h3>
+        <ul id="history-list"></ul>
+      </div>
+    </section>
+
+    <!-- メインダッシュボード -->
+    <section id="dashboard" class="hidden">
+      <nav id="tab-bar">
+        <button class="tab active" data-tab="logs">プロセス / ログ</button>
+        <button class="tab" data-tab="commands">コマンド</button>
+        <button class="tab" data-tab="docs">ドキュメント</button>
+        <button class="tab" data-tab="deps">依存チェック</button>
+        <button class="tab" data-tab="env">環境変数</button>
+        <button class="tab" data-tab="git">Git</button>
+      </nav>
+
+      <!-- ログタブ -->
+      <div id="tab-logs" class="tab-content">
+        <aside id="process-panel">
+          <div id="run-form">
+            <input type="text" id="cmd-input" placeholder="コマンド（例: flutter run）">
+            <input type="text" id="label-input" placeholder="ラベル（省略可）">
+            <button id="run-btn">▶ 実行</button>
+          </div>
+          <div id="process-list-header">実行中 / 履歴</div>
+          <ul id="process-list"></ul>
+        </aside>
+        <div id="log-area">
+          <div id="log-toolbar">
+            <span id="log-title">ログを表示するプロセスを選択</span>
+            <div id="log-actions">
+              <button id="log-clear">クリア</button>
+              <label id="autoscroll-label">
+                <input type="checkbox" id="autoscroll" checked> 自動スクロール
+              </label>
+            </div>
+          </div>
+          <pre id="log-output"><span class="log-muted">← プロセスを選択するとログが表示されます</span></pre>
+        </div>
+      </div>
+
+      <!-- コマンドタブ -->
+      <div id="tab-commands" class="tab-content hidden">
+        <div id="commands-container">
+          <section class="cmd-section">
+            <h3 class="cmd-section-title">Flutter</h3>
+            <div class="cmd-grid">
+              <button class="cmd-btn" data-cmd="flutter pub get"       data-label="pub get">pub get</button>
+              <button class="cmd-btn" data-cmd="flutter pub upgrade"   data-label="pub upgrade">pub upgrade</button>
+              <button class="cmd-btn" data-cmd="flutter analyze"       data-label="analyze">analyze</button>
+              <button class="cmd-btn" data-cmd="flutter doctor"        data-label="doctor">doctor</button>
+              <button class="cmd-btn" data-cmd="flutter clean"         data-label="clean">clean</button>
+              <button class="cmd-btn" data-cmd="flutter run"           data-label="run">run</button>
+              <button class="cmd-btn" data-cmd="flutter build apk"     data-label="build apk">build apk</button>
+              <button class="cmd-btn" data-cmd="flutter build web"     data-label="build web">build web</button>
+              <button class="cmd-btn" data-cmd="flutter build ios"     data-label="build ios">build ios</button>
+              <button class="cmd-btn" data-cmd="flutter test"          data-label="test">test</button>
+            </div>
+          </section>
+          <section class="cmd-section">
+            <h3 class="cmd-section-title">Firebase</h3>
+            <div class="cmd-grid">
+              <button class="cmd-btn" data-cmd="firebase emulators:start"            data-label="emulators:start">emulators:start</button>
+              <button class="cmd-btn" data-cmd="firebase deploy --only hosting"      data-label="deploy hosting">deploy hosting</button>
+              <button class="cmd-btn" data-cmd="firebase deploy --only functions"    data-label="deploy functions">deploy functions</button>
+              <button class="cmd-btn" data-cmd="firebase deploy --only firestore"    data-label="deploy firestore">deploy firestore</button>
+              <button class="cmd-btn" data-cmd="firebase deploy"                     data-label="deploy all">deploy all</button>
+            </div>
+          </section>
+          <section class="cmd-section">
+            <h3 class="cmd-section-title">npm scripts <span id="npm-project-name"></span></h3>
+            <div id="npm-pinned" class="cmd-subsection hidden">
+              <div class="cmd-subsection-label">ピン留め</div>
+              <div class="cmd-grid" id="pinned-grid"></div>
+            </div>
+            <div class="cmd-subsection">
+              <div class="cmd-subsection-label">すべて</div>
+              <div id="npm-grid" class="cmd-grid">
+                <span class="cmd-empty">プロジェクトを選択すると npm scripts が表示されます</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- ドキュメントタブ -->
+      <div id="tab-docs" class="tab-content hidden">
+        <div id="docs-layout">
+          <aside id="docs-sidebar">
+            <div id="docs-sidebar-header">ファイル</div>
+            <ul id="docs-file-list"></ul>
+          </aside>
+          <div id="docs-content">
+            <div id="docs-breadcrumb"></div>
+            <article id="docs-body">
+              <span class="log-muted">プロジェクトを選択すると README.md が表示されます</span>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <!-- 依存チェックタブ -->
+      <div id="tab-deps" class="tab-content hidden">
+        <div id="deps-toolbar">
+          <span id="deps-project-name"></span>
+          <div id="deps-actions">
+            <button id="deps-refresh-btn">更新チェック</button>
+            <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
+            <button id="deps-upgrade-btn" class="btn-secondary">flutter pub upgrade</button>
+          </div>
+        </div>
+        <div id="deps-status"></div>
+        <div id="deps-table-wrap">
+          <table id="deps-table">
+            <thead>
+              <tr>
+                <th>パッケージ</th>
+                <th>現在</th>
+                <th>最新</th>
+                <th>状態</th>
+                <th>種別</th>
+              </tr>
+            </thead>
+            <tbody id="deps-tbody">
+              <tr><td colspan="5" class="deps-empty">プロジェクトを選択して「更新チェック」を押してください</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 環境変数タブ -->
+      <div id="tab-env" class="tab-content hidden">
+        <div id="env-layout">
+          <!-- 左: ファイル一覧 + Firebase リンク -->
+          <aside id="env-sidebar">
+            <div class="env-sidebar-section">
+              <div class="env-sidebar-header">.env ファイル</div>
+              <ul id="env-file-list"></ul>
+            </div>
+            <div class="env-sidebar-section">
+              <div class="env-sidebar-header">Firebase</div>
+              <a id="emulator-link" href="http://localhost:4000" target="_blank" class="emulator-btn">
+                Emulator UI を開く
+                <span class="emulator-port">:4000</span>
+              </a>
+            </div>
+          </aside>
+
+          <!-- 右: 変数テーブル -->
+          <div id="env-content">
+            <div id="env-toolbar">
+              <span id="env-file-label">ファイルを選択してください</span>
+              <label id="reveal-label">
+                <input type="checkbox" id="reveal-toggle"> 値を表示
+              </label>
+            </div>
+            <div id="env-table-wrap">
+              <table id="env-table">
+                <thead>
+                  <tr>
+                    <th>キー</th>
+                    <th>値</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="env-tbody">
+                  <tr><td colspan="3" class="deps-empty">← ファイルを選択</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Git タブ -->
+      <div id="tab-git" class="tab-content hidden">
+        <div id="git-layout">
+
+          <!-- 左: ブランチ + サマリー + スタッシュ -->
+          <aside id="git-sidebar">
+            <div class="git-card" id="git-branch-card">
+              <div class="git-card-label">ブランチ</div>
+              <div id="git-branch">—</div>
+            </div>
+            <div class="git-card" id="git-summary-card">
+              <div class="git-card-label">変更サマリー</div>
+              <div id="git-summary"></div>
+            </div>
+            <div class="git-card" id="git-stash-card">
+              <div class="git-card-label">スタッシュ</div>
+              <ul id="git-stash-list"></ul>
+            </div>
+            <button id="git-refresh-btn">更新</button>
+          </aside>
+
+          <!-- 右: 変更ファイル + コミット履歴 -->
+          <div id="git-main">
+            <div class="git-section">
+              <div class="git-section-title">変更ファイル <span id="git-changes-count"></span></div>
+              <ul id="git-changes-list"></ul>
+            </div>
+            <div class="git-section">
+              <div class="git-section-title">コミット履歴（最新15件）</div>
+              <ul id="git-log-list"></ul>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
