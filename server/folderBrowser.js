@@ -38,7 +38,7 @@ function handleBrowse(req, res, url) {
   if (!reqPath) {
     if (os.platform() === 'win32') {
       res.writeHead(200);
-      return res.end(JSON.stringify({ path: '', entries: getWindowsDrives() }));
+      return res.end(JSON.stringify({ path: '', entries: getWindowsDrives(), history: loadHistory() }));
     } else {
       return handleBrowse(req, res, new URL(`?path=${os.homedir()}`, url));
     }
