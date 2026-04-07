@@ -56,15 +56,28 @@
         </aside>
         <div id="log-area">
           <div id="log-toolbar">
-            <span id="log-title">ログを表示するプロセスを選択</span>
+            <span id="log-title">Select a process to view logs</span>
             <div id="log-actions">
-              <button id="log-clear">クリア</button>
+              <input type="text" id="log-filter" placeholder="Filter..." title="Keyword filter">
+              <button id="log-save">Save</button>
+              <button id="log-clear">Clear</button>
               <label id="autoscroll-label">
-                <input type="checkbox" id="autoscroll" checked> 自動スクロール
+                <input type="checkbox" id="autoscroll" checked> Auto scroll
               </label>
             </div>
           </div>
-          <pre id="log-output"><span class="log-muted">← プロセスを選択するとログが表示されます</span></pre>
+          <pre id="log-output"><span class="log-muted">Select a process to view logs</span></pre>
+          <div id="stdin-bar" class="hidden">
+            <div id="stdin-quickkeys">
+              <button class="stdin-key" data-key="r">r</button>
+              <button class="stdin-key" data-key="R">R</button>
+              <button class="stdin-key" data-key="q">q</button>
+              <button class="stdin-key" data-key="d">d</button>
+              <button class="stdin-key" data-key="s">s</button>
+            </div>
+            <input type="text" id="stdin-input" placeholder="Send to stdin...">
+            <button id="stdin-send">Send</button>
+          </div>
         </div>
       </div>
 

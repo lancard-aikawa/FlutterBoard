@@ -155,11 +155,16 @@ const processList = document.getElementById('process-list');
 const logOutput   = document.getElementById('log-output');
 const logTitle    = document.getElementById('log-title');
 const logClear    = document.getElementById('log-clear');
+const logSave     = document.getElementById('log-save');
+const logFilter   = document.getElementById('log-filter');
 const autoscroll  = document.getElementById('autoscroll');
+const stdinBar    = document.getElementById('stdin-bar');
+const stdinInput  = document.getElementById('stdin-input');
+const stdinSend   = document.getElementById('stdin-send');
 
-// activeId: 現在ログを表示中のプロセスID
-let activeId  = null;
-let activeSSE = null;
+let activeId    = null;
+let activeSSE   = null;
+let logBuffer   = []; // { type, data } のクライアント側バッファ
 
 // ---- プロセス起動 ----
 runBtn.onclick = async () => {
@@ -181,7 +186,7 @@ runBtn.onclick = async () => {
 
   cmdInput.value   = '';
   labelInput.value = '';
-  refreshProcessList(data.id); // 起動直後に新プロセスを選択
+  refreshProcessList(data.id);
 };
 cmdInput.addEventListener('keydown', e => { if (e.key === 'Enter') runBtn.click(); });
 
@@ -191,21 +196,16 @@ async function refreshProcessList(selectId) {
   const list = await res.json();
 
   processList.innerHTML = '';
-  list.forEach(p => {
-    const li = buildProcessItem(p);
-    processList.appendChild(li);
-  });
+  list.forEach(p => processList.appendChild(buildProcessItem(p)));
 
-  // 指定IDがあればそれを選択、なければ activeId を維持
   const targetId = selectId ?? activeId;
-  if (targetId !== null && list.find(p => p.id === targetId)) {
-    selectProcess(targetId, list.find(p => p.id === targetId).label);
-  }
+  const target   = list.find(p => p.id === targetId);
+  if (target) selectProcess(target.id, target.label, target.running);
 }
 
 function buildProcessItem(p) {
   const li = document.createElement('li');
-  li.className = 'proc-item' + (p.id === activeId ? ' active' : '');
+  li.className  = 'proc-item' + (p.id === activeId ? ' active' : '');
   li.dataset.id = p.id;
 
   const dotClass = p.running ? 'running' : (p.exitCode !== 0 ? 'error' : 'exited');
@@ -217,7 +217,7 @@ function buildProcessItem(p) {
       <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
       <span class="proc-actions">
         ${p.running
-          ? `<button class="btn-stop" data-id="${p.id}">■</button>`
+          ? `<button class="btn-stop"   data-id="${p.id}">■</button>`
           : `<button class="btn-remove" data-id="${p.id}">✕</button>`}
       </span>
     </div>
@@ -225,7 +225,7 @@ function buildProcessItem(p) {
 
   li.addEventListener('click', e => {
     if (e.target.closest('button')) return;
-    selectProcess(p.id, p.label);
+    selectProcess(p.id, p.label, p.running);
   });
 
   li.querySelector('.btn-stop, .btn-remove').addEventListener('click', async e => {
@@ -238,10 +238,11 @@ function buildProcessItem(p) {
       body: JSON.stringify({ id }),
     });
     if (activeId === id && !p.running) {
-      activeId  = null;
-      activeSSE = null;
-      logOutput.innerHTML = '<span class="log-muted">← プロセスを選択するとログが表示されます</span>';
-      logTitle.textContent = 'ログを表示するプロセスを選択';
+      activeId = null; activeSSE = null; logBuffer = [];
+      logOutput.innerHTML  = '<span class="log-muted">Select a process to view logs</span>';
+      logTitle.textContent = 'Select a process to view logs';
+      logTitle.classList.remove('exited');
+      stdinBar.classList.add('hidden');
     }
     refreshProcessList(null);
   });
@@ -250,44 +251,102 @@ function buildProcessItem(p) {
 }
 
 // ---- プロセス選択 → SSE接続 ----
-function selectProcess(id, label) {
+function selectProcess(id, label, running) {
   if (activeSSE) { activeSSE.close(); activeSSE = null; }
 
-  activeId = id;
+  activeId  = id;
+  logBuffer = [];
+  logOutput.innerHTML = '';
   logTitle.textContent = label;
-  logOutput.innerHTML  = '';
+  logTitle.classList.remove('exited');
+  logFilter.value = '';
+  logFilter.classList.remove('active');
 
-  // アクティブ表示を更新
   document.querySelectorAll('.proc-item').forEach(el => {
     el.classList.toggle('active', parseInt(el.dataset.id) === id);
   });
+
+  // stdin バーは実行中のみ表示
+  stdinBar.classList.toggle('hidden', !running);
 
   const sse = new EventSource(`/api/process/stream?id=${id}`);
   activeSSE = sse;
 
   sse.onmessage = e => {
     const { type, data } = JSON.parse(e.data);
-    appendLog(type, data);
+    logBuffer.push({ type, data });
+    appendLogEntry(type, data);
+
+    // プロセス終了 → 監視モード解除
+    if (type === 'exit') {
+      autoscroll.checked = false;
+      logTitle.classList.add('exited');
+      stdinBar.classList.add('hidden');
+      sse.close();
+      activeSSE = null;
+      refreshProcessList(null);
+    }
   };
-  sse.onerror = () => {
-    // プロセス終了後は SSE が切れる — 一覧を再取得
-    sse.close();
-    refreshProcessList(null);
-  };
+  sse.onerror = () => { sse.close(); refreshProcessList(null); };
 }
 
-function appendLog(type, text) {
-  const span       = document.createElement('span');
+// ---- ログ表示 ----
+function appendLogEntry(type, text) {
+  const keyword = logFilter.value.trim().toLowerCase();
+  const span    = document.createElement('span');
   span.className   = `log-${type}`;
   span.textContent = text;
-  logOutput.appendChild(span);
 
-  if (autoscroll.checked) {
-    logOutput.scrollTop = logOutput.scrollHeight;
+  if (keyword && !text.toLowerCase().includes(keyword)) {
+    span.classList.add('log-filtered-hidden');
   }
+
+  logOutput.appendChild(span);
+  if (autoscroll.checked) logOutput.scrollTop = logOutput.scrollHeight;
 }
 
-logClear.onclick = () => { logOutput.innerHTML = ''; };
+// ---- フィルター ----
+logFilter.addEventListener('input', () => {
+  const keyword = logFilter.value.trim().toLowerCase();
+  logFilter.classList.toggle('active', keyword.length > 0);
+
+  logOutput.querySelectorAll('span[class^="log-"]').forEach(span => {
+    const hidden = keyword && !span.textContent.toLowerCase().includes(keyword);
+    span.classList.toggle('log-filtered-hidden', hidden);
+  });
+});
+
+// ---- ログ保存 ----
+logSave.onclick = () => {
+  if (activeId !== null) {
+    // サーバー側バッファからダウンロード（タイムスタンプ付き）
+    window.open(`/api/process/log?id=${activeId}`, '_blank');
+  }
+};
+
+// ---- ログクリア ----
+logClear.onclick = () => { logOutput.innerHTML = ''; logBuffer = []; };
+
+// ---- stdin ----
+stdinSend.onclick = () => sendStdin(stdinInput.value);
+stdinInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { sendStdin(stdinInput.value); stdinInput.value = ''; }
+});
+
+document.querySelectorAll('.stdin-key').forEach(btn => {
+  btn.addEventListener('click', () => sendStdin(btn.dataset.key + '\n'));
+});
+
+async function sendStdin(text) {
+  if (activeId === null || !text) return;
+  const res  = await fetch('/api/process/input', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: activeId, text }),
+  });
+  const data = await res.json();
+  if (!data.ok) console.warn('stdin write failed:', data.error);
+}
 
 // =====================================================================
 // コマンドランナー（フェーズ3）
