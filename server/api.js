@@ -3,6 +3,7 @@ const { handleProcess }     = require('./processManager');
 const { handleProjectInfo } = require('./projectInfo');
 const { handleMarkdown }    = require('./markdownHandler');
 const { handlePubspec }     = require('./pubspecChecker');
+const { handleNpm }         = require('./npmChecker');
 const { handleEnv }         = require('./envManager');
 const { handleGit }         = require('./gitStatus');
 
@@ -30,6 +31,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/pubspec')) {
     return handlePubspec(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/npm')) {
+    return handleNpm(req, res, url);
   }
 
   if (pathname.startsWith('/api/env')) {

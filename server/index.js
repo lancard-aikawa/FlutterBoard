@@ -49,4 +49,11 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`FlutterBoard running at http://localhost:${PORT}`);
+
+  // Write PID file so stop.cmd can find the exact node process
+  const pidFile = path.join(__dirname, '..', 'config', 'flutterboard.pid');
+  try {
+    fs.mkdirSync(path.dirname(pidFile), { recursive: true });
+    fs.writeFileSync(pidFile, String(process.pid), 'utf-8');
+  } catch (_) {}
 });

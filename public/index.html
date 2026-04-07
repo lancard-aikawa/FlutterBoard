@@ -51,7 +51,12 @@
             <input type="text" id="label-input" placeholder="ラベル（省略可）">
             <button id="run-btn">▶ 実行</button>
           </div>
-          <div id="process-list-header">実行中 / 履歴</div>
+          <div id="process-list-header">
+            <span>実行中 / 履歴</span>
+            <label id="autoreload-label">
+              <input type="checkbox" id="autoreload" checked> 自動更新
+            </label>
+          </div>
           <ul id="process-list"></ul>
         </aside>
         <div id="log-area">
@@ -68,6 +73,22 @@
           </div>
           <pre id="log-output"><span class="log-muted">Select a process to view logs</span></pre>
           <div id="stdin-bar" class="hidden">
+            <!-- Ctrl キー -->
+            <div id="stdin-ctrl-group">
+              <button class="stdin-ctrl-btn" data-char="\x03" title="Ctrl+C — interrupt">^C</button>
+              <select id="stdin-ctrl-select">
+                <option value="" disabled selected>Ctrl...</option>
+                <option value="\x03">Ctrl+C  (interrupt)</option>
+                <option value="\x04">Ctrl+D  (EOF / Unix)</option>
+                <option value="\x1a">Ctrl+Z  (EOF / Windows)</option>
+                <option value="\x0c">Ctrl+L  (clear screen)</option>
+                <option value="\x1c">Ctrl+\  (SIGQUIT)</option>
+                <option value="\x12">Ctrl+R  (history search)</option>
+                <option value="\x15">Ctrl+U  (clear line)</option>
+              </select>
+              <button id="stdin-ctrl-send">Send</button>
+            </div>
+            <!-- Flutter / 汎用クイックキー -->
             <div id="stdin-quickkeys">
               <button class="stdin-key" data-key="r">r</button>
               <button class="stdin-key" data-key="R">R</button>
@@ -75,7 +96,8 @@
               <button class="stdin-key" data-key="d">d</button>
               <button class="stdin-key" data-key="s">s</button>
             </div>
-            <input type="text" id="stdin-input" placeholder="Send to stdin...">
+            <!-- 自由入力 -->
+            <input type="text" id="stdin-input" placeholder="stdin...">
             <button id="stdin-send">Send</button>
           </div>
         </div>
@@ -84,44 +106,117 @@
       <!-- コマンドタブ -->
       <div id="tab-commands" class="tab-content hidden">
         <div id="commands-container">
+
+          <!-- Flutter -->
           <section class="cmd-section">
             <h3 class="cmd-section-title">Flutter</h3>
-            <div class="cmd-grid">
-              <button class="cmd-btn" data-cmd="flutter pub get"       data-label="pub get">pub get</button>
-              <button class="cmd-btn" data-cmd="flutter pub upgrade"   data-label="pub upgrade">pub upgrade</button>
-              <button class="cmd-btn" data-cmd="flutter analyze"       data-label="analyze">analyze</button>
-              <button class="cmd-btn" data-cmd="flutter doctor"        data-label="doctor">doctor</button>
-              <button class="cmd-btn" data-cmd="flutter clean"         data-label="clean">clean</button>
-              <button class="cmd-btn" data-cmd="flutter run"           data-label="run">run</button>
-              <button class="cmd-btn" data-cmd="flutter build apk"     data-label="build apk">build apk</button>
-              <button class="cmd-btn" data-cmd="flutter build web"     data-label="build web">build web</button>
-              <button class="cmd-btn" data-cmd="flutter build ios"     data-label="build ios">build ios</button>
-              <button class="cmd-btn" data-cmd="flutter test"          data-label="test">test</button>
-            </div>
+            <table class="cmd-table">
+              <tr>
+                <td class="cmd-category">プロジェクト</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="flutter pub get"         data-label="pub get">pub get</button>
+                  <button class="cmd-btn" data-cmd="flutter pub upgrade"      data-label="pub upgrade">pub upgrade</button>
+                  <button class="cmd-btn" data-cmd="flutter pub outdated"     data-label="pub outdated">pub outdated</button>
+                  <button class="cmd-btn" data-cmd="flutter clean"            data-label="clean">clean</button>
+                  <button class="cmd-btn" data-cmd="flutter doctor"           data-label="doctor">doctor</button>
+                  <button class="cmd-btn" data-cmd="flutter doctor -v"        data-label="doctor -v">doctor -v</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="cmd-category">デバイス</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="flutter devices"          data-label="devices">devices</button>
+                  <button class="cmd-btn" data-cmd="flutter emulators"        data-label="emulators">emulators</button>
+                  <button class="cmd-btn" data-cmd="flutter attach"           data-label="attach">attach</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="cmd-category">実行</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="flutter run"              data-label="run (debug)">run</button>
+                  <button class="cmd-btn" data-cmd="flutter run --release"    data-label="run --release">run --release</button>
+                  <button class="cmd-btn" data-cmd="flutter run --profile"    data-label="run --profile">run --profile</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="cmd-category">ビルド</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="flutter build apk"        data-label="build apk">apk</button>
+                  <button class="cmd-btn" data-cmd="flutter build appbundle"  data-label="build appbundle">appbundle</button>
+                  <button class="cmd-btn" data-cmd="flutter build web"        data-label="build web">web</button>
+                  <button class="cmd-btn" data-cmd="flutter build ios"        data-label="build ios">ios</button>
+                  <button class="cmd-btn" data-cmd="flutter build ipa"        data-label="build ipa">ipa</button>
+                  <button class="cmd-btn" data-cmd="flutter build macos"      data-label="build macos">macos</button>
+                  <button class="cmd-btn" data-cmd="flutter build windows"    data-label="build windows">windows</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="cmd-category">テスト / 品質</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="flutter test"             data-label="test">test</button>
+                  <button class="cmd-btn" data-cmd="flutter test --coverage"  data-label="test --coverage">test --coverage</button>
+                  <button class="cmd-btn" data-cmd="flutter analyze"          data-label="analyze">analyze</button>
+                  <button class="cmd-btn" data-cmd="flutter format ."         data-label="format">format</button>
+                </td>
+              </tr>
+            </table>
           </section>
+
+          <!-- Firebase -->
           <section class="cmd-section">
             <h3 class="cmd-section-title">Firebase</h3>
-            <div class="cmd-grid">
-              <button class="cmd-btn" data-cmd="firebase emulators:start"            data-label="emulators:start">emulators:start</button>
-              <button class="cmd-btn" data-cmd="firebase deploy --only hosting"      data-label="deploy hosting">deploy hosting</button>
-              <button class="cmd-btn" data-cmd="firebase deploy --only functions"    data-label="deploy functions">deploy functions</button>
-              <button class="cmd-btn" data-cmd="firebase deploy --only firestore"    data-label="deploy firestore">deploy firestore</button>
-              <button class="cmd-btn" data-cmd="firebase deploy"                     data-label="deploy all">deploy all</button>
-            </div>
+            <table class="cmd-table">
+              <tr>
+                <td class="cmd-category">エミュレーター</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="firebase emulators:start"              data-label="emulators:start">emulators:start</button>
+                  <button class="cmd-btn" data-cmd="firebase emulators:start --only auth,firestore" data-label="emulators auth+firestore">auth + firestore</button>
+                  <button class="cmd-btn" data-cmd="firebase emulators:start --only functions" data-label="emulators functions">functions only</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="cmd-category">デプロイ</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="firebase deploy"                       data-label="deploy all">all</button>
+                  <button class="cmd-btn" data-cmd="firebase deploy --only hosting"        data-label="deploy hosting">hosting</button>
+                  <button class="cmd-btn" data-cmd="firebase deploy --only functions"      data-label="deploy functions">functions</button>
+                  <button class="cmd-btn" data-cmd="firebase deploy --only firestore"      data-label="deploy firestore">firestore</button>
+                  <button class="cmd-btn" data-cmd="firebase deploy --only storage"        data-label="deploy storage">storage</button>
+                  <button class="cmd-btn" data-cmd="firebase deploy --only firestore:rules" data-label="deploy rules">rules</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="cmd-category">管理</td>
+                <td>
+                  <button class="cmd-btn" data-cmd="firebase projects:list"                data-label="projects:list">projects:list</button>
+                  <button class="cmd-btn" data-cmd="firebase use"                          data-label="firebase use">use (show)</button>
+                  <button class="cmd-btn" data-cmd="firebase login"                        data-label="firebase login">login</button>
+                </td>
+              </tr>
+            </table>
           </section>
+
+          <!-- npm scripts -->
           <section class="cmd-section">
             <h3 class="cmd-section-title">npm scripts <span id="npm-project-name"></span></h3>
-            <div id="npm-pinned" class="cmd-subsection hidden">
-              <div class="cmd-subsection-label">ピン留め</div>
-              <div class="cmd-grid" id="pinned-grid"></div>
-            </div>
-            <div class="cmd-subsection">
-              <div class="cmd-subsection-label">すべて</div>
-              <div id="npm-grid" class="cmd-grid">
-                <span class="cmd-empty">プロジェクトを選択すると npm scripts が表示されます</span>
-              </div>
-            </div>
+            <table class="cmd-table" id="npm-pinned-row" style="display:none">
+              <tr>
+                <td class="cmd-category">ピン留め</td>
+                <td><div class="cmd-grid" id="pinned-grid"></div></td>
+              </tr>
+            </table>
+            <table class="cmd-table">
+              <tr>
+                <td class="cmd-category">scripts</td>
+                <td>
+                  <div id="npm-grid" class="cmd-grid">
+                    <span class="cmd-empty">プロジェクトを選択すると npm scripts が表示されます</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
           </section>
+
         </div>
       </div>
 
@@ -146,25 +241,94 @@
         <div id="deps-toolbar">
           <span id="deps-project-name"></span>
           <div id="deps-actions">
+            <div id="deps-source-toggle">
+              <button class="deps-src-btn active" data-src="pubspec">pubspec.yaml</button>
+              <button class="deps-src-btn"        data-src="npm">package.json</button>
+            </div>
+            <label class="deps-threshold-label" title="N日以内に公開されたバージョンを警告表示">
+              ⚠ しきい値
+              <input type="number" id="deps-threshold" value="7" min="1" max="365">
+              日
+            </label>
             <button id="deps-refresh-btn">更新チェック</button>
             <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
             <button id="deps-upgrade-btn" class="btn-secondary">flutter pub upgrade</button>
+            <!-- npm 専用アクション (npm ソース選択時のみ表示) -->
+            <div id="deps-npm-actions" class="hidden">
+              <button id="deps-select-trusted" class="btn-secondary" title="Provenance あり かつ N日以上経過したパッケージを選択">信頼済みのみ選択</button>
+              <button id="deps-select-all"     class="btn-secondary">全選択</button>
+              <button id="deps-deselect-all"   class="btn-secondary">全解除</button>
+              <button id="deps-install-btn"                          title="チェックしたパッケージを npm install で一括インストール">選択をインストール</button>
+              <button id="npm-add-toggle"      title="npm パッケージを検索して追加">＋ パッケージ追加</button>
+            </div>
           </div>
         </div>
         <div id="deps-status"></div>
+
+        <!-- パッケージ追加パネル -->
+        <div id="npm-add-panel" class="hidden">
+          <div id="npm-search-bar">
+            <input type="text" id="npm-search-input" placeholder="パッケージ名を検索（例: node-pty）">
+            <button id="npm-search-btn">検索</button>
+            <button id="npm-add-close" class="btn-ghost">✕</button>
+          </div>
+          <div id="npm-add-body">
+            <!-- 左: 検索結果 -->
+            <div id="npm-results-col">
+              <div id="npm-search-status" class="npm-add-hint">パッケージ名を入力して検索</div>
+              <ul id="npm-search-results"></ul>
+            </div>
+            <!-- 右: バージョン詳細 -->
+            <div id="npm-detail-col" class="hidden">
+              <div id="npm-detail-header">
+                <span id="npm-detail-name"></span>
+                <span id="npm-detail-desc"></span>
+                <a id="npm-detail-link" href="#" target="_blank" rel="noopener">npm ↗</a>
+              </div>
+              <div id="npm-version-wrap">
+                <table id="npm-version-table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>バージョン</th>
+                      <th>公開日</th>
+                      <th>経過日数</th>
+                      <th>Provenance</th>
+                    </tr>
+                  </thead>
+                  <tbody id="npm-version-tbody"></tbody>
+                </table>
+              </div>
+              <div id="npm-action-bar">
+                <span id="npm-selected-label">← バージョンを選択</span>
+                <select id="npm-dep-type">
+                  <option value="dep">dependencies</option>
+                  <option value="dev">devDependencies</option>
+                </select>
+                <button id="npm-write-btn"   disabled>package.json に追記</button>
+                <button id="npm-install-run" disabled>npm install 実行</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div id="deps-table-wrap">
           <table id="deps-table">
             <thead>
               <tr>
+                <th id="deps-th-check" class="hidden"><input type="checkbox" id="deps-check-all" title="全選択 / 全解除"></th>
                 <th>パッケージ</th>
                 <th>現在</th>
                 <th>最新</th>
                 <th>状態</th>
+                <th>公開日（現在版）</th>
+                <th>経過日数</th>
+                <th id="deps-th-provenance" class="hidden">Provenance</th>
                 <th>種別</th>
               </tr>
             </thead>
             <tbody id="deps-tbody">
-              <tr><td colspan="5" class="deps-empty">プロジェクトを選択して「更新チェック」を押してください</td></tr>
+              <tr><td colspan="8" class="deps-empty">プロジェクトを選択して「更新チェック」を押してください</td></tr>
             </tbody>
           </table>
         </div>

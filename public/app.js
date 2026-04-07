@@ -158,13 +158,14 @@ const logClear    = document.getElementById('log-clear');
 const logSave     = document.getElementById('log-save');
 const logFilter   = document.getElementById('log-filter');
 const autoscroll  = document.getElementById('autoscroll');
+const autoreload  = document.getElementById('autoreload');
 const stdinBar    = document.getElementById('stdin-bar');
 const stdinInput  = document.getElementById('stdin-input');
 const stdinSend   = document.getElementById('stdin-send');
 
 let activeId    = null;
 let activeSSE   = null;
-let logBuffer   = []; // { type, data } のクライアント側バッファ
+let logBuffer   = [];
 
 // ---- プロセス起動 ----
 runBtn.onclick = async () => {
@@ -190,17 +191,48 @@ runBtn.onclick = async () => {
 };
 cmdInput.addEventListener('keydown', e => { if (e.key === 'Enter') runBtn.click(); });
 
-// ---- プロセス一覧を更新 ----
-async function refreshProcessList(selectId) {
+// ---- プロセス一覧を更新（最短 500ms 間隔のスロットル） ----
+const REFRESH_MIN_MS = 500;
+let _refreshLastAt  = 0;
+let _refreshTimer   = null;
+let _refreshPending = null; // 保留中の selectId
+
+function refreshProcessList(selectId) {
+  // 保留中のリクエストがあれば selectId を上書き（最新を優先）
+  if (_refreshTimer) {
+    // null means "list-only update" — don't overwrite a real pending selectId
+    _refreshPending = selectId ?? _refreshPending;
+    return;
+  }
+  const elapsed = Date.now() - _refreshLastAt;
+  if (elapsed >= REFRESH_MIN_MS) {
+    // 前回から十分経過 → 即実行
+    _doRefresh(selectId);
+  } else {
+    // 間隔が短すぎる → 残り時間後に実行
+    _refreshPending = selectId;
+    _refreshTimer = setTimeout(() => {
+      _refreshTimer = null;
+      const sid = _refreshPending;
+      _refreshPending = null;
+      _doRefresh(sid);
+    }, REFRESH_MIN_MS - elapsed);
+  }
+}
+
+async function _doRefresh(selectId) {
+  _refreshLastAt = Date.now();
   const res  = await fetch('/api/process/list');
   const list = await res.json();
 
   processList.innerHTML = '';
   list.forEach(p => processList.appendChild(buildProcessItem(p)));
 
-  const targetId = selectId ?? activeId;
-  const target   = list.find(p => p.id === targetId);
-  if (target) selectProcess(target.id, target.label, target.running);
+  // selectId=null means "update list UI only" — do NOT re-open SSE via selectProcess
+  if (selectId != null) {
+    const target = list.find(p => p.id === selectId);
+    if (target) selectProcess(target.id, target.label, target.running);
+  }
 }
 
 function buildProcessItem(p) {
@@ -208,17 +240,18 @@ function buildProcessItem(p) {
   li.className  = 'proc-item' + (p.id === activeId ? ' active' : '');
   li.dataset.id = p.id;
 
-  const dotClass = p.running ? 'running' : (p.exitCode !== 0 ? 'error' : 'exited');
-  const elapsed  = formatElapsed(p.startedAt);
+  const dotClass  = p.running ? 'running' : (p.exitCode !== 0 ? 'error' : 'exited');
+  const elapsed   = formatElapsed(p.startedAt);
+  const ptyBadge  = p.pty ? '<span class="pty-badge">PTY</span>' : '';
 
   li.innerHTML = `
     <div class="proc-top">
       <span class="proc-dot ${dotClass}"></span>
-      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}</span>
+      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}</span>
       <span class="proc-actions">
         ${p.running
-          ? `<button class="btn-stop"   data-id="${p.id}">■</button>`
-          : `<button class="btn-remove" data-id="${p.id}">✕</button>`}
+          ? `<button class="btn-stop">■</button>`
+          : `<button class="btn-remove">✕</button>`}
       </span>
     </div>
     <div class="proc-meta">${elapsed}</div>`;
@@ -230,15 +263,16 @@ function buildProcessItem(p) {
 
   li.querySelector('.btn-stop, .btn-remove').addEventListener('click', async e => {
     e.stopPropagation();
-    const id  = parseInt(e.target.dataset.id);
+    const id  = p.id;  // closure value — e.target が親要素になる場合を避ける
     const api = p.running ? '/api/process/stop' : '/api/process/remove';
     await fetch(api, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
-    if (activeId === id && !p.running) {
-      activeId = null; activeSSE = null; logBuffer = [];
+    if (activeId === id) {
+      if (activeSSE) { activeSSE.close(); activeSSE = null; }  // SSE を明示的に閉じる
+      activeId = null; logBuffer = [];
       logOutput.innerHTML  = '<span class="log-muted">Select a process to view logs</span>';
       logTitle.textContent = 'Select a process to view logs';
       logTitle.classList.remove('exited');
@@ -271,23 +305,33 @@ function selectProcess(id, label, running) {
 
   const sse = new EventSource(`/api/process/stream?id=${id}`);
   activeSSE = sse;
+  let exited = false; // 二重発火防止フラグ
 
   sse.onmessage = e => {
     const { type, data } = JSON.parse(e.data);
     logBuffer.push({ type, data });
     appendLogEntry(type, data);
 
-    // プロセス終了 → 監視モード解除
     if (type === 'exit') {
+      exited = true;
       autoscroll.checked = false;
+      autoreload.checked = false;
       logTitle.classList.add('exited');
       stdinBar.classList.add('hidden');
+      // stdin バーが隠れたら activeId はそのまま（ログは引き続き閲覧可）
       sse.close();
       activeSSE = null;
-      refreshProcessList(null);
+      refreshProcessList(null);  // ドット色・ボタンを exited に更新
     }
   };
-  sse.onerror = () => { sse.close(); refreshProcessList(null); };
+  sse.onerror = () => {
+    if (exited) return;  // exit イベント処理済み → 二重更新防止
+    // プロセスが即終了して SSE が 404 を返した場合もここに来る
+    sse.close();
+    activeSSE = null;
+    // サーバー側の最新状態を取得して UI を同期
+    refreshProcessList(null);
+  };
 }
 
 // ---- ログ表示 ----
@@ -328,13 +372,34 @@ logSave.onclick = () => {
 logClear.onclick = () => { logOutput.innerHTML = ''; logBuffer = []; };
 
 // ---- stdin ----
-stdinSend.onclick = () => sendStdin(stdinInput.value);
-stdinInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') { sendStdin(stdinInput.value); stdinInput.value = ''; }
+
+// "\x03" のような文字列リテラルを実際の制御文字に変換
+function parseCtrlChar(str) {
+  return str.replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) =>
+    String.fromCharCode(parseInt(hex, 16))
+  );
+}
+
+// Ctrl+C ボタン
+document.querySelector('.stdin-ctrl-btn').addEventListener('click', () => {
+  sendStdin(parseCtrlChar('\x03'));
 });
 
+// Ctrl セレクト + Send
+document.getElementById('stdin-ctrl-send').addEventListener('click', () => {
+  const val = document.getElementById('stdin-ctrl-select').value;
+  if (val) sendStdin(parseCtrlChar(val));
+});
+
+// クイックキー
 document.querySelectorAll('.stdin-key').forEach(btn => {
   btn.addEventListener('click', () => sendStdin(btn.dataset.key + '\n'));
+});
+
+// 自由入力
+stdinSend.onclick = () => { sendStdin(stdinInput.value); stdinInput.value = ''; };
+stdinInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { sendStdin(stdinInput.value); stdinInput.value = ''; }
 });
 
 async function sendStdin(text) {
@@ -367,12 +432,11 @@ async function loadProjectInfo(projectPath) {
 
 function renderNpmScripts() {
   const grid      = document.getElementById('npm-grid');
-  const pinnedDiv = document.getElementById('npm-pinned');
   const pinnedGrid= document.getElementById('pinned-grid');
 
   if (!projectInfo || !projectInfo.hasNodePkg) {
     grid.innerHTML = '<span class="cmd-empty">package.json が見つかりません</span>';
-    pinnedDiv.classList.add('hidden');
+    document.getElementById('npm-pinned-row').style.display = 'none';
     return;
   }
 
@@ -381,13 +445,14 @@ function renderNpmScripts() {
 
   // ピン留めエリア
   pinnedGrid.innerHTML = '';
+  const pinnedRow = document.getElementById('npm-pinned-row');
   if (pinned.length > 0) {
-    pinnedDiv.classList.remove('hidden');
+    pinnedRow.style.display = '';
     pinned.forEach(name => {
       pinnedGrid.appendChild(buildNpmBtn(name, scripts[name] || name, pinned, true));
     });
   } else {
-    pinnedDiv.classList.add('hidden');
+    pinnedRow.style.display = 'none';
   }
 
   // 全スクリプト
@@ -573,45 +638,124 @@ async function loadMdFile(relPath, name) {
 }
 
 // =====================================================================
-// 依存チェック（フェーズ5）
+// 依存チェック（フェーズ5 + サプライチェーンセキュリティ）
 // =====================================================================
 
-const depsProjectName = document.getElementById('deps-project-name');
-const depsStatus      = document.getElementById('deps-status');
-const depsTbody       = document.getElementById('deps-tbody');
-const depsRefreshBtn  = document.getElementById('deps-refresh-btn');
-const depsPubgetBtn   = document.getElementById('deps-pubget-btn');
-const depsUpgradeBtn  = document.getElementById('deps-upgrade-btn');
+const depsProjectName  = document.getElementById('deps-project-name');
+const depsStatus       = document.getElementById('deps-status');
+const depsTbody        = document.getElementById('deps-tbody');
+const depsRefreshBtn   = document.getElementById('deps-refresh-btn');
+const depsPubgetBtn    = document.getElementById('deps-pubget-btn');
+const depsUpgradeBtn   = document.getElementById('deps-upgrade-btn');
+const depsThreshold    = document.getElementById('deps-threshold');
+const depsThProvenance = document.getElementById('deps-th-provenance');
+const depsThCheck      = document.getElementById('deps-th-check');
+const depsCheckAll     = document.getElementById('deps-check-all');
+const depsNpmActions   = document.getElementById('deps-npm-actions');
+
+// Persist threshold in localStorage
+depsThreshold.value = localStorage.getItem('deps-threshold') || '7';
+depsThreshold.addEventListener('change', () => {
+  localStorage.setItem('deps-threshold', depsThreshold.value);
+});
+
+// Source toggle: pubspec | npm
+let depsSource = 'pubspec';
+document.querySelectorAll('.deps-src-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.deps-src-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    depsSource = btn.dataset.src;
+    // npm ソース選択時はすぐに npm 専用 UI を表示（checkDeps を待たない）
+    const isNpm = depsSource === 'npm';
+    depsThProvenance.classList.toggle('hidden', !isNpm);
+    depsThCheck.classList.toggle('hidden', !isNpm);
+    depsNpmActions.classList.toggle('hidden', !isNpm);
+    // プロジェクト選択済みなら自動でチェック実行
+    if (currentProjectPath) checkDeps();
+  });
+});
 
 depsRefreshBtn.onclick = () => checkDeps();
 depsPubgetBtn.onclick  = () => { runCommand('flutter pub get', 'pub get'); document.querySelector('.tab[data-tab="logs"]').click(); };
 depsUpgradeBtn.onclick = () => { runCommand('flutter pub upgrade', 'pub upgrade'); document.querySelector('.tab[data-tab="logs"]').click(); };
 
+// Header checkbox: select / deselect all
+depsCheckAll.addEventListener('change', () => {
+  document.querySelectorAll('.deps-pkg-check').forEach(cb => { cb.checked = depsCheckAll.checked; });
+});
+
+// Select trusted packages only (provenance true AND age >= threshold)
+document.getElementById('deps-select-trusted').addEventListener('click', () => {
+  const threshold = parseInt(depsThreshold.value, 10) || 7;
+  document.querySelectorAll('.deps-pkg-check').forEach(cb => {
+    const tr = cb.closest('tr');
+    cb.checked = tr.dataset.trust === 'full';
+  });
+  depsCheckAll.checked = false;
+});
+
+document.getElementById('deps-select-all').addEventListener('click', () => {
+  document.querySelectorAll('.deps-pkg-check').forEach(cb => { cb.checked = true; });
+  depsCheckAll.checked = true;
+});
+document.getElementById('deps-deselect-all').addEventListener('click', () => {
+  document.querySelectorAll('.deps-pkg-check').forEach(cb => { cb.checked = false; });
+  depsCheckAll.checked = false;
+});
+
+document.getElementById('deps-install-btn').addEventListener('click', () => {
+  const checked = [...document.querySelectorAll('.deps-pkg-check:checked')];
+  if (checked.length === 0) { alert('インストールするパッケージを選択してください'); return; }
+  const args = checked
+    .map(cb => cb.dataset.version ? `${cb.dataset.name}@${cb.dataset.version}` : cb.dataset.name)
+    .join(' ');
+  runCommand(`npm install ${args}`, 'npm install trusted');
+  document.querySelector('.tab[data-tab="logs"]').click();
+});
+
 async function checkDeps() {
   if (!currentProjectPath) { alert('プロジェクトを選択してください'); return; }
 
-  depsStatus.textContent = '⏳ pub.dev に問い合わせ中...';
-  depsTbody.innerHTML = `<tr><td colspan="5" class="deps-empty">読み込み中...</td></tr>`;
+  const isNpm = depsSource === 'npm';
+  depsStatus.textContent = isNpm ? '⏳ npm registry に問い合わせ中...' : '⏳ pub.dev に問い合わせ中...';
+  depsTbody.innerHTML = `<tr><td colspan="8" class="deps-empty">読み込み中...</td></tr>`;
   depsRefreshBtn.disabled = true;
 
+  // Show/hide npm-only UI
+  depsThProvenance.classList.toggle('hidden', !isNpm);
+  depsThCheck.classList.toggle('hidden', !isNpm);
+  depsNpmActions.classList.toggle('hidden', !isNpm);
+  depsCheckAll.checked = false;
+
+  const endpoint = isNpm
+    ? `/api/npm/check?path=${encodeURIComponent(currentProjectPath)}`
+    : `/api/pubspec/check?path=${encodeURIComponent(currentProjectPath)}`;
+
   try {
-    const res  = await fetch(`/api/pubspec/check?path=${encodeURIComponent(currentProjectPath)}`);
+    const res  = await fetch(endpoint);
     const data = await res.json();
 
     if (data.error) {
       depsStatus.textContent = `⚠ ${data.error}`;
-      depsTbody.innerHTML = `<tr><td colspan="5" class="deps-empty">${escHtml(data.error)}</td></tr>`;
+      depsTbody.innerHTML = `<tr><td colspan="8" class="deps-empty">${escHtml(data.error)}</td></tr>`;
       return;
     }
 
-    depsProjectName.textContent = data.projectName ? `${data.projectName}` : '';
-    renderDepsTable(data.packages);
+    depsProjectName.textContent = data.projectName || '';
+    renderDepsTable(data.packages, isNpm);
 
-    const major = data.packages.filter(p => p.status === 'major').length;
-    const minor = data.packages.filter(p => p.status === 'minor').length;
-    const total = data.packages.length;
-    depsStatus.textContent =
-      `✓ ${total}件チェック完了 — MAJOR: ${major}件  minor: ${minor}件`;
+    const threshold = parseInt(depsThreshold.value, 10) || 7;
+    const major  = data.packages.filter(p => p.status === 'major').length;
+    const minor  = data.packages.filter(p => p.status === 'minor').length;
+    const young  = data.packages.filter(p => p.currentAgeInDays !== null && p.currentAgeInDays < threshold).length;
+    const noSig  = isNpm ? data.packages.filter(p => p.provenance === false).length : 0;
+    const total  = data.packages.length;
+
+    let summary = `✓ ${total}件チェック完了 — MAJOR: ${major}件  minor: ${minor}件`;
+    if (young > 0) summary += `  ⚠ 新着 ${threshold}日未満: ${young}件`;
+    if (noSig > 0) summary += `  ⚠ Provenance なし: ${noSig}件`;
+    depsStatus.textContent = summary;
   } catch (e) {
     depsStatus.textContent = `エラー: ${e.message}`;
   } finally {
@@ -619,12 +763,26 @@ async function checkDeps() {
   }
 }
 
-function renderDepsTable(packages) {
+/** Returns 'full' | 'partial' | 'none' based on provenance + age */
+function trustLevel(p, threshold) {
+  const ageOk  = p.currentAgeInDays !== null && p.currentAgeInDays >= threshold;
+  const provOk = p.provenance === true;
+  const ageKnown  = p.currentAgeInDays !== null;
+  const provKnown = p.provenance !== null;
+  if (!ageKnown && !provKnown) return 'unknown';
+  if (provOk && (ageOk || !ageKnown)) return 'full';
+  if (provOk || ageOk) return 'partial';
+  return 'none';
+}
+
+function renderDepsTable(packages, showProvenance) {
   depsTbody.innerHTML = '';
   if (!packages || packages.length === 0) {
-    depsTbody.innerHTML = `<tr><td colspan="5" class="deps-empty">パッケージなし</td></tr>`;
+    depsTbody.innerHTML = `<tr><td colspan="8" class="deps-empty">パッケージなし</td></tr>`;
     return;
   }
+
+  const threshold = parseInt(depsThreshold.value, 10) || 7;
 
   packages.forEach(p => {
     const tr = document.createElement('tr');
@@ -641,15 +799,228 @@ function renderDepsTable(packages) {
     const latest  = p.latest  ?? '—';
     const arrow   = (p.status !== 'latest' && p.latest) ? `→ ${escHtml(latest)}` : escHtml(latest);
 
+    // Age cell
+    let ageHtml = '—';
+    if (p.currentAgeInDays !== null) {
+      const young = p.currentAgeInDays < threshold;
+      ageHtml = young
+        ? `<span class="badge badge-young" title="${p.currentAgeInDays}日 — ${threshold}日しきい値未満">⚠ ${p.currentAgeInDays}日</span>`
+        : `${p.currentAgeInDays}日`;
+    }
+
+    // Published date (short)
+    const pubDate = p.currentPublishedAt
+      ? new Date(p.currentPublishedAt).toLocaleDateString('ja-JP')
+      : '—';
+
+    // Provenance cell (npm only)
+    let provHtml = '';
+    if (showProvenance) {
+      if (p.provenance === true)  provHtml = `<span class="badge badge-prov-yes" title="SLSA provenance あり">✓ SLSA</span>`;
+      else if (p.provenance === false) provHtml = `<span class="badge badge-prov-no" title="Provenance なし">✗</span>`;
+      else provHtml = '—';
+    }
+
+    // Trust level for row coloring (npm only)
+    const trust = showProvenance ? trustLevel(p, threshold) : 'unknown';
+    tr.dataset.trust = trust;
+    if (showProvenance) tr.classList.add(`trust-${trust}`);
+
+    // Checkbox cell (npm only — hidden for pubspec via th hidden)
+    const checkHtml = showProvenance
+      ? `<td class="deps-check-cell"><input type="checkbox" class="deps-pkg-check"
+           data-name="${escHtml(p.name)}"
+           data-version="${escHtml(p.current ?? '')}"></td>`
+      : `<td class="hidden"></td>`;
+
     tr.innerHTML = `
+      ${checkHtml}
       <td>${escHtml(p.name)}</td>
       <td>${escHtml(current)}</td>
       <td>${arrow}</td>
       <td><span class="${badgeClass}">${statusLabel}</span></td>
+      <td class="deps-date">${pubDate}</td>
+      <td>${ageHtml}</td>
+      <td class="${showProvenance ? '' : 'hidden'}">${provHtml}</td>
       <td>${p.dev ? '<span class="badge badge-dev">dev</span>' : ''}</td>`;
     depsTbody.appendChild(tr);
   });
 }
+
+// =====================================================================
+// パッケージ追加パネル
+// =====================================================================
+
+const npmAddPanel      = document.getElementById('npm-add-panel');
+const npmAddToggle     = document.getElementById('npm-add-toggle');
+const npmAddClose      = document.getElementById('npm-add-close');
+const npmSearchInput   = document.getElementById('npm-search-input');
+const npmSearchBtn     = document.getElementById('npm-search-btn');
+const npmSearchStatus  = document.getElementById('npm-search-status');
+const npmSearchResults = document.getElementById('npm-search-results');
+const npmDetailCol     = document.getElementById('npm-detail-col');
+const npmDetailName    = document.getElementById('npm-detail-name');
+const npmDetailDesc    = document.getElementById('npm-detail-desc');
+const npmDetailLink    = document.getElementById('npm-detail-link');
+const npmVersionTbody  = document.getElementById('npm-version-tbody');
+const npmSelectedLabel = document.getElementById('npm-selected-label');
+const npmDepType       = document.getElementById('npm-dep-type');
+const npmWriteBtn      = document.getElementById('npm-write-btn');
+const npmInstallRun    = document.getElementById('npm-install-run');
+
+let npmSelectedPkg     = null;  // { name, version }
+
+npmAddToggle.addEventListener('click', () => {
+  npmAddPanel.classList.toggle('hidden');
+  if (!npmAddPanel.classList.contains('hidden')) npmSearchInput.focus();
+});
+npmAddClose.addEventListener('click', () => npmAddPanel.classList.add('hidden'));
+
+// 検索
+async function npmSearch() {
+  const q = npmSearchInput.value.trim();
+  if (!q) return;
+  npmSearchStatus.textContent = '⏳ 検索中...';
+  npmSearchResults.innerHTML  = '';
+  npmDetailCol.classList.add('hidden');
+  npmSelectedPkg = null;
+  updateNpmActionBar();
+
+  const res  = await fetch(`/api/npm/search?q=${encodeURIComponent(q)}`);
+  const data = await res.json();
+  if (!data.results || data.results.length === 0) {
+    npmSearchStatus.textContent = '結果なし';
+    return;
+  }
+  npmSearchStatus.textContent = `${data.results.length} 件`;
+  data.results.forEach(pkg => {
+    const li = document.createElement('li');
+    li.className = 'npm-result-item';
+    li.innerHTML = `
+      <span class="npm-result-name">${escHtml(pkg.name)}</span>
+      <span class="npm-result-ver">${escHtml(pkg.version)}</span>
+      <span class="npm-result-desc">${escHtml(pkg.description)}</span>`;
+    li.addEventListener('click', () => {
+      document.querySelectorAll('.npm-result-item').forEach(el => el.classList.remove('active'));
+      li.classList.add('active');
+      loadNpmDetail(pkg.name);
+    });
+    npmSearchResults.appendChild(li);
+  });
+}
+
+npmSearchBtn.addEventListener('click', npmSearch);
+npmSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') npmSearch(); });
+
+// バージョン詳細
+async function loadNpmDetail(pkgName) {
+  npmDetailCol.classList.remove('hidden');
+  npmDetailName.textContent = pkgName;
+  npmDetailDesc.textContent = '';
+  npmDetailLink.href        = `https://www.npmjs.com/package/${pkgName}`;
+  npmVersionTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:.8rem;color:var(--muted)">⏳ 取得中...</td></tr>';
+  npmSelectedPkg = null;
+  updateNpmActionBar();
+
+  const res  = await fetch(`/api/npm/detail?name=${encodeURIComponent(pkgName)}`);
+  const data = await res.json();
+
+  npmDetailDesc.textContent = data.description || '';
+  npmVersionTbody.innerHTML = '';
+
+  const threshold = parseInt(depsThreshold.value, 10) || 7;
+
+  if (!data.versions || data.versions.length === 0) {
+    npmVersionTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:.8rem;color:var(--muted)">バージョン情報なし</td></tr>';
+    return;
+  }
+
+  data.versions.forEach(v => {
+    const tr  = document.createElement('tr');
+    const age = v.ageInDays;
+    const young = age !== null && age < threshold;
+
+    const ageHtml = age === null ? '—'
+      : young ? `<span class="badge badge-young">⚠ ${age}日</span>`
+      : `${age}日`;
+
+    const provHtml = v.provenance
+      ? `<span class="badge badge-prov-yes">✓ SLSA</span>`
+      : `<span class="badge badge-prov-no">✗</span>`;
+
+    const latestBadge = v.isLatest ? ' <span class="badge badge-latest" style="font-size:.65rem">latest</span>' : '';
+    const pubDate = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('ja-JP') : '—';
+
+    // Trust for row color
+    const trust = v.provenance && !young ? 'full' : (!young || v.provenance) ? 'partial' : 'none';
+    tr.classList.add(`trust-${trust}`);
+
+    tr.innerHTML = `
+      <td class="npm-ver-radio"><input type="radio" name="npm-ver-pick" value="${escHtml(v.version)}"></td>
+      <td>${escHtml(v.version)}${latestBadge}</td>
+      <td class="deps-date">${pubDate}</td>
+      <td>${ageHtml}</td>
+      <td>${provHtml}</td>`;
+
+    tr.querySelector('input[type=radio]').addEventListener('change', () => {
+      npmSelectedPkg = { name: pkgName, version: v.version };
+      updateNpmActionBar();
+    });
+    // row click selects radio
+    tr.addEventListener('click', () => tr.querySelector('input').click());
+
+    npmVersionTbody.appendChild(tr);
+  });
+}
+
+function updateNpmActionBar() {
+  const sel = npmSelectedPkg;
+  if (sel) {
+    npmSelectedLabel.textContent = `${sel.name}@${sel.version}`;
+    npmWriteBtn.disabled   = false;
+    npmInstallRun.disabled = false;
+  } else {
+    npmSelectedLabel.textContent = '← バージョンを選択';
+    npmWriteBtn.disabled   = true;
+    npmInstallRun.disabled = true;
+  }
+}
+
+// package.json に追記
+npmWriteBtn.addEventListener('click', async () => {
+  if (!npmSelectedPkg) return;
+  if (!currentProjectPath) { alert('プロジェクトを選択してください'); return; }
+
+  const dev = npmDepType.value === 'dev';
+  const res  = await fetch('/api/npm/write', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({
+      projectPath: currentProjectPath,
+      name:    npmSelectedPkg.name,
+      version: npmSelectedPkg.version,
+      dev,
+    }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    npmWriteBtn.textContent = '✓ 追記しました';
+    setTimeout(() => { npmWriteBtn.textContent = 'package.json に追記'; }, 2000);
+    // 一覧を自動更新
+    checkDeps();
+  } else {
+    alert('書き込みエラー: ' + data.error);
+  }
+});
+
+// npm install 実行
+npmInstallRun.addEventListener('click', () => {
+  if (!npmSelectedPkg) return;
+  const dev  = npmDepType.value === 'dev' ? ' --save-dev' : '';
+  const cmd  = `npm install ${npmSelectedPkg.name}@${npmSelectedPkg.version}${dev}`;
+  runCommand(cmd, `install ${npmSelectedPkg.name}`);
+  document.querySelector('.tab[data-tab="logs"]').click();
+});
 
 // =====================================================================
 // 環境変数マネージャー（フェーズ6）
@@ -854,9 +1225,11 @@ function formatElapsed(startedAt) {
   return `${Math.floor(sec / 3600)}時間前に起動`;
 }
 
-// プロセス一覧を定期更新（起動時間の表示を更新するため）
+// プロセス一覧を定期更新（自動更新チェック時のみ）
 setInterval(() => {
-  if (!dashboard.classList.contains('hidden')) refreshProcessList(null);
+  if (!dashboard.classList.contains('hidden') && autoreload.checked) {
+    refreshProcessList(null);
+  }
 }, 10000);
 
 // =====================================================================

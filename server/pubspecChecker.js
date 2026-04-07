@@ -72,29 +72,43 @@ function normalizeVersion(raw) {
 // pub.dev API
 // =====================================================================
 
-function fetchPackageInfo(pkgName) {
-  return new Promise((resolve, reject) => {
+function fetchPackageInfo(pkgName, currentVersion) {
+  return new Promise((resolve) => {
     const options = {
       hostname: 'pub.dev',
       path:     `/api/packages/${pkgName}`,
       method:   'GET',
       headers:  { 'User-Agent': 'FlutterBoard/0.1' },
     };
+    const empty = { pkgName, latest: null, latestPublishedAt: null, currentPublishedAt: null, currentAgeInDays: null };
     const req = https.request(options, res => {
       let body = '';
       res.on('data', chunk => { body += chunk; });
       res.on('end', () => {
         try {
-          const data   = JSON.parse(body);
-          const latest = data.latest?.version ?? null;
-          resolve({ pkgName, latest });
+          const data              = JSON.parse(body);
+          const latest            = data.latest?.version ?? null;
+          const latestPublishedAt = data.latest?.published ?? null;
+
+          // Find current version's publish date in the versions array
+          let currentPublishedAt = null;
+          if (currentVersion && Array.isArray(data.versions)) {
+            const entry = data.versions.find(v => v.version === currentVersion);
+            currentPublishedAt = entry?.published ?? null;
+          }
+
+          const currentAgeInDays = currentPublishedAt
+            ? Math.floor((Date.now() - new Date(currentPublishedAt)) / 86400000)
+            : null;
+
+          resolve({ pkgName, latest, latestPublishedAt, currentPublishedAt, currentAgeInDays });
         } catch {
-          resolve({ pkgName, latest: null });
+          resolve(empty);
         }
       });
     });
-    req.on('error', () => resolve({ pkgName, latest: null }));
-    req.setTimeout(8000, () => { req.destroy(); resolve({ pkgName, latest: null }); });
+    req.on('error', () => resolve(empty));
+    req.setTimeout(8000, () => { req.destroy(); resolve(empty); });
     req.end();
   });
 }
@@ -147,17 +161,22 @@ async function handlePubspec(req, res, url) {
       ...Object.entries(parsed.devDependencies).map(([n, v]) => ({ name: n, version: v, dev: true })),
     ];
 
-    const infos = await Promise.all(allPkgs.map(p => fetchPackageInfo(p.name)));
-    const infoMap = Object.fromEntries(infos.map(i => [i.pkgName, i.latest]));
+    const infos   = await Promise.all(allPkgs.map(p => fetchPackageInfo(p.name, p.version)));
+    const infoMap = Object.fromEntries(infos.map(i => [i.pkgName, i]));
 
     const packages = allPkgs.map(p => {
-      const latest = infoMap[p.name] || null;
+      const info   = infoMap[p.name] || {};
+      const latest = info.latest || null;
       return {
-        name:    p.name,
-        current: p.version,
+        name:               p.name,
+        current:            p.version,
         latest,
-        status:  classifyUpdate(p.version, latest),
-        dev:     p.dev,
+        status:             classifyUpdate(p.version, latest),
+        dev:                p.dev,
+        currentPublishedAt: info.currentPublishedAt ?? null,
+        latestPublishedAt:  info.latestPublishedAt  ?? null,
+        currentAgeInDays:   info.currentAgeInDays   ?? null,
+        provenance:         null, // pub.dev does not have provenance concept
       };
     });
 

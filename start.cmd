@@ -31,19 +31,13 @@ if %errorlevel% equ 0 (
 
 echo Starting FlutterBoard...
 
-:: Launch via PowerShell to capture PID reliably
-powershell -NoProfile -Command ^
-  "$p = Start-Process node -ArgumentList '%~dp0server\index.js','--port','%PORT%' -WorkingDirectory '%~dp0' -RedirectStandardOutput '%LOGFILE%' -RedirectStandardError '%LOGFILE%' -WindowStyle Hidden -PassThru; $p.Id | Out-File -Encoding ascii '%PIDFILE%'"
+:: Launch node in background (PID file is written by the server itself on startup)
+start /b node "%~dp0server\index.js" --port %PORT% >> "%LOGFILE%" 2>&1
 
-if %errorlevel% neq 0 (
-    echo ERROR: Failed to start FlutterBoard.
-    exit /b 1
-)
+:: Wait for server to write PID file and begin listening
+timeout /t 3 /nobreak >nul
 
-:: Wait for server to be ready
-timeout /t 2 /nobreak >nul
-
-:: Verify it is actually listening
+:: Verify it is listening
 netstat -ano 2>nul | findstr ":%PORT% " | findstr LISTENING >nul
 if %errorlevel% neq 0 (
     echo ERROR: Server did not start. Check config\server.log for details.
@@ -52,6 +46,10 @@ if %errorlevel% neq 0 (
 
 start http://localhost:%PORT%
 
-set /p PID=<"%PIDFILE%"
-echo FlutterBoard started on http://localhost:%PORT% (PID: %PID%)
+if exist "%PIDFILE%" (
+    set /p PID=<"%PIDFILE%"
+    echo FlutterBoard started on http://localhost:%PORT% (PID: %PID%^)
+) else (
+    echo FlutterBoard started on http://localhost:%PORT%
+)
 echo Run stop.cmd to shut down.

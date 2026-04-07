@@ -7,8 +7,15 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js"
   },
-  "keywords": ["flutter", "firebase", "dashboard"],
+  "keywords": [
+    "flutter",
+    "firebase",
+    "dashboard"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "node-pty": "^1.1.0"
+  }
 }
