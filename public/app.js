@@ -590,20 +590,104 @@ const docsBody          = document.getElementById('docs-body');
 const docsBreadcrumb    = document.getElementById('docs-breadcrumb');
 const docsFullscreenBtn = document.getElementById('docs-fullscreen-btn');
 const docsContent       = document.getElementById('docs-content');
+const docsZoomIn        = document.getElementById('docs-zoom-in');
+const docsZoomOut       = document.getElementById('docs-zoom-out');
+const docsZoomReset     = document.getElementById('docs-zoom-reset');
+const docsZoomLevel     = document.getElementById('docs-zoom-level');
 
-// 全画面トグル
+// ---- 全画面トグル ----
 docsFullscreenBtn.addEventListener('click', () => {
   const isFs = docsContent.classList.toggle('docs-fullscreen');
-  docsFullscreenBtn.title     = isFs ? '全画面を閉じる' : '全画面表示';
+  docsFullscreenBtn.title       = isFs ? '全画面を閉じる' : '全画面表示';
   docsFullscreenBtn.textContent = isFs ? '✕' : '⛶';
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && docsContent.classList.contains('docs-fullscreen')) {
     docsContent.classList.remove('docs-fullscreen');
-    docsFullscreenBtn.title      = '全画面表示';
+    docsFullscreenBtn.title       = '全画面表示';
     docsFullscreenBtn.textContent = '⛶';
   }
 });
+
+// ---- 文書ズーム ----
+const ZOOM_STEP = 0.1;
+const ZOOM_MIN  = 0.5;
+const ZOOM_MAX  = 3.0;
+let   docsZoom  = 1.0;
+
+function setDocsZoom(level) {
+  docsZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(level * 10) / 10));
+  docsBody.style.zoom = docsZoom;
+  docsZoomLevel.textContent = Math.round(docsZoom * 100) + '%';
+}
+
+docsZoomIn   .onclick = () => setDocsZoom(docsZoom + ZOOM_STEP);
+docsZoomOut  .onclick = () => setDocsZoom(docsZoom - ZOOM_STEP);
+docsZoomReset.onclick = () => setDocsZoom(1.0);
+
+// Ctrl + ホイールでズーム
+docsContent.addEventListener('wheel', e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  setDocsZoom(docsZoom + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP));
+}, { passive: false });
+
+// ---- Mermaid ダイアグラム: ホイールズーム + ドラッグパン ----
+function makeDiagramInteractive(container) {
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+
+  let scale = 1, tx = 0, ty = 0;
+  let dragging = false, startX = 0, startY = 0;
+
+  svg.style.transformOrigin = '0 0';
+  svg.style.willChange      = 'transform';
+  container.style.cursor    = 'grab';
+  container.style.overflow  = 'hidden';
+  container.title = 'ホイール: ズーム / ドラッグ: パン / ダブルクリック: リセット';
+
+  function applyTransform() {
+    svg.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  }
+
+  container.addEventListener('wheel', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    // マウス位置を基準にズーム
+    const rect   = container.getBoundingClientRect();
+    const mx     = (e.clientX - rect.left - tx) / scale;
+    const my     = (e.clientY - rect.top  - ty) / scale;
+    const delta  = e.deltaY < 0 ? 0.12 : -0.12;
+    scale = Math.max(0.2, Math.min(8, scale + delta));
+    tx = e.clientX - rect.left - mx * scale;
+    ty = e.clientY - rect.top  - my * scale;
+    applyTransform();
+  }, { passive: false });
+
+  container.addEventListener('mousedown', e => {
+    dragging = true;
+    startX   = e.clientX - tx;
+    startY   = e.clientY - ty;
+    container.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    tx = e.clientX - startX;
+    ty = e.clientY - startY;
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    container.style.cursor = 'grab';
+  });
+
+  container.addEventListener('dblclick', () => {
+    scale = 1; tx = 0; ty = 0;
+    applyTransform();
+  });
+}
 
 let currentDocFile = null;
 
@@ -720,7 +804,9 @@ async function loadMdFile(relPath) {
     mermaidBlocks.push(div);
   });
   if (mermaidBlocks.length > 0 && typeof window.__mermaid !== 'undefined') {
-    window.__mermaid.run({ nodes: mermaidBlocks }).catch(() => {});
+    window.__mermaid.run({ nodes: mermaidBlocks })
+      .then(() => mermaidBlocks.forEach(makeDiagramInteractive))
+      .catch(() => {});
   }
 
   // Markdown 内リンクをインターセプト（.md リンクはビューア内で開く）

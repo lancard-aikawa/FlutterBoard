@@ -681,6 +681,21 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 }
 .btn-icon:hover { color: var(--accent); }
 
+#docs-zoom-ctrl {
+  display: flex;
+  align-items: center;
+  gap: .1rem;
+  padding: 0 .4rem;
+}
+
+#docs-zoom-level {
+  font-size: .75rem;
+  color: var(--muted);
+  min-width: 3rem;
+  text-align: center;
+  user-select: none;
+}
+
 #docs-body {
   flex: 1;
   overflow-y: auto;
