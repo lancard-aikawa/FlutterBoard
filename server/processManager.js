@@ -26,10 +26,15 @@ let nextId = 1;
 const ANSI_RE = /\x1b(?:\[[0-9;?]*[A-Za-z]|\][^\x07]*(?:\x07|\x1b\\)|[()][0-9A-Za-z]|.)/g;
 
 function cleanOutput(str) {
-  return str
-    .replace(ANSI_RE, '')        // strip ANSI escape sequences
-    .replace(/\r\n/g, '\n')      // normalize CRLF
-    .replace(/\r(?!\n)/g, '\n'); // bare CR → newline
+  str = str.replace(ANSI_RE, '');   // strip ANSI escape sequences
+  str = str.replace(/\r\n/g, '\n'); // normalize CRLF
+  // Bare CR = "return to line start and overwrite" (spinner / progress bar).
+  // Keep only the last segment after the final \r on each line.
+  str = str.split('\n').map(line => {
+    const parts = line.split('\r');
+    return parts[parts.length - 1];
+  }).join('\n');
+  return str;
 }
 
 // =====================================================================
