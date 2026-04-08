@@ -340,6 +340,48 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .log-filtered-hidden { display: none; }
 .log-highlight { background: color-mix(in srgb, var(--warn) 30%, transparent); border-radius: 2px; }
 
+/* === DevTools バー === */
+#devtools-bar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .3rem .75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.devtools-label {
+  font-size: .72rem;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.devtools-btn {
+  font-size: .72rem;
+  padding: .2rem .55rem;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.devtools-btn:hover { opacity: .82; }
+.devtools-btn-vm {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+.devtools-btn-launch {
+  cursor: pointer;
+  border: none;
+}
+.devtools-btn-launch:disabled {
+  opacity: .65;
+  cursor: default;
+}
+
 /* === stdin バー === */
 #stdin-bar {
   display: flex;

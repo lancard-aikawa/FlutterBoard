@@ -166,13 +166,67 @@ const logSave     = document.getElementById('log-save');
 const logFilter   = document.getElementById('log-filter');
 const autoscroll  = document.getElementById('autoscroll');
 const autoreload  = document.getElementById('autoreload');
-const stdinBar    = document.getElementById('stdin-bar');
-const stdinInput  = document.getElementById('stdin-input');
-const stdinSend   = document.getElementById('stdin-send');
+const stdinBar      = document.getElementById('stdin-bar');
+const stdinInput    = document.getElementById('stdin-input');
+const stdinSend     = document.getElementById('stdin-send');
+const devtoolsBar       = document.getElementById('devtools-bar');
+const devtoolsLink      = document.getElementById('devtools-link');
+const devtoolsLaunchBtn = document.getElementById('devtools-launch-btn');
+const vmServiceLink     = document.getElementById('vmservice-link');
 
-let activeId    = null;
-let activeSSE   = null;
+// URL detection (mirrors server-side patterns)
+const DEVTOOLS_URL_RE   = /https?:\/\/[\w.:-]+\?uri=\S+/;
+const VM_SERVICE_URL_RE = /https?:\/\/[\w.:-]+\/[\w+/=%-]+=\//;
+
+let activeId         = null;
+let activeSSE        = null;
+let activeDevToolsUrl  = null;
+let activeVmServiceUrl = null;
 let logBuffer   = [];
+
+// ---- DevTools バー ----
+function renderDevToolsBar() {
+  const hasDt = !!activeDevToolsUrl;
+  const hasVm = !!activeVmServiceUrl;
+  devtoolsBar.classList.toggle('hidden', !hasDt && !hasVm);
+
+  // DevTools URL が既知 → 「開く」リンク表示
+  devtoolsLink.classList.toggle('hidden', !hasDt);
+  if (hasDt) devtoolsLink.href = activeDevToolsUrl;
+
+  // VM URL のみ → 「起動」ボタン表示（DevTools URL が判明したら消える）
+  devtoolsLaunchBtn.classList.toggle('hidden', hasDt || !hasVm);
+  if (hasDt || !hasVm) {
+    devtoolsLaunchBtn.textContent = 'DevTools を起動';
+    devtoolsLaunchBtn.disabled    = false;
+  }
+
+  // VM Service リンクは常に（あれば）表示
+  vmServiceLink.classList.toggle('hidden', !hasVm);
+  if (hasVm) vmServiceLink.href = activeVmServiceUrl;
+}
+
+devtoolsLaunchBtn.addEventListener('click', async () => {
+  if (!activeVmServiceUrl) return;
+  devtoolsLaunchBtn.textContent = '起動中...';
+  devtoolsLaunchBtn.disabled    = true;
+
+  try {
+    const res  = await fetch(`/api/devtools/start?vmUri=${encodeURIComponent(activeVmServiceUrl)}`);
+    const data = await res.json();
+    if (data.url) {
+      activeDevToolsUrl = data.url;
+      renderDevToolsBar();
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } else {
+      devtoolsLaunchBtn.textContent = `⚠ ${data.error || '起動失敗'}`;
+      devtoolsLaunchBtn.disabled    = false;
+    }
+  } catch {
+    devtoolsLaunchBtn.textContent = '⚠ 通信エラー';
+    devtoolsLaunchBtn.disabled    = false;
+  }
+});
 
 // ---- プロセス起動 ----
 runBtn.onclick = async () => {
@@ -238,7 +292,7 @@ async function _doRefresh(selectId) {
   // selectId=null means "update list UI only" — do NOT re-open SSE via selectProcess
   if (selectId != null) {
     const target = list.find(p => p.id === selectId);
-    if (target) selectProcess(target.id, target.label, target.running);
+    if (target) selectProcess(target.id, target.label, target.running, target.devToolsUrl || null, target.vmServiceUrl || null);
   }
 }
 
@@ -265,7 +319,7 @@ function buildProcessItem(p) {
 
   li.addEventListener('click', e => {
     if (e.target.closest('button')) return;
-    selectProcess(p.id, p.label, p.running);
+    selectProcess(p.id, p.label, p.running, p.devToolsUrl || null, p.vmServiceUrl || null);
   });
 
   li.querySelector('.btn-stop, .btn-remove').addEventListener('click', async e => {
@@ -292,7 +346,7 @@ function buildProcessItem(p) {
 }
 
 // ---- プロセス選択 → SSE接続 ----
-function selectProcess(id, label, running) {
+function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = null) {
   if (activeSSE) { activeSSE.close(); activeSSE = null; }
 
   activeId  = id;
@@ -302,6 +356,11 @@ function selectProcess(id, label, running) {
   logTitle.classList.remove('exited');
   logFilter.value = '';
   logFilter.classList.remove('active');
+
+  // DevTools バーを初期化（既知 URL があればすぐ表示）
+  activeDevToolsUrl  = devToolsUrl;
+  activeVmServiceUrl = vmServiceUrl;
+  renderDevToolsBar();
 
   document.querySelectorAll('.proc-item').forEach(el => {
     el.classList.toggle('active', parseInt(el.dataset.id) === id);
@@ -318,6 +377,20 @@ function selectProcess(id, label, running) {
     const { type, data } = JSON.parse(e.data);
     logBuffer.push({ type, data });
     appendLogEntry(type, data);
+
+    // DevTools / VM Service URL をリアルタイム検出
+    if (data && (type === 'stdout' || type === 'stderr')) {
+      let updated = false;
+      if (!activeDevToolsUrl) {
+        const m = data.match(DEVTOOLS_URL_RE);
+        if (m) { activeDevToolsUrl = m[0].trim(); updated = true; }
+      }
+      if (!activeVmServiceUrl) {
+        const m = data.match(VM_SERVICE_URL_RE);
+        if (m) { activeVmServiceUrl = m[0].trim(); updated = true; }
+      }
+      if (updated) renderDevToolsBar();
+    }
 
     if (type === 'exit') {
       exited = true;

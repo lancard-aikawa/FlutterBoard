@@ -43,6 +43,13 @@ npm start
 - SSE（Server-Sent Events）でログをリアルタイム表示
 - 複数プロセスをタブ切り替えで管理
 - 実行中は ■ 停止、終了後は ✕ 削除
+- **PTY モード**（node-pty が利用可能な場合）— TTY が必要なプロセスに対応
+  - `r`（Hot Reload）・`R`（Hot Restart）等のキー入力をブラウザから送信
+  - node-pty が未インストールの場合はパイプモードで自動フォールバック
+- **Flutter DevTools 連携**
+  - `flutter run` のログから VM Service URL / DevTools URL を自動検出
+  - DevTools URL が検出された場合 → 「DevTools を開く ↗」ボタンを表示
+  - VM Service URL のみ検出（DDS 経由等）→ 「DevTools を起動」ボタンで `dart devtools` を自動起動し接続
 
 ### コマンドランナー
 - Flutter コマンド（pub get / analyze / doctor / build / test 等）
@@ -54,9 +61,15 @@ npm start
 - `docs/` 以下の Markdown ファイルをサイドバーに一覧表示
 - コードブロックのシンタックスハイライト
 - Markdown 内リンクでファイル間を移動
+- 全画面表示モード（ESC で閉じる）
+- ページズームコントロール（拡大 / 縮小 / リセット）
+- Mermaid 記法のダイアグラムをインラインレンダリング
+  - ホイールスクロールでズーム、ドラッグでパン
 
 ### 依存チェック
-- `pubspec.yaml` を読み込み pub.dev API で最新バージョンを確認
+- **Flutter（pubspec.yaml）** — pub.dev API で最新バージョンを確認
+- **npm（package.json）** — npm registry で最新バージョンを確認
+- **CDN ライブラリ（HTML）** — cdnjs / jsDelivr / unpkg のバージョンを確認
 - MAJOR / minor / 最新 をバッジで表示
 - `flutter pub get` / `flutter pub upgrade` をワンクリック実行
 
@@ -75,24 +88,15 @@ npm start
 
 ## セキュリティ方針
 
-- **npm パッケージ依存ゼロ** — サプライチェーン攻撃のリスクを排除
-- Node.js 組み込みモジュール（`http`, `fs`, `child_process`, `https` 等）のみ使用
+- **npm パッケージ依存を最小化** — サプライチェーン攻撃のリスクを低減
+- Node.js 組み込みモジュール（`http`, `fs`, `child_process`, `https` 等）を主に使用
+- オプション依存: `node-pty`（PTY モード用、未インストール時はパイプモードで動作）
 - Markdown レンダリングは CDN 経由（marked.js / highlight.js）
 - サーバーは `127.0.0.1`（ローカルのみ）にバインド
 - パストラバーサル防止チェックを各 API に実装
 
 ---
 
-## 既知の課題
-
-### プロセスへのキー入力（stdin）
-
-`flutter run` 実行中の `r`（Hot Reload）・`R`（Hot Restart）等のインタラクティブ操作はブラウザから送れない。
-
-- Flutter は TTY（疑似ターミナル）を必要とするため、通常の `stdin.write` では反応しない場合がある
-- 解決策として `node-pty` ライブラリが有効だが、npm 依存ゼロ方針と相反するため要検討
-
----
 
 ## ファイル構成
 
@@ -107,6 +111,9 @@ FlutterBoard/
     projectInfo.js    # package.json 解析・ピン留め
     markdownHandler.js# Markdown 読み込み
     pubspecChecker.js # pubspec.yaml + pub.dev API
+    npmChecker.js     # package.json + npm registry API
+    cdnChecker.js     # HTML 内 CDN ライブラリのバージョン確認
+    devtoolsManager.js# dart devtools 起動・VM Service URL 検出
     envManager.js     # .env ファイル管理
     gitStatus.js      # Git コマンド実行
   public/
@@ -118,7 +125,6 @@ FlutterBoard/
     pins_*.json
   start.cmd           # 起動スクリプト
   stop.cmd            # 停止スクリプト
-  TODO.md             # 実装計画
   README.md
 ```
 

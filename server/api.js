@@ -7,6 +7,7 @@ const { handleNpm }         = require('./npmChecker');
 const { handleCdn }         = require('./cdnChecker');
 const { handleEnv }         = require('./envManager');
 const { handleGit }         = require('./gitStatus');
+const { handleDevTools }    = require('./devtoolsManager');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -48,6 +49,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/git')) {
     return handleGit(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/devtools')) {
+    return handleDevTools(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

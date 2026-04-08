@@ -11,7 +11,11 @@ try {
 
 const LOG_BUFFER_MAX = 2000;
 
-// processes: Map<id, { pty|proc, isPty, clients, label, cmd, args, cwd, startedAt, exitCode, buffer }>
+// URL detection patterns for `flutter run` output
+const DEVTOOLS_URL_RE   = /https?:\/\/[\w.:-]+\?uri=\S+/;
+const VM_SERVICE_URL_RE = /https?:\/\/[\w.:-]+\/[\w+/=%-]+=\//;
+
+// processes: Map<id, { pty|proc, isPty, clients, label, cmd, args, cwd, startedAt, exitCode, buffer, devToolsUrl, vmServiceUrl }>
 const processes = new Map();
 let nextId = 1;
 
@@ -115,10 +119,25 @@ function handleProcess(req, res, url) {
         startedAt: Date.now(),
         exitCode: null,
         buffer,
+        devToolsUrl:  null,
+        vmServiceUrl: null,
       };
 
       const broadcast = (type, data) => {
         const item = { type, data, ts: Date.now() };
+
+        // Detect Flutter DevTools / VM Service URLs from log output
+        if (data && (type === 'stdout' || type === 'stderr')) {
+          if (!entry.devToolsUrl) {
+            const m = data.match(DEVTOOLS_URL_RE);
+            if (m) entry.devToolsUrl = m[0].trim();
+          }
+          if (!entry.vmServiceUrl) {
+            const m = data.match(VM_SERVICE_URL_RE);
+            if (m) entry.vmServiceUrl = m[0].trim();
+          }
+        }
+
         buffer.push(item);
         if (buffer.length > LOG_BUFFER_MAX) buffer.shift();
         const msg = `data: ${JSON.stringify(item)}\n\n`;
@@ -254,10 +273,12 @@ function handleProcess(req, res, url) {
   if (pathname === '/api/process/list' && req.method === 'GET') {
     const list = [...processes.entries()].map(([id, e]) => ({
       id, label: e.label, cmd: e.cmd,
-      startedAt: e.startedAt,
-      running:   e.exitCode === null,
-      exitCode:  e.exitCode,
-      pty:       e.isPty,
+      startedAt:    e.startedAt,
+      running:      e.exitCode === null,
+      exitCode:     e.exitCode,
+      pty:          e.isPty,
+      devToolsUrl:  e.devToolsUrl  || null,
+      vmServiceUrl: e.vmServiceUrl || null,
     }));
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(list));
