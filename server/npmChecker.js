@@ -277,9 +277,14 @@ async function handleNpm(req, res, url) {
   if (url.pathname === '/api/npm/check' && req.method === 'GET') {
     const projectPath = url.searchParams.get('path');
     const force       = url.searchParams.get('force') === '1';
-    const pkgJsonPath = path.join(projectPath, 'package.json');
 
-    if (!projectPath || !fs.existsSync(pkgJsonPath)) {
+    if (!projectPath || !path.isAbsolute(projectPath)) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'Invalid path' }));
+    }
+    const pkgJsonPath = path.join(path.normalize(projectPath), 'package.json');
+
+    if (!fs.existsSync(pkgJsonPath)) {
       res.writeHead(404);
       return res.end(JSON.stringify({ error: 'package.json not found' }));
     }
@@ -353,9 +358,13 @@ async function handleNpm(req, res, url) {
   res.end(JSON.stringify({ error: 'Not found' }));
 }
 
+const MAX_BODY = 1 * 1024 * 1024; // 1MB
 function readBody(req, cb) {
   let body = '';
-  req.on('data', chunk => { body += chunk; });
+  req.on('data', chunk => {
+    body += chunk;
+    if (Buffer.byteLength(body) > MAX_BODY) req.destroy();
+  });
   req.on('end', () => cb(body));
 }
 

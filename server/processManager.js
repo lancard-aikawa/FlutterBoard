@@ -153,7 +153,12 @@ function handleProcess(req, res, url) {
   // POST /api/process/input  { id, text }
   if (pathname === '/api/process/input' && req.method === 'POST') {
     return readBody(req, body => {
-      const { id, text } = JSON.parse(body);
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }));
+      }
+      const { id, text } = parsed;
       const entry = processes.get(id);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -196,7 +201,12 @@ function handleProcess(req, res, url) {
   // POST /api/process/stop  { id }
   if (pathname === '/api/process/stop' && req.method === 'POST') {
     return readBody(req, body => {
-      const { id } = JSON.parse(body);
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }));
+      }
+      const { id } = parsed;
       const entry  = processes.get(id);
       if (entry && entry.exitCode === null) {
         try {
@@ -228,7 +238,12 @@ function handleProcess(req, res, url) {
   // POST /api/process/remove  { id }
   if (pathname === '/api/process/remove' && req.method === 'POST') {
     return readBody(req, body => {
-      const { id } = JSON.parse(body);
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }));
+      }
+      const { id } = parsed;
       processes.delete(id);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
@@ -252,9 +267,13 @@ function handleProcess(req, res, url) {
   res.end('Not found');
 }
 
+const MAX_BODY = 1 * 1024 * 1024; // 1MB
 function readBody(req, cb) {
   let body = '';
-  req.on('data', chunk => { body += chunk; });
+  req.on('data', chunk => {
+    body += chunk;
+    if (Buffer.byteLength(body) > MAX_BODY) req.destroy();
+  });
   req.on('end', () => cb(body));
 }
 

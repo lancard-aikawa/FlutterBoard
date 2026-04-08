@@ -187,7 +187,11 @@ async function handlePubspec(req, res, url) {
     const force       = url.searchParams.get('force') === '1';
     const pubspecPath = path.join(projectPath, 'pubspec.yaml');
 
-    if (!projectPath || !fs.existsSync(pubspecPath)) {
+    if (!projectPath || !path.isAbsolute(projectPath)) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'Invalid path' }));
+    }
+    if (!fs.existsSync(pubspecPath)) {
       res.writeHead(404);
       return res.end(JSON.stringify({ error: 'pubspec.yaml not found' }));
     }

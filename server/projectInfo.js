@@ -79,7 +79,11 @@ function handleProjectInfo(req, res, url) {
   // POST /api/project/pin  { path, script }
   if (pathname === '/api/project/pin' && req.method === 'POST') {
     return readBody(req, body => {
-      const { path: p, script } = JSON.parse(body);
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+      const { path: p, script } = parsed;
       const pins = loadPinned(p);
       if (!pins.includes(script)) pins.push(script);
       savePinned(p, pins);
@@ -91,7 +95,11 @@ function handleProjectInfo(req, res, url) {
   // POST /api/project/unpin  { path, script }
   if (pathname === '/api/project/unpin' && req.method === 'POST') {
     return readBody(req, body => {
-      const { path: p, script } = JSON.parse(body);
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+      const { path: p, script } = parsed;
       const pins = loadPinned(p).filter(s => s !== script);
       savePinned(p, pins);
       res.writeHead(200);
@@ -103,9 +111,13 @@ function handleProjectInfo(req, res, url) {
   res.end(JSON.stringify({ error: 'Not found' }));
 }
 
+const MAX_BODY = 1 * 1024 * 1024; // 1MB
 function readBody(req, cb) {
   let body = '';
-  req.on('data', chunk => { body += chunk; });
+  req.on('data', chunk => {
+    body += chunk;
+    if (Buffer.byteLength(body) > MAX_BODY) req.destroy();
+  });
   req.on('end', () => cb(body));
 }
 

@@ -17,7 +17,8 @@ const MIME = {
   '.ico':  'image/x-icon',
 };
 
-const PUBLIC = path.join(__dirname, '..', 'public');
+const PUBLIC      = path.resolve(__dirname, '..', 'public');
+const PUBLIC_REAL = (() => { try { return fs.realpathSync(PUBLIC); } catch { return PUBLIC; } })();
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -28,10 +29,11 @@ const server = http.createServer((req, res) => {
   }
 
   // 静的ファイル配信
-  let filePath = path.join(PUBLIC, url.pathname === '/' ? 'index.html' : url.pathname);
+  const reqPath  = url.pathname === '/' ? 'index.html' : url.pathname;
+  const filePath = path.resolve(PUBLIC, reqPath.replace(/^\/+/, ''));
 
-  // パストラバーサル防止
-  if (!filePath.startsWith(PUBLIC)) {
+  // パストラバーサル防止（resolve 後のパスが PUBLIC 以下か確認）
+  if (!filePath.startsWith(PUBLIC_REAL + path.sep) && filePath !== PUBLIC_REAL) {
     res.writeHead(403);
     return res.end('Forbidden');
   }

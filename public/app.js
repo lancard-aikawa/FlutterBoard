@@ -1,4 +1,5 @@
 'use strict';
+/* global marked, hljs */ // CDN globals (marked.js, highlight.js)
 
 // =====================================================================
 // フォルダブラウザ
@@ -666,7 +667,7 @@ function renderMdFileList(files) {
   renderNode(root, 0);
 }
 
-async function loadMdFile(relPath, name) {
+async function loadMdFile(relPath) {
   currentDocFile = relPath;
 
   // サイドバーのアクティブ表示更新
@@ -765,7 +766,6 @@ depsCheckAll.addEventListener('change', () => {
 
 // Select trusted packages only (provenance true AND age >= threshold)
 document.getElementById('deps-select-trusted').addEventListener('click', () => {
-  const threshold = parseInt(depsThreshold.value, 10) || 7;
   document.querySelectorAll('.deps-pkg-check').forEach(cb => {
     const tr = cb.closest('tr');
     cb.checked = tr.dataset.trust === 'full';

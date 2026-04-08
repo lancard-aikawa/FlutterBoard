@@ -123,6 +123,10 @@ async function handleGit(req, res, url) {
       res.writeHead(400);
       return res.end(JSON.stringify({ error: 'path and hash required' }));
     }
+    if (!/^[0-9a-f]{4,64}$/i.test(hash)) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'Invalid hash format' }));
+    }
 
     const [detail, statRaw] = await Promise.all([
       git(['show', '--format=%H%n%an%n%ae%n%ad%n%B', '--no-patch', hash], cwd),
