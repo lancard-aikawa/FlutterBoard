@@ -365,7 +365,7 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   font-family: 'Cascadia Code', monospace;
   background: color-mix(in srgb, var(--err) 12%, transparent);
   color: var(--err);
-  border: 1px solid color-mix(in srgb, var(--err) 40%, transparent);
+  border: 1px solid var(--err);
   border-radius: 4px;
   font-weight: 700;
 }
@@ -536,7 +536,7 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 }
 .nst-th-pin  { width: 1.8rem; }
 .nst-th-name { width: 9rem; }
-.nst-th-cmd  { } /* 残り幅 */
+/* .nst-th-cmd は残り幅を自動的に占有 */
 
 .nst-row {
   cursor: pointer;

@@ -443,7 +443,7 @@ function renderNpmScripts() {
 
   if (!projectInfo || !projectInfo.hasNodePkg) {
     grid.innerHTML = '<span class="cmd-empty">package.json が見つかりません</span>';
-    document.getElementById('npm-pinned-row').style.display = 'none';
+    document.getElementById('npm-pinned-row').classList.add('hidden');
     return;
   }
 
@@ -454,12 +454,12 @@ function renderNpmScripts() {
   pinnedGrid.innerHTML = '';
   const pinnedRow = document.getElementById('npm-pinned-row');
   if (pinned.length > 0) {
-    pinnedRow.style.display = '';
+    pinnedRow.classList.remove('hidden');
     pinned.forEach(name => {
       pinnedGrid.appendChild(buildNpmBtn(name, scripts[name] || name, pinned, true));
     });
   } else {
-    pinnedRow.style.display = 'none';
+    pinnedRow.classList.add('hidden');
   }
 
   // 全スクリプト → テーブル表示

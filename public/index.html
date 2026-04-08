@@ -76,7 +76,7 @@
             <!-- Ctrl キー -->
             <div id="stdin-ctrl-group">
               <button class="stdin-ctrl-btn" data-char="\x03" title="Ctrl+C — interrupt">^C</button>
-              <select id="stdin-ctrl-select">
+              <select id="stdin-ctrl-select" title="制御文字を送信">
                 <option value="" disabled selected>Ctrl...</option>
                 <option value="\x03">Ctrl+C  (interrupt)</option>
                 <option value="\x04">Ctrl+D  (EOF / Unix)</option>
@@ -199,7 +199,7 @@
           <!-- npm scripts -->
           <section class="cmd-section">
             <h3 class="cmd-section-title">npm scripts <span id="npm-project-name"></span></h3>
-            <table class="cmd-table" id="npm-pinned-row" style="display:none">
+            <table class="cmd-table hidden" id="npm-pinned-row">
               <tr>
                 <td class="cmd-category">ピン留め</td>
                 <td><div class="cmd-grid" id="pinned-grid"></div></td>
@@ -297,7 +297,7 @@
               </div>
               <div id="npm-action-bar">
                 <span id="npm-selected-label">← バージョンを選択</span>
-                <select id="npm-dep-type">
+                <select id="npm-dep-type" title="依存関係の種別">
                   <option value="dep">dependencies</option>
                   <option value="dev">devDependencies</option>
                 </select>
@@ -342,7 +342,7 @@
             </div>
             <div class="env-sidebar-section">
               <div class="env-sidebar-header">Firebase</div>
-              <a id="emulator-link" href="http://localhost:4000" target="_blank" class="emulator-btn">
+              <a id="emulator-link" href="http://localhost:4000" target="_blank" rel="noopener" class="emulator-btn">
                 Emulator UI を開く
                 <span class="emulator-port">:4000</span>
               </a>
