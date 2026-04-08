@@ -455,16 +455,74 @@ function renderNpmScripts() {
     pinnedRow.style.display = 'none';
   }
 
-  // 全スクリプト
+  // 全スクリプト → テーブル表示
   grid.innerHTML = '';
   const entries = Object.entries(scripts);
   if (entries.length === 0) {
     grid.innerHTML = '<span class="cmd-empty">scripts なし</span>';
     return;
   }
-  entries.forEach(([name]) => {
-    grid.appendChild(buildNpmBtn(name, `npm run ${name}`, pinned, false));
+
+  const table = document.createElement('table');
+  table.className = 'npm-scripts-table';
+  table.innerHTML = `
+    <thead><tr>
+      <th class="nst-th-pin"></th>
+      <th class="nst-th-name">スクリプト</th>
+      <th class="nst-th-cmd">コマンド</th>
+    </tr></thead>`;
+  const tbody = document.createElement('tbody');
+
+  entries.forEach(([name, cmdContent]) => {
+    const isPinned = pinned.includes(name);
+    const tr = document.createElement('tr');
+    tr.className = 'nst-row' + (isPinned ? ' nst-pinned' : '');
+    tr.title = '入力欄にセット';
+
+    const tdPin = document.createElement('td');
+    tdPin.className = 'nst-pin';
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'nst-pin-btn';
+    pinBtn.title = isPinned ? 'ピン解除' : 'ピン留め';
+    pinBtn.textContent = isPinned ? '★' : '☆';
+    tdPin.appendChild(pinBtn);
+
+    const tdName = document.createElement('td');
+    tdName.className = 'nst-name';
+    tdName.textContent = name;
+
+    const tdCmd = document.createElement('td');
+    tdCmd.className = 'nst-cmd';
+    tdCmd.textContent = cmdContent;
+
+    tr.appendChild(tdPin);
+    tr.appendChild(tdName);
+    tr.appendChild(tdCmd);
+    tbody.appendChild(tr);
+
+    // 行クリック → コマンドを入力欄にセット
+    tr.addEventListener('click', e => {
+      if (e.target === pinBtn) return;
+      runCommand(`npm run ${name}`, name);
+    });
+
+    // ピン留めトグル
+    pinBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const api = isPinned ? '/api/project/unpin' : '/api/project/pin';
+      const res = await fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: currentProjectPath, script: name }),
+      });
+      const data = await res.json();
+      projectInfo.pinnedScripts = data.pins;
+      renderNpmScripts();
+    });
   });
+
+  table.appendChild(tbody);
+  grid.appendChild(table);
 }
 
 function buildNpmBtn(name, cmd, pinned, isPinnedSection) {
@@ -504,25 +562,16 @@ function buildNpmBtn(name, cmd, pinned, isPinnedSection) {
 document.querySelectorAll('.cmd-btn[data-cmd]').forEach(btn => {
   btn.addEventListener('click', () => {
     runCommand(btn.dataset.cmd, btn.dataset.label);
-    document.querySelector('.tab[data-tab="logs"]').click();
   });
 });
 
-async function runCommand(cmd, label) {
-  const parts = cmd.split(/\s+/);
-  const res = await fetch('/api/process/start', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      label: label || cmd,
-      cmd:   parts[0],
-      args:  parts.slice(1),
-      cwd:   currentProjectPath,
-    }),
-  });
-  const data = await res.json();
-  if (data.error) { alert(data.error); return; }
-  refreshProcessList(data.id);
+function runCommand(cmd, label) {
+  // コマンドを直接実行せず、入力欄にセットしてユーザーが確認・編集できるようにする
+  document.querySelector('.tab[data-tab="logs"]').click();
+  cmdInput.value   = cmd;
+  labelInput.value = label || '';
+  cmdInput.focus();
+  cmdInput.select();
 }
 
 // =====================================================================
@@ -562,32 +611,53 @@ async function loadMdList(projectPath) {
 function renderMdFileList(files) {
   docsFileList.innerHTML = '';
 
-  // ディレクトリごとにグループ化
-  const groups = {};
+  // ファイルパスからツリーを構築: { _files: [], <dirname>: node, ... }
+  const root = { _files: [] };
   files.forEach(f => {
     const parts = f.relPath.replace(/\\/g, '/').split('/');
-    const dir   = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
-    if (!groups[dir]) groups[dir] = [];
-    groups[dir].push(f);
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const d = parts[i];
+      if (!node[d]) node[d] = { _files: [] };
+      node = node[d];
+    }
+    node._files.push(f);
   });
 
-  Object.entries(groups).forEach(([dir, groupFiles]) => {
-    if (dir) {
-      const sep = document.createElement('li');
-      sep.className   = 'docs-dir';
-      sep.textContent = `📁 ${dir}`;
-      docsFileList.appendChild(sep);
-    }
-    groupFiles.forEach(f => {
-      const li = document.createElement('li');
-      li.textContent   = `📄 ${f.name}`;
-      li.title         = f.relPath;
-      li.dataset.rel   = f.relPath;
-      li.classList.toggle('active', f.relPath === currentDocFile);
-      li.onclick = () => loadMdFile(f.relPath, f.name);
-      docsFileList.appendChild(li);
-    });
-  });
+  function renderNode(node, depth) {
+    const padLeft = 8 + depth * 16; // px
+
+    // サブディレクトリ（アルファベット順）→ 中身を再帰
+    Object.entries(node)
+      .filter(([k]) => k !== '_files')
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([key, child]) => {
+        const sep = document.createElement('li');
+        sep.className = 'docs-dir';
+        sep.style.paddingLeft = `${padLeft}px`;
+        sep.dataset.depth = depth;
+        sep.textContent = `📁 ${key}`;
+        docsFileList.appendChild(sep);
+        renderNode(child, depth + 1);
+      });
+
+    // ファイル（アルファベット順）
+    (node._files || [])
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach(f => {
+        const li = document.createElement('li');
+        li.style.paddingLeft = `${padLeft}px`;
+        li.dataset.depth = depth;
+        li.textContent = `📄 ${f.name}`;
+        li.title = f.relPath;
+        li.dataset.rel = f.relPath;
+        li.classList.toggle('active', f.relPath === currentDocFile);
+        li.onclick = () => loadMdFile(f.relPath, f.name);
+        docsFileList.appendChild(li);
+      });
+  }
+
+  renderNode(root, 0);
 }
 
 async function loadMdFile(relPath, name) {
@@ -711,7 +781,6 @@ document.getElementById('deps-install-btn').addEventListener('click', () => {
     .map(cb => cb.dataset.version ? `${cb.dataset.name}@${cb.dataset.version}` : cb.dataset.name)
     .join(' ');
   runCommand(`npm install ${args}`, 'npm install trusted');
-  document.querySelector('.tab[data-tab="logs"]').click();
 });
 
 async function checkDeps() {
@@ -1019,7 +1088,6 @@ npmInstallRun.addEventListener('click', () => {
   const dev  = npmDepType.value === 'dev' ? ' --save-dev' : '';
   const cmd  = `npm install ${npmSelectedPkg.name}@${npmSelectedPkg.version}${dev}`;
   runCommand(cmd, `install ${npmSelectedPkg.name}`);
-  document.querySelector('.tab[data-tab="logs"]').click();
 });
 
 // =====================================================================
