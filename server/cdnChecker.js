@@ -261,11 +261,17 @@ async function handleCdn(req, res, url) {
     const { display, semver, pinMajor } = normalizeCdnVersion(e.versionRaw);
     const info        = infoMap[e.pkgName] || {};
     const latest      = info.latest      || null;
-    const latestMinor = pinMajor ? null : (info.latestMinor || null); // major pin は minor 自動なので表示しない
+    const latestMinor = pinMajor ? null : (info.latestMinor || null); // major pin は minor 自動追従なので非表示
     const latestMajor = info.latestMajor || null;
 
-    let status = classifyUpdate(semver, latest);
-    if (latestMinor && latestMajor) status = 'both';
+    // pinMajor (@11 など) は同一メジャー内の更新はCDNが自動対応 → minor 扱いしない
+    let status;
+    if (pinMajor) {
+      status = latestMajor ? 'major' : 'latest';
+    } else {
+      status = classifyUpdate(semver, latest);
+      if (latestMinor && latestMajor) status = 'both';
+    }
 
     return {
       name:               e.pkgName,
