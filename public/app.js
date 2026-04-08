@@ -121,6 +121,7 @@ async function selectProject(projectPath) {
   depsProjectName.textContent = '';
 
   loadProjectInfo(data.selected);
+  loadSequences(data.selected);
   loadMdList(data.selected);
   loadEnvList(data.selected);
   loadGitStatus();
@@ -652,6 +653,268 @@ function runCommand(cmd, label) {
   labelInput.value = label || '';
   cmdInput.focus();
   cmdInput.select();
+}
+
+// =====================================================================
+// シーケンスランナー
+// =====================================================================
+
+const seqAddBtn     = document.getElementById('seq-add-btn');
+const seqList       = document.getElementById('seq-list');
+const seqEditor     = document.getElementById('seq-editor');
+const seqNameInput  = document.getElementById('seq-name-input');
+const seqStepsList  = document.getElementById('seq-steps-list');
+const seqStepCmd    = document.getElementById('seq-step-cmd');
+const seqStepLabel  = document.getElementById('seq-step-label');
+const seqStepAddBtn = document.getElementById('seq-step-add-btn');
+const seqSaveBtn    = document.getElementById('seq-save-btn');
+const seqCancelBtn  = document.getElementById('seq-cancel-btn');
+const seqStopErr    = document.getElementById('seq-stop-on-error');
+
+let sequences     = [];       // 現在のプロジェクトのシーケンス一覧
+let seqEditingId  = null;     // 編集中の ID（null = 新規）
+let seqEditSteps  = [];       // エディタ上のステップ
+let seqRunState   = null;     // { seq, stepIdx } — 実行中状態
+let seqMonitorSSE = null;     // ステップ完了監視用 SSE
+
+// ---- ロード / セーブ ----
+
+async function loadSequences(projectPath) {
+  try {
+    const res = await fetch(`/api/sequence/list?path=${encodeURIComponent(projectPath)}`);
+    sequences = await res.json();
+  } catch (_) {
+    sequences = [];
+  }
+  renderSeqList();
+}
+
+async function saveSequences() {
+  await fetch('/api/sequence/save', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ path: currentProjectPath, sequences }),
+  });
+}
+
+// ---- リスト描画 ----
+
+function renderSeqList() {
+  if (!sequences.length) {
+    seqList.innerHTML = '<div class="seq-empty">シーケンスはまだありません — 「+ 追加」で作成</div>';
+    return;
+  }
+  seqList.innerHTML = '';
+  sequences.forEach(seq => {
+    const isRunning = !!(seqRunState && seqRunState.seq.id === seq.id);
+    const stepIdx   = isRunning ? seqRunState.stepIdx : 0;
+    const card      = document.createElement('div');
+    card.className  = 'seq-item' + (isRunning ? ' seq-running' : '');
+    card.dataset.id = seq.id;
+
+    const preview = seq.steps.map(s => escHtml(s.label || s.cmd)).join(' → ');
+    const progressHtml = isRunning
+      ? `<div class="seq-progress">
+           <span class="seq-progress-dot"></span>
+           ステップ ${stepIdx + 1}/${seq.steps.length}: ${escHtml(seq.steps[stepIdx].label || seq.steps[stepIdx].cmd)}
+         </div>`
+      : '';
+
+    const otherRunning = !!(seqRunState && seqRunState.seq.id !== seq.id);
+
+    card.innerHTML = `
+      <div class="seq-item-header">
+        <span class="seq-item-name">${escHtml(seq.name)}</span>
+        <span class="seq-item-count">${seq.steps.length}ステップ</span>
+        <div class="seq-item-actions">
+          <button class="cmd-btn seq-run-btn" ${isRunning || otherRunning ? 'disabled' : ''}>▶ 実行</button>
+          <button class="btn-ghost seq-edit-btn" ${isRunning ? 'disabled' : ''}>編集</button>
+          <button class="btn-ghost seq-del-btn"  ${isRunning ? 'disabled' : ''}>✕</button>
+        </div>
+      </div>
+      <div class="seq-item-preview">${preview}</div>
+      ${progressHtml}`;
+
+    card.querySelector('.seq-run-btn').addEventListener('click', () => runSequence(seq));
+    card.querySelector('.seq-edit-btn').addEventListener('click', () => openSeqEditor(seq.id));
+    card.querySelector('.seq-del-btn').addEventListener('click', async () => {
+      if (!confirm(`「${seq.name}」を削除しますか？`)) return;
+      sequences = sequences.filter(s => s.id !== seq.id);
+      await saveSequences();
+      renderSeqList();
+    });
+
+    seqList.appendChild(card);
+  });
+}
+
+// ---- エディタ ----
+
+seqAddBtn.addEventListener('click', () => openSeqEditor(null));
+
+function openSeqEditor(id) {
+  seqEditingId = id;
+  seqAddBtn.disabled = true;
+  seqEditor.classList.remove('hidden');
+
+  if (id) {
+    const seq = sequences.find(s => s.id === id);
+    seqNameInput.value = seq.name;
+    seqEditSteps       = seq.steps.map(s => ({ ...s }));
+    seqStopErr.checked = seq.stopOnError !== false;
+  } else {
+    seqNameInput.value = '';
+    seqEditSteps       = [];
+    seqStopErr.checked = true;
+  }
+  renderSeqEditorSteps();
+  seqNameInput.focus();
+}
+
+function closeSeqEditor() {
+  seqEditor.classList.add('hidden');
+  seqAddBtn.disabled = false;
+  seqEditingId = null;
+  seqEditSteps = [];
+}
+
+function renderSeqEditorSteps() {
+  if (!seqEditSteps.length) {
+    seqStepsList.innerHTML = '<div class="seq-steps-empty">↑ ステップを追加してください</div>';
+    return;
+  }
+  seqStepsList.innerHTML = '';
+  const total = seqEditSteps.length;
+  seqEditSteps.forEach((step, i) => {
+    const row = document.createElement('div');
+    row.className = 'seq-editor-step-row';
+    row.innerHTML = `
+      <span class="seq-step-num">${i + 1}</span>
+      <span class="seq-step-cmd-txt" title="${escHtml(step.cmd)}">${escHtml(step.label || step.cmd)}</span>
+      <div class="seq-step-row-acts">
+        <button class="seq-stp-up  btn-icon" data-i="${i}" ${i === 0          ? 'disabled' : ''}>↑</button>
+        <button class="seq-stp-dn  btn-icon" data-i="${i}" ${i === total - 1  ? 'disabled' : ''}>↓</button>
+        <button class="seq-stp-del btn-icon" data-i="${i}">✕</button>
+      </div>`;
+    seqStepsList.appendChild(row);
+  });
+
+  seqStepsList.querySelectorAll('.seq-stp-up').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.i;
+    [seqEditSteps[i - 1], seqEditSteps[i]] = [seqEditSteps[i], seqEditSteps[i - 1]];
+    renderSeqEditorSteps();
+  }));
+  seqStepsList.querySelectorAll('.seq-stp-dn').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.i;
+    [seqEditSteps[i], seqEditSteps[i + 1]] = [seqEditSteps[i + 1], seqEditSteps[i]];
+    renderSeqEditorSteps();
+  }));
+  seqStepsList.querySelectorAll('.seq-stp-del').forEach(b => b.addEventListener('click', () => {
+    seqEditSteps.splice(+b.dataset.i, 1);
+    renderSeqEditorSteps();
+  }));
+}
+
+function addSeqStep() {
+  const cmd = seqStepCmd.value.trim();
+  if (!cmd) { seqStepCmd.focus(); return; }
+  seqEditSteps.push({ cmd, label: seqStepLabel.value.trim() });
+  seqStepCmd.value   = '';
+  seqStepLabel.value = '';
+  renderSeqEditorSteps();
+  seqStepCmd.focus();
+}
+
+seqStepAddBtn.addEventListener('click', addSeqStep);
+seqStepCmd.addEventListener('keydown',   e => { if (e.key === 'Enter') addSeqStep(); });
+seqStepLabel.addEventListener('keydown', e => { if (e.key === 'Enter') addSeqStep(); });
+
+seqSaveBtn.addEventListener('click', async () => {
+  const name = seqNameInput.value.trim();
+  if (!name) { seqNameInput.focus(); return; }
+  if (!seqEditSteps.length) { alert('ステップを1つ以上追加してください'); return; }
+
+  if (seqEditingId) {
+    const idx = sequences.findIndex(s => s.id === seqEditingId);
+    if (idx >= 0) sequences[idx] = { id: seqEditingId, name, steps: [...seqEditSteps], stopOnError: seqStopErr.checked };
+  } else {
+    sequences.push({ id: `seq_${Date.now()}`, name, steps: [...seqEditSteps], stopOnError: seqStopErr.checked });
+  }
+  await saveSequences();
+  closeSeqEditor();
+  renderSeqList();
+});
+
+seqCancelBtn.addEventListener('click', closeSeqEditor);
+
+// ---- シーケンス実行 ----
+
+async function runSequence(seq) {
+  if (seqRunState) return;
+  seqRunState = { seq, stepIdx: 0 };
+  renderSeqList();
+  await startSeqStep();
+}
+
+async function startSeqStep() {
+  const { seq, stepIdx } = seqRunState;
+  const step  = seq.steps[stepIdx];
+  const total = seq.steps.length;
+  const label = `[${stepIdx + 1}/${total}] ${step.label || step.cmd}`;
+
+  const parts = step.cmd.trim().split(/\s+/);
+  let procId;
+  try {
+    const res  = await fetch('/api/process/start', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ cmd: parts[0], args: parts.slice(1), label, cwd: currentProjectPath }),
+    });
+    const data = await res.json();
+    procId = data.id;
+  } catch (e) {
+    seqRunState = null;
+    renderSeqList();
+    return;
+  }
+
+  // ログタブへ切り替えてプロセスを選択
+  document.querySelector('.tab[data-tab="logs"]').click();
+  refreshProcessList(procId);
+
+  // ステップ完了を監視する専用 SSE
+  if (seqMonitorSSE) { seqMonitorSSE.close(); seqMonitorSSE = null; }
+  const sse = new EventSource(`/api/process/stream?id=${procId}`);
+  seqMonitorSSE = sse;
+
+  sse.onmessage = e => {
+    const { type, data } = JSON.parse(e.data);
+    if (type !== 'exit') return;
+    sse.close();
+    seqMonitorSSE = null;
+
+    const m    = data.match(/code:\s*(-?\d+)/);
+    const code = m ? parseInt(m[1]) : 1;
+
+    if (code !== 0 && seq.stopOnError !== false) {
+      seqRunState = null;
+      renderSeqList();
+      return;
+    }
+
+    seqRunState.stepIdx++;
+    if (seqRunState.stepIdx >= seq.steps.length) {
+      seqRunState = null;
+    }
+    renderSeqList();
+    if (seqRunState) startSeqStep();
+  };
+
+  sse.onerror = () => {
+    sse.close();
+    seqMonitorSSE = null;
+    if (seqRunState) { seqRunState = null; renderSeqList(); }
+  };
 }
 
 // =====================================================================

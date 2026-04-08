@@ -216,6 +216,37 @@
             </div>
           </section>
 
+          <!-- シーケンス -->
+          <section class="cmd-section" id="seq-section">
+            <h3 class="cmd-section-title">
+              シーケンス
+              <button id="seq-add-btn" class="seq-add-btn">+ 追加</button>
+            </h3>
+            <div id="seq-list">
+              <div class="seq-empty">シーケンスはまだありません — 「+ 追加」で作成</div>
+            </div>
+            <div id="seq-editor" class="hidden">
+              <div class="seq-editor-inner">
+                <input type="text" id="seq-name-input" class="seq-name-input" placeholder="シーケンス名（例: clean &amp; run dev）">
+                <div id="seq-steps-list" class="seq-steps-list"></div>
+                <div class="seq-step-add-row">
+                  <input type="text" id="seq-step-cmd"   placeholder="コマンド（例: flutter run --flavor dev）">
+                  <input type="text" id="seq-step-label" class="seq-step-label-input" placeholder="ラベル（省略可）">
+                  <button id="seq-step-add-btn" class="cmd-btn">+ ステップ追加</button>
+                </div>
+                <div class="seq-editor-footer">
+                  <label class="seq-stoponerror-label">
+                    <input type="checkbox" id="seq-stop-on-error" checked> エラー時停止
+                  </label>
+                  <div class="seq-editor-btns">
+                    <button id="seq-save-btn"   class="cmd-btn seq-save-btn">保存</button>
+                    <button id="seq-cancel-btn" class="btn-ghost">キャンセル</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
         </div>
       </div>
 
