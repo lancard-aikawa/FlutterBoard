@@ -888,6 +888,10 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .badge-young     { background: color-mix(in srgb, var(--err) 20%, transparent);   color: var(--err); }
 .badge-prov-yes  { background: color-mix(in srgb, var(--ok) 12%, transparent);    color: var(--ok); font-weight: 400; }
 .badge-prov-no   { background: color-mix(in srgb, var(--muted) 12%, transparent); color: var(--muted); font-weight: 400; }
+.badge-cdn       { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-weight: 400; font-size: .72rem; }
+.badge-pin       { background: color-mix(in srgb, var(--muted) 10%, transparent);  color: var(--muted);  font-weight: 400; font-size: .72rem; }
+
+.deps-cdn-file   { font-size: .76rem; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .deps-date { color: var(--muted); font-size: .78rem !important; }
 

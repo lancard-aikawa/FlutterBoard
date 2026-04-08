@@ -4,6 +4,7 @@ const { handleProjectInfo } = require('./projectInfo');
 const { handleMarkdown }    = require('./markdownHandler');
 const { handlePubspec }     = require('./pubspecChecker');
 const { handleNpm }         = require('./npmChecker');
+const { handleCdn }         = require('./cdnChecker');
 const { handleEnv }         = require('./envManager');
 const { handleGit }         = require('./gitStatus');
 
@@ -35,6 +36,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/npm')) {
     return handleNpm(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/cdn')) {
+    return handleCdn(req, res, url);
   }
 
   if (pathname.startsWith('/api/env')) {

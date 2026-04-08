@@ -246,6 +246,7 @@
             <div id="deps-source-toggle">
               <button class="deps-src-btn active" data-src="pubspec">pubspec.yaml</button>
               <button class="deps-src-btn"        data-src="npm">package.json</button>
+              <button class="deps-src-btn"        data-src="cdn">CDN</button>
             </div>
             <label class="deps-threshold-label" title="N日以内に公開されたバージョンを警告表示">
               ⚠ しきい値
@@ -330,7 +331,7 @@
                 <th>公開日（現在版）</th>
                 <th>経過日数</th>
                 <th id="deps-th-provenance" class="hidden">Provenance</th>
-                <th>種別</th>
+                <th id="deps-th-type">種別</th>
               </tr>
             </thead>
             <tbody id="deps-tbody">

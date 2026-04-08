@@ -847,6 +847,7 @@ const depsThCheck      = document.getElementById('deps-th-check');
 const depsCheckAll     = document.getElementById('deps-check-all');
 const depsNpmActions      = document.getElementById('deps-npm-actions');
 const depsPubspecActions  = document.getElementById('deps-pubspec-actions');
+const depsThType          = document.getElementById('deps-th-type');
 
 // Persist threshold in localStorage
 depsThreshold.value = localStorage.getItem('deps-threshold') || '7';
@@ -854,23 +855,28 @@ depsThreshold.addEventListener('change', () => {
   localStorage.setItem('deps-threshold', depsThreshold.value);
 });
 
-// Source toggle: pubspec | npm
+// Source toggle: pubspec | npm | cdn
 let depsSource = 'pubspec';
 document.querySelectorAll('.deps-src-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.deps-src-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     depsSource = btn.dataset.src;
-    // npm ソース選択時はすぐに npm 専用 UI を表示（checkDeps を待たない）
-    const isNpm = depsSource === 'npm';
-    depsThProvenance.classList.toggle('hidden', !isNpm);
-    depsThCheck.classList.toggle('hidden', !isNpm);
-    depsNpmActions.classList.toggle('hidden', !isNpm);
-    depsPubspecActions.classList.toggle('hidden', isNpm);
-    // プロジェクト選択済みなら自動でチェック実行
+    applyDepsSourceUi();
     if (currentProjectPath) checkDeps();
   });
 });
+
+function applyDepsSourceUi() {
+  const isNpm = depsSource === 'npm';
+  const isCdn = depsSource === 'cdn';
+  depsThCheck.classList.toggle('hidden', !isNpm);
+  depsThProvenance.classList.toggle('hidden', !isNpm && !isCdn);
+  depsThProvenance.textContent = isCdn ? 'CDN' : 'Provenance';
+  depsThType.textContent = isCdn ? 'ファイル' : '種別';
+  depsNpmActions.classList.toggle('hidden', !isNpm);
+  depsPubspecActions.classList.toggle('hidden', isNpm || isCdn);
+}
 
 depsRefreshBtn.onclick = () => checkDeps(true); // force=true でキャッシュ無視
 depsPubgetBtn.onclick  = () => { runCommand('flutter pub get', 'pub get'); document.querySelector('.tab[data-tab="logs"]').click(); };
@@ -912,21 +918,23 @@ async function checkDeps(force = false) {
   if (!currentProjectPath) { alert('プロジェクトを選択してください'); return; }
 
   const isNpm = depsSource === 'npm';
-  depsStatus.textContent = isNpm ? '⏳ npm registry に問い合わせ中...' : '⏳ pub.dev に問い合わせ中...';
+  const isCdn = depsSource === 'cdn';
+  const waitMsg = isNpm ? '⏳ npm registry に問い合わせ中...'
+    : isCdn ? '⏳ CDN ライブラリを確認中...'
+    : '⏳ pub.dev に問い合わせ中...';
+  depsStatus.textContent = waitMsg;
   depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">読み込み中...</td></tr>`;
   depsRefreshBtn.disabled = true;
 
-  // Show/hide npm-only UI
-  depsThProvenance.classList.toggle('hidden', !isNpm);
-  depsThCheck.classList.toggle('hidden', !isNpm);
-  depsNpmActions.classList.toggle('hidden', !isNpm);
-  depsPubspecActions.classList.toggle('hidden', isNpm);
+  applyDepsSourceUi();
   depsCheckAll.checked = false;
 
   const forceParam = force ? '&force=1' : '';
   const endpoint = isNpm
     ? `/api/npm/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`
-    : `/api/pubspec/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`;
+    : isCdn
+      ? `/api/cdn/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`
+      : `/api/pubspec/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`;
 
   try {
     const res  = await fetch(endpoint);
@@ -939,7 +947,7 @@ async function checkDeps(force = false) {
     }
 
     depsProjectName.textContent = data.projectName || '';
-    renderDepsTable(data.packages, isNpm);
+    renderDepsTable(data.packages, depsSource);
 
     const threshold = parseInt(depsThreshold.value, 10) || 7;
     const both   = data.packages.filter(p => p.status === 'both').length;
@@ -982,7 +990,9 @@ function trustLevel(p, threshold) {
   return 'none';
 }
 
-function renderDepsTable(packages, showProvenance) {
+function renderDepsTable(packages, source) {
+  const showProvenance = source === 'npm';
+  const showCdn        = source === 'cdn';
   depsTbody.innerHTML = '';
   if (!packages || packages.length === 0) {
     depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">パッケージなし</td></tr>`;
@@ -1098,13 +1108,29 @@ function renderDepsTable(packages, showProvenance) {
     tdAge.innerHTML = ageHtml;
     tr.appendChild(tdAge);
 
+    // 9th col: Provenance (npm) | CDN provider (cdn) | hidden (pubspec)
     const tdProv = document.createElement('td');
-    tdProv.className = showProvenance ? '' : 'hidden';
-    tdProv.innerHTML = provHtml;
+    if (showProvenance) {
+      tdProv.innerHTML = provHtml;
+    } else if (showCdn) {
+      tdProv.innerHTML = `<span class="badge badge-cdn">${escHtml(p.cdn || '')}</span>`;
+      if (p.pinMajor) {
+        tdProv.innerHTML += ` <span class="badge badge-pin" title="メジャーバージョン固定（自動マイナー更新）">pin</span>`;
+      }
+    } else {
+      tdProv.className = 'hidden';
+    }
     tr.appendChild(tdProv);
 
+    // 10th col: 種別 (npm/pubspec) | ファイル (cdn)
     const tdDev = document.createElement('td');
-    tdDev.innerHTML = p.dev ? '<span class="badge badge-dev">dev</span>' : '';
+    if (showCdn) {
+      tdDev.className = 'deps-cdn-file';
+      tdDev.title = p.url || '';
+      tdDev.textContent = p.file || '';
+    } else {
+      tdDev.innerHTML = p.dev ? '<span class="badge badge-dev">dev</span>' : '';
+    }
     tr.appendChild(tdDev);
 
     depsTbody.appendChild(tr);
