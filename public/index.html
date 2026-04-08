@@ -221,7 +221,10 @@
             <ul id="docs-file-list"></ul>
           </aside>
           <div id="docs-content">
-            <div id="docs-breadcrumb"></div>
+            <div id="docs-toolbar">
+              <div id="docs-breadcrumb"></div>
+              <button id="docs-fullscreen-btn" title="全画面表示" class="btn-icon">⛶</button>
+            </div>
             <article id="docs-body">
               <span class="log-muted">プロジェクトを選択すると README.md が表示されます</span>
             </article>
@@ -434,6 +437,11 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    window.__mermaid = mermaid;
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

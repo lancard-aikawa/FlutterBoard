@@ -585,9 +585,25 @@ function runCommand(cmd, label) {
 // ドキュメントビューア（フェーズ4）
 // =====================================================================
 
-const docsFileList  = document.getElementById('docs-file-list');
-const docsBody      = document.getElementById('docs-body');
-const docsBreadcrumb= document.getElementById('docs-breadcrumb');
+const docsFileList      = document.getElementById('docs-file-list');
+const docsBody          = document.getElementById('docs-body');
+const docsBreadcrumb    = document.getElementById('docs-breadcrumb');
+const docsFullscreenBtn = document.getElementById('docs-fullscreen-btn');
+const docsContent       = document.getElementById('docs-content');
+
+// 全画面トグル
+docsFullscreenBtn.addEventListener('click', () => {
+  const isFs = docsContent.classList.toggle('docs-fullscreen');
+  docsFullscreenBtn.title     = isFs ? '全画面を閉じる' : '全画面表示';
+  docsFullscreenBtn.textContent = isFs ? '✕' : '⛶';
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && docsContent.classList.contains('docs-fullscreen')) {
+    docsContent.classList.remove('docs-fullscreen');
+    docsFullscreenBtn.title      = '全画面表示';
+    docsFullscreenBtn.textContent = '⛶';
+  }
+});
 
 let currentDocFile = null;
 
@@ -694,23 +710,38 @@ async function loadMdFile(relPath) {
 
   docsBody.innerHTML = html;
 
+  // Mermaid ブロックを変換して描画
+  const mermaidBlocks = [];
+  docsBody.querySelectorAll('pre code.language-mermaid').forEach(code => {
+    const div = document.createElement('div');
+    div.className   = 'mermaid-diagram';
+    div.textContent = code.textContent;
+    code.closest('pre').replaceWith(div);
+    mermaidBlocks.push(div);
+  });
+  if (mermaidBlocks.length > 0 && typeof window.__mermaid !== 'undefined') {
+    window.__mermaid.run({ nodes: mermaidBlocks }).catch(() => {});
+  }
+
   // Markdown 内リンクをインターセプト（.md リンクはビューア内で開く）
   docsBody.querySelectorAll('a[href]').forEach(a => {
     const href = a.getAttribute('href');
     if (href && !href.startsWith('http') && href.endsWith('.md')) {
       a.addEventListener('click', e => {
         e.preventDefault();
-        // 相対パスを現在ファイルのディレクトリから解決
-        const base    = relPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
-        const target  = base ? `${base}/${href}` : href;
-        loadMdFile(target, href.split('/').pop());
+        const base   = relPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+        const target = base ? `${base}/${href}` : href;
+        loadMdFile(target);
       });
+    } else if (href && href.startsWith('http')) {
+      a.setAttribute('rel', 'noopener');
+      a.setAttribute('target', '_blank');
     }
   });
 
-  // highlight.js で再描画
+  // highlight.js で再描画（mermaid 以外の code ブロック）
   if (typeof hljs !== 'undefined') {
-    docsBody.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+    docsBody.querySelectorAll('pre code:not(.language-mermaid)').forEach(block => hljs.highlightElement(block));
   }
 }
 

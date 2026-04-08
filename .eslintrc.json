@@ -6,5 +6,11 @@
     "eqeqeq": ["warn", "smart"],
     "no-var": "warn",
     "no-undef": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["public/**/*.js"],
+      "env": { "node": false, "browser": true, "es2022": true }
+    }
+  ]
 }
