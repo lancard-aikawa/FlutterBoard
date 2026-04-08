@@ -113,6 +113,12 @@ async function selectProject(projectPath) {
   currentLabel.textContent = data.selected;
   projectPanel.classList.add('hidden');
   dashboard.classList.remove('hidden');
+
+  // deps タブをリセット（前のプロジェクトのデータをクリア）
+  depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">「更新チェック」を押してください</td></tr>`;
+  depsStatus.textContent = '';
+  depsProjectName.textContent = '';
+
   loadProjectInfo(data.selected);
   loadMdList(data.selected);
   loadEnvList(data.selected);
@@ -721,7 +727,8 @@ const depsThreshold    = document.getElementById('deps-threshold');
 const depsThProvenance = document.getElementById('deps-th-provenance');
 const depsThCheck      = document.getElementById('deps-th-check');
 const depsCheckAll     = document.getElementById('deps-check-all');
-const depsNpmActions   = document.getElementById('deps-npm-actions');
+const depsNpmActions      = document.getElementById('deps-npm-actions');
+const depsPubspecActions  = document.getElementById('deps-pubspec-actions');
 
 // Persist threshold in localStorage
 depsThreshold.value = localStorage.getItem('deps-threshold') || '7';
@@ -741,12 +748,13 @@ document.querySelectorAll('.deps-src-btn').forEach(btn => {
     depsThProvenance.classList.toggle('hidden', !isNpm);
     depsThCheck.classList.toggle('hidden', !isNpm);
     depsNpmActions.classList.toggle('hidden', !isNpm);
+    depsPubspecActions.classList.toggle('hidden', isNpm);
     // プロジェクト選択済みなら自動でチェック実行
     if (currentProjectPath) checkDeps();
   });
 });
 
-depsRefreshBtn.onclick = () => checkDeps();
+depsRefreshBtn.onclick = () => checkDeps(true); // force=true でキャッシュ無視
 depsPubgetBtn.onclick  = () => { runCommand('flutter pub get', 'pub get'); document.querySelector('.tab[data-tab="logs"]').click(); };
 depsUpgradeBtn.onclick = () => { runCommand('flutter pub upgrade', 'pub upgrade'); document.querySelector('.tab[data-tab="logs"]').click(); };
 
@@ -783,23 +791,25 @@ document.getElementById('deps-install-btn').addEventListener('click', () => {
   runCommand(`npm install ${args}`, 'npm install trusted');
 });
 
-async function checkDeps() {
+async function checkDeps(force = false) {
   if (!currentProjectPath) { alert('プロジェクトを選択してください'); return; }
 
   const isNpm = depsSource === 'npm';
   depsStatus.textContent = isNpm ? '⏳ npm registry に問い合わせ中...' : '⏳ pub.dev に問い合わせ中...';
-  depsTbody.innerHTML = `<tr><td colspan="8" class="deps-empty">読み込み中...</td></tr>`;
+  depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">読み込み中...</td></tr>`;
   depsRefreshBtn.disabled = true;
 
   // Show/hide npm-only UI
   depsThProvenance.classList.toggle('hidden', !isNpm);
   depsThCheck.classList.toggle('hidden', !isNpm);
   depsNpmActions.classList.toggle('hidden', !isNpm);
+  depsPubspecActions.classList.toggle('hidden', isNpm);
   depsCheckAll.checked = false;
 
+  const forceParam = force ? '&force=1' : '';
   const endpoint = isNpm
-    ? `/api/npm/check?path=${encodeURIComponent(currentProjectPath)}`
-    : `/api/pubspec/check?path=${encodeURIComponent(currentProjectPath)}`;
+    ? `/api/npm/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`
+    : `/api/pubspec/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`;
 
   try {
     const res  = await fetch(endpoint);
@@ -807,7 +817,7 @@ async function checkDeps() {
 
     if (data.error) {
       depsStatus.textContent = `⚠ ${data.error}`;
-      depsTbody.innerHTML = `<tr><td colspan="8" class="deps-empty">${escHtml(data.error)}</td></tr>`;
+      depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">${escHtml(data.error)}</td></tr>`;
       return;
     }
 
@@ -815,15 +825,26 @@ async function checkDeps() {
     renderDepsTable(data.packages, isNpm);
 
     const threshold = parseInt(depsThreshold.value, 10) || 7;
+    const both   = data.packages.filter(p => p.status === 'both').length;
     const major  = data.packages.filter(p => p.status === 'major').length;
     const minor  = data.packages.filter(p => p.status === 'minor').length;
     const young  = data.packages.filter(p => p.currentAgeInDays !== null && p.currentAgeInDays < threshold).length;
     const noSig  = isNpm ? data.packages.filter(p => p.provenance === false).length : 0;
     const total  = data.packages.length;
 
-    let summary = `✓ ${total}件チェック完了 — MAJOR: ${major}件  minor: ${minor}件`;
+    let summary = `✓ ${total}件チェック完了 — MAJOR: ${major + both}件  minor: ${minor + both}件`;
     if (young > 0) summary += `  ⚠ 新着 ${threshold}日未満: ${young}件`;
     if (noSig > 0) summary += `  ⚠ Provenance なし: ${noSig}件`;
+
+    // キャッシュ表示
+    if (data.cached && data.cachedAt) {
+      const ageMin = Math.round((Date.now() - data.cachedAt) / 60000);
+      const ageStr = ageMin < 60
+        ? `${ageMin}分前`
+        : `${Math.floor(ageMin / 60)}時間${ageMin % 60 ? ageMin % 60 + '分' : ''}前`;
+      summary += `  （キャッシュ: ${ageStr}）`;
+    }
+
     depsStatus.textContent = summary;
   } catch (e) {
     depsStatus.textContent = `エラー: ${e.message}`;
@@ -847,7 +868,7 @@ function trustLevel(p, threshold) {
 function renderDepsTable(packages, showProvenance) {
   depsTbody.innerHTML = '';
   if (!packages || packages.length === 0) {
-    depsTbody.innerHTML = `<tr><td colspan="8" class="deps-empty">パッケージなし</td></tr>`;
+    depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">パッケージなし</td></tr>`;
     return;
   }
 
@@ -860,13 +881,12 @@ function renderDepsTable(packages, showProvenance) {
       latest:  '✓ 最新',
       minor:   '↑ minor',
       major:   '⚠ MAJOR',
+      both:    '↑⚠ 両方',
       unknown: '— 不明',
     }[p.status] || '—';
 
-    const badgeClass = `badge badge-${p.status}`;
+    const badgeClass = `badge badge-${p.status === 'both' ? 'major' : p.status}`;
     const current = p.current ?? '—';
-    const latest  = p.latest  ?? '—';
-    const arrow   = (p.status !== 'latest' && p.latest) ? `→ ${escHtml(latest)}` : escHtml(latest);
 
     // Age cell
     let ageHtml = '—';
@@ -895,23 +915,81 @@ function renderDepsTable(packages, showProvenance) {
     tr.dataset.trust = trust;
     if (showProvenance) tr.classList.add(`trust-${trust}`);
 
-    // Checkbox cell (npm only — hidden for pubspec via th hidden)
-    const checkHtml = showProvenance
-      ? `<td class="deps-check-cell"><input type="checkbox" class="deps-pkg-check"
-           data-name="${escHtml(p.name)}"
-           data-version="${escHtml(p.current ?? '')}"></td>`
-      : `<td class="hidden"></td>`;
+    // Checkbox (npm only)
+    const checkCell = document.createElement('td');
+    checkCell.className = showProvenance ? 'deps-check-cell' : 'hidden';
+    if (showProvenance) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'deps-pkg-check';
+      cb.dataset.name = p.name;
+      cb.dataset.version = p.current ?? '';
+      checkCell.appendChild(cb);
+      tr.appendChild(checkCell);
+    } else {
+      tr.appendChild(checkCell);
+    }
 
-    tr.innerHTML = `
-      ${checkHtml}
-      <td>${escHtml(p.name)}</td>
-      <td>${escHtml(current)}</td>
-      <td>${arrow}</td>
-      <td><span class="${badgeClass}">${statusLabel}</span></td>
-      <td class="deps-date">${pubDate}</td>
-      <td>${ageHtml}</td>
-      <td class="${showProvenance ? '' : 'hidden'}">${provHtml}</td>
-      <td>${p.dev ? '<span class="badge badge-dev">dev</span>' : ''}</td>`;
+    // Minor / Major version cells — clickable to select as install target
+    function makeVersionCell(ver, type) {
+      const td = document.createElement('td');
+      td.className = `deps-ver-cell deps-ver-${type}`;
+      if (ver) {
+        const span = document.createElement('span');
+        span.className = `deps-ver-btn badge-ver-${type}`;
+        span.textContent = ver;
+        span.title = `${type === 'minor' ? 'minor 更新' : 'MAJOR 更新'}: ${ver} を選択`;
+        span.addEventListener('click', () => {
+          // Highlight selection in this row
+          tr.querySelectorAll('.deps-ver-btn').forEach(s => s.classList.remove('deps-ver-selected'));
+          span.classList.add('deps-ver-selected');
+          // Update checkbox target version
+          const cb = tr.querySelector('.deps-pkg-check');
+          if (cb) { cb.dataset.version = ver; cb.checked = true; }
+        });
+        td.appendChild(span);
+      } else {
+        td.textContent = '—';
+      }
+      return td;
+    }
+
+    tr.innerHTML = ''; // clear before DOM append
+    tr.appendChild(checkCell);
+
+    const tdName = document.createElement('td');
+    tdName.textContent = p.name;
+    tr.appendChild(tdName);
+
+    const tdCurrent = document.createElement('td');
+    tdCurrent.textContent = current;
+    tr.appendChild(tdCurrent);
+
+    tr.appendChild(makeVersionCell(p.latestMinor, 'minor'));
+    tr.appendChild(makeVersionCell(p.latestMajor, 'major'));
+
+    const tdStatus = document.createElement('td');
+    tdStatus.innerHTML = `<span class="${badgeClass}">${statusLabel}</span>`;
+    tr.appendChild(tdStatus);
+
+    const tdDate = document.createElement('td');
+    tdDate.className = 'deps-date';
+    tdDate.textContent = pubDate;
+    tr.appendChild(tdDate);
+
+    const tdAge = document.createElement('td');
+    tdAge.innerHTML = ageHtml;
+    tr.appendChild(tdAge);
+
+    const tdProv = document.createElement('td');
+    tdProv.className = showProvenance ? '' : 'hidden';
+    tdProv.innerHTML = provHtml;
+    tr.appendChild(tdProv);
+
+    const tdDev = document.createElement('td');
+    tdDev.innerHTML = p.dev ? '<span class="badge badge-dev">dev</span>' : '';
+    tr.appendChild(tdDev);
+
     depsTbody.appendChild(tr);
   });
 }

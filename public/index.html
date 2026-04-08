@@ -244,8 +244,11 @@
               日
             </label>
             <button id="deps-refresh-btn">更新チェック</button>
-            <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
-            <button id="deps-upgrade-btn" class="btn-secondary">flutter pub upgrade</button>
+            <!-- pubspec 専用アクション (pubspec ソース選択時のみ表示) -->
+            <div id="deps-pubspec-actions">
+              <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
+              <button id="deps-upgrade-btn" class="btn-secondary">flutter pub upgrade</button>
+            </div>
             <!-- npm 専用アクション (npm ソース選択時のみ表示) -->
             <div id="deps-npm-actions" class="hidden">
               <button id="deps-select-trusted" class="btn-secondary" title="Provenance あり かつ N日以上経過したパッケージを選択">信頼済みのみ選択</button>
@@ -312,7 +315,8 @@
                 <th id="deps-th-check" class="hidden"><input type="checkbox" id="deps-check-all" title="全選択 / 全解除"></th>
                 <th>パッケージ</th>
                 <th>現在</th>
-                <th>最新</th>
+                <th class="deps-th-minor">↑ minor</th>
+                <th class="deps-th-major">⚠ MAJOR</th>
                 <th>状態</th>
                 <th>公開日（現在版）</th>
                 <th>経過日数</th>
@@ -321,7 +325,7 @@
               </tr>
             </thead>
             <tbody id="deps-tbody">
-              <tr><td colspan="8" class="deps-empty">プロジェクトを選択して「更新チェック」を押してください</td></tr>
+              <tr><td colspan="9" class="deps-empty">プロジェクトを選択して「更新チェック」を押してください</td></tr>
             </tbody>
           </table>
         </div>

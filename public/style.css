@@ -836,6 +836,31 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
 .deps-date { color: var(--muted); font-size: .78rem !important; }
 
+/* バージョン選択セル */
+.deps-ver-cell { white-space: nowrap; }
+.deps-ver-btn {
+  display: inline-block;
+  padding: .15rem .45rem;
+  border-radius: 4px;
+  font-size: .78rem;
+  font-family: var(--mono);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color .15s, opacity .15s;
+}
+.deps-ver-btn:hover { border-color: currentColor; opacity: .85; }
+.deps-ver-selected  { border-color: currentColor !important; font-weight: 700; }
+.badge-ver-minor {
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  color: var(--warn);
+}
+.badge-ver-major {
+  background: color-mix(in srgb, var(--err) 12%, transparent);
+  color: var(--err);
+}
+.deps-th-minor { color: var(--warn); }
+.deps-th-major { color: var(--err); }
+
 /* npm trust-level row coloring */
 tr.trust-full    { border-left: 3px solid var(--ok); }
 tr.trust-partial { border-left: 3px solid var(--warn); }

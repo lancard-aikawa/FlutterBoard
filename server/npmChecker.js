@@ -41,7 +41,40 @@ function fetchNpmInfo(pkgName, currentVersion) {
           const versionData = currentVersion ? (data.versions?.[currentVersion] ?? null) : null;
           const provenance  = versionData !== null ? !!(versionData?.dist?.attestations) : null;
 
-          resolve({ pkgName, latest, currentPublishedAt, latestPublishedAt, currentAgeInDays, provenance });
+          // Compute latestMinor (same major) and latestMajor (higher major)
+          const currentParsed = parseSemver(currentVersion);
+          let latestMinor = null;
+          let latestMajor = null;
+
+          if (currentParsed) {
+            // All stable versions sorted by semver descending
+            const sortedVersions = Object.keys(data.versions || {})
+              .filter(v => !v.includes('-'))
+              .sort((a, b) => {
+                const pa = parseSemver(a), pb = parseSemver(b);
+                if (pa.major !== pb.major) return pb.major - pa.major;
+                if (pa.minor !== pb.minor) return pb.minor - pa.minor;
+                return pb.patch - pa.patch;
+              });
+
+            // Highest version with same major that is newer than current
+            for (const v of sortedVersions) {
+              const pv = parseSemver(v);
+              if (pv && pv.major === currentParsed.major && semverGt(pv, currentParsed)) {
+                latestMinor = v;
+                break;
+              }
+            }
+
+            // Latest overall is a major bump?
+            const latestParsed = parseSemver(latest);
+            if (latestParsed && latestParsed.major > currentParsed.major) {
+              latestMajor = latest;
+            }
+          }
+
+          resolve({ pkgName, latest, latestMinor, latestMajor,
+                    currentPublishedAt, latestPublishedAt, currentAgeInDays, provenance });
         } catch {
           resolve(empty);
         }
@@ -63,6 +96,13 @@ function parseSemver(v) {
   const clean = v.replace(/^[^\d]*/, '');
   const parts = clean.split('.').map(Number);
   return { major: parts[0] || 0, minor: parts[1] || 0, patch: parts[2] || 0 };
+}
+
+function semverGt(a, b) {
+  // returns true if semver a > b
+  if (a.major !== b.major) return a.major > b.major;
+  if (a.minor !== b.minor) return a.minor > b.minor;
+  return a.patch > b.patch;
 }
 
 function classifyUpdate(current, latest) {
@@ -191,6 +231,9 @@ function writePackageJson(projectPath, pkgName, version, dev) {
 // Handler
 // =====================================================================
 
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const npmCheckCache = new Map(); // key: projectPath → { result, cachedAt }
+
 async function handleNpm(req, res, url) {
   res.setHeader('Content-Type', 'application/json');
 
@@ -233,11 +276,21 @@ async function handleNpm(req, res, url) {
 
   if (url.pathname === '/api/npm/check' && req.method === 'GET') {
     const projectPath = url.searchParams.get('path');
+    const force       = url.searchParams.get('force') === '1';
     const pkgJsonPath = path.join(projectPath, 'package.json');
 
     if (!projectPath || !fs.existsSync(pkgJsonPath)) {
       res.writeHead(404);
       return res.end(JSON.stringify({ error: 'package.json not found' }));
+    }
+
+    // キャッシュヒット確認
+    if (!force) {
+      const cached = npmCheckCache.get(projectPath);
+      if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
+        res.writeHead(200);
+        return res.end(JSON.stringify({ ...cached.result, cached: true, cachedAt: cached.cachedAt }));
+      }
     }
 
     let pkg;
@@ -255,20 +308,28 @@ async function handleNpm(req, res, url) {
 
     if (allPkgs.length === 0) {
       res.writeHead(200);
-      return res.end(JSON.stringify({ projectName: pkg.name || '', packages: [] }));
+      return res.end(JSON.stringify({ projectName: pkg.name || '', packages: [], cached: false, cachedAt: Date.now() }));
     }
 
     const infos   = await Promise.all(allPkgs.map(p => fetchNpmInfo(p.name, p.version)));
     const infoMap = Object.fromEntries(infos.map(i => [i.pkgName, i]));
 
     const packages = allPkgs.map(p => {
-      const info   = infoMap[p.name] || {};
-      const latest = info.latest || null;
+      const info        = infoMap[p.name] || {};
+      const latest      = info.latest      || null;
+      const latestMinor = info.latestMinor || null;
+      const latestMajor = info.latestMajor || null;
+
+      let status = classifyUpdate(p.version, latest);
+      if (latestMinor && latestMajor) status = 'both';
+
       return {
         name:               p.name,
         current:            p.version,
         latest,
-        status:             classifyUpdate(p.version, latest),
+        latestMinor,
+        latestMajor,
+        status,
         dev:                p.dev,
         currentPublishedAt: info.currentPublishedAt ?? null,
         latestPublishedAt:  info.latestPublishedAt  ?? null,
@@ -277,11 +338,15 @@ async function handleNpm(req, res, url) {
       };
     });
 
-    const order = { major: 0, minor: 1, unknown: 2, latest: 3 };
+    const order = { both: 0, major: 1, minor: 2, unknown: 3, latest: 4 };
     packages.sort((a, b) => (order[a.status] ?? 4) - (order[b.status] ?? 4));
 
+    const cachedAt = Date.now();
+    const result   = { projectName: pkg.name || '', packages };
+    npmCheckCache.set(projectPath, { result, cachedAt });
+
     res.writeHead(200);
-    return res.end(JSON.stringify({ projectName: pkg.name || '', packages }));
+    return res.end(JSON.stringify({ ...result, cached: false, cachedAt }));
   }
 
   res.writeHead(404);

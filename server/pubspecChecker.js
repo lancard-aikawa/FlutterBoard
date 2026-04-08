@@ -80,7 +80,7 @@ function fetchPackageInfo(pkgName, currentVersion) {
       method:   'GET',
       headers:  { 'User-Agent': 'FlutterBoard/0.1' },
     };
-    const empty = { pkgName, latest: null, latestPublishedAt: null, currentPublishedAt: null, currentAgeInDays: null };
+    const empty = { pkgName, latest: null, latestMinor: null, latestMajor: null, latestPublishedAt: null, currentPublishedAt: null, currentAgeInDays: null };
     const req = https.request(options, res => {
       let body = '';
       res.on('data', chunk => { body += chunk; });
@@ -101,7 +101,37 @@ function fetchPackageInfo(pkgName, currentVersion) {
             ? Math.floor((Date.now() - new Date(currentPublishedAt)) / 86400000)
             : null;
 
-          resolve({ pkgName, latest, latestPublishedAt, currentPublishedAt, currentAgeInDays });
+          // Compute latestMinor (same major) and latestMajor (higher major)
+          const currentParsed = parseSemver(currentVersion);
+          let latestMinor = null;
+          let latestMajor = null;
+
+          if (currentParsed && Array.isArray(data.versions)) {
+            const sortedVersions = data.versions
+              .map(v => v.version)
+              .filter(v => v && !v.includes('-'))
+              .sort((a, b) => {
+                const pa = parseSemver(a), pb = parseSemver(b);
+                if (pa.major !== pb.major) return pb.major - pa.major;
+                if (pa.minor !== pb.minor) return pb.minor - pa.minor;
+                return pb.patch - pa.patch;
+              });
+
+            for (const v of sortedVersions) {
+              const pv = parseSemver(v);
+              if (pv && pv.major === currentParsed.major && semverGt(pv, currentParsed)) {
+                latestMinor = v;
+                break;
+              }
+            }
+
+            const latestParsed = parseSemver(latest);
+            if (latestParsed && latestParsed.major > currentParsed.major) {
+              latestMajor = latest;
+            }
+          }
+
+          resolve({ pkgName, latest, latestMinor, latestMajor, latestPublishedAt, currentPublishedAt, currentAgeInDays });
         } catch {
           resolve(empty);
         }
@@ -123,6 +153,12 @@ function parseSemver(v) {
   return { major: parts[0] || 0, minor: parts[1] || 0, patch: parts[2] || 0 };
 }
 
+function semverGt(a, b) {
+  if (a.major !== b.major) return a.major > b.major;
+  if (a.minor !== b.minor) return a.minor > b.minor;
+  return a.patch > b.patch;
+}
+
 /** 'latest' | 'minor' | 'major' | 'unknown' */
 function classifyUpdate(current, latest) {
   if (!current || !latest) return 'unknown';
@@ -138,6 +174,9 @@ function classifyUpdate(current, latest) {
 // ハンドラー
 // =====================================================================
 
+const CACHE_TTL_MS   = 24 * 60 * 60 * 1000; // 24 hours
+const pubspecCache   = new Map(); // key: projectPath → { result, cachedAt }
+
 async function handlePubspec(req, res, url) {
   res.setHeader('Content-Type', 'application/json');
   const pathname = url.pathname;
@@ -145,11 +184,21 @@ async function handlePubspec(req, res, url) {
   // GET /api/pubspec/check?path=...
   if (pathname === '/api/pubspec/check' && req.method === 'GET') {
     const projectPath = url.searchParams.get('path');
+    const force       = url.searchParams.get('force') === '1';
     const pubspecPath = path.join(projectPath, 'pubspec.yaml');
 
     if (!projectPath || !fs.existsSync(pubspecPath)) {
       res.writeHead(404);
       return res.end(JSON.stringify({ error: 'pubspec.yaml not found' }));
+    }
+
+    // キャッシュヒット確認
+    if (!force) {
+      const cached = pubspecCache.get(projectPath);
+      if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
+        res.writeHead(200);
+        return res.end(JSON.stringify({ ...cached.result, cached: true, cachedAt: cached.cachedAt }));
+      }
     }
 
     const content = fs.readFileSync(pubspecPath, 'utf-8');
@@ -165,27 +214,38 @@ async function handlePubspec(req, res, url) {
     const infoMap = Object.fromEntries(infos.map(i => [i.pkgName, i]));
 
     const packages = allPkgs.map(p => {
-      const info   = infoMap[p.name] || {};
-      const latest = info.latest || null;
+      const info        = infoMap[p.name] || {};
+      const latest      = info.latest      || null;
+      const latestMinor = info.latestMinor || null;
+      const latestMajor = info.latestMajor || null;
+
+      let status = classifyUpdate(p.version, latest);
+      if (latestMinor && latestMajor) status = 'both';
+
       return {
         name:               p.name,
         current:            p.version,
         latest,
-        status:             classifyUpdate(p.version, latest),
+        latestMinor,
+        latestMajor,
+        status,
         dev:                p.dev,
         currentPublishedAt: info.currentPublishedAt ?? null,
         latestPublishedAt:  info.latestPublishedAt  ?? null,
         currentAgeInDays:   info.currentAgeInDays   ?? null,
-        provenance:         null, // pub.dev does not have provenance concept
+        provenance:         null,
       };
     });
 
-    // MAJOR 更新を先頭に、次に minor、最新は末尾
-    const order = { major: 0, minor: 1, unknown: 2, latest: 3 };
+    const order = { both: 0, major: 1, minor: 2, unknown: 3, latest: 4 };
     packages.sort((a, b) => (order[a.status] ?? 4) - (order[b.status] ?? 4));
 
+    const cachedAt = Date.now();
+    const result   = { projectName: parsed.name, packages };
+    pubspecCache.set(projectPath, { result, cachedAt });
+
     res.writeHead(200);
-    return res.end(JSON.stringify({ projectName: parsed.name, packages }));
+    return res.end(JSON.stringify({ ...result, cached: false, cachedAt }));
   }
 
   res.writeHead(404);
