@@ -66,31 +66,34 @@ async function handleGit(req, res, url) {
   res.setHeader('Content-Type', 'application/json');
   const pathname = url.pathname;
 
-  // GET /api/git/status?path=...
+  // GET /api/git/status?path=...&logOffset=0&logLimit=20
   if (pathname === '/api/git/status' && req.method === 'GET') {
-    const cwd = url.searchParams.get('path');
+    const cwd       = url.searchParams.get('path');
+    const logOffset = parseInt(url.searchParams.get('logOffset') || '0', 10);
+    const logLimit  = parseInt(url.searchParams.get('logLimit')  || '20', 10);
     if (!cwd) {
       res.writeHead(400);
       return res.end(JSON.stringify({ error: 'path required' }));
     }
 
     // 並列取得
-    const [branch, porcelain, logRaw, stashRaw] = await Promise.all([
+    const [branch, porcelain, logRaw, stashRaw, totalRaw] = await Promise.all([
       git(['branch', '--show-current'], cwd),
       git(['status', '--porcelain'], cwd),
-      git(['log', '--format=%H|%h|%s|%an|%ar', '-15'], cwd),
+      git(['log', `--format=%H|%h|%s|%an|%ar`, `--skip=${logOffset}`, `-${logLimit}`], cwd),
       git(['stash', 'list', '--format=%gd: %s'], cwd),
+      git(['rev-list', '--count', 'HEAD'], cwd),
     ]);
 
     if (branch === null && porcelain === null) {
-      // git リポジトリでない
       res.writeHead(200);
       return res.end(JSON.stringify({ isGit: false }));
     }
 
-    const changes = parsePorcelain(porcelain);
-    const commits = parseLog(logRaw);
-    const stashes = stashRaw ? stashRaw.split('\n').filter(Boolean) : [];
+    const changes      = parsePorcelain(porcelain);
+    const commits      = parseLog(logRaw);
+    const stashes      = stashRaw ? stashRaw.split('\n').filter(Boolean) : [];
+    const totalCommits = totalRaw ? parseInt(totalRaw, 10) : 0;
 
     const summary = {
       staged:    changes.filter(c => c.staged).length,
@@ -105,8 +108,69 @@ async function handleGit(req, res, url) {
       changes,
       summary,
       commits,
+      totalCommits,
+      logOffset,
+      logLimit,
       stashes,
     }));
+  }
+
+  // GET /api/git/commit?path=...&hash=...
+  if (pathname === '/api/git/commit' && req.method === 'GET') {
+    const cwd  = url.searchParams.get('path');
+    const hash = url.searchParams.get('hash');
+    if (!cwd || !hash) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'path and hash required' }));
+    }
+
+    const [detail, statRaw] = await Promise.all([
+      git(['show', '--format=%H%n%an%n%ae%n%ad%n%B', '--no-patch', hash], cwd),
+      git(['show', '--stat', '--format=', hash], cwd),
+    ]);
+
+    if (!detail) {
+      res.writeHead(404);
+      return res.end(JSON.stringify({ error: 'Commit not found' }));
+    }
+
+    const lines   = detail.split('\n');
+    const fullHash = lines[0] || hash;
+    const author   = lines[1] || '';
+    const email    = lines[2] || '';
+    const date     = lines[3] || '';
+    const body     = lines.slice(4).join('\n').trim();
+
+    // stat の最終行: "N files changed, X insertions(+), Y deletions(-)"
+    const statLines  = statRaw ? statRaw.split('\n').filter(Boolean) : [];
+    const statSummary = statLines.length ? statLines[statLines.length - 1].trim() : '';
+    const fileStats   = statLines.slice(0, -1).map(l => l.trim());
+
+    res.writeHead(200);
+    return res.end(JSON.stringify({ fullHash, author, email, date, body, statSummary, fileStats }));
+  }
+
+  // GET /api/git/diff?path=...&file=...&staged=0
+  if (pathname === '/api/git/diff' && req.method === 'GET') {
+    const cwd    = url.searchParams.get('path');
+    const file   = url.searchParams.get('file');
+    const staged = url.searchParams.get('staged') === '1';
+    if (!cwd || !file) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'path and file required' }));
+    }
+
+    // staged: git diff --cached, unstaged: git diff, untracked: git diff /dev/null
+    let diffArgs;
+    if (staged) {
+      diffArgs = ['diff', '--cached', '--', file];
+    } else {
+      diffArgs = ['diff', 'HEAD', '--', file];
+    }
+
+    const diffOut = await git(diffArgs, cwd);
+    res.writeHead(200);
+    return res.end(JSON.stringify({ diff: diffOut || '' }));
   }
 
   res.writeHead(404);

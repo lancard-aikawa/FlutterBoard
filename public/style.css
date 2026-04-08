@@ -1208,7 +1208,6 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
 }
 .git-section-title {
   font-size: .75rem;
@@ -1239,6 +1238,44 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
   border-bottom: 1px solid var(--border);
 }
 #git-changes-list li:last-child { border-bottom: none; }
+.git-change-item { cursor: pointer; }
+.git-change-item:hover { background: var(--surface); }
+.git-change-item.git-log-active { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.git-change-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* diff パネル */
+#git-diff-panel {
+  border-top: 1px solid var(--border);
+  max-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+.git-diff-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .35rem .9rem;
+  font-size: .78rem;
+  font-family: 'Cascadia Code', monospace;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+#git-diff-body {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: .5rem .75rem;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: .76rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+.diff-add  { display: block; color: var(--ok);   background: color-mix(in srgb, var(--ok)   8%, transparent); }
+.diff-del  { display: block; color: var(--err);  background: color-mix(in srgb, var(--err)  8%, transparent); }
+.diff-hunk { display: block; color: var(--accent); }
+.diff-meta { display: block; color: var(--muted); }
 
 .git-status-badge {
   font-size: .7rem;
@@ -1264,23 +1301,95 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
 }
 
 #git-log-list { list-style: none; }
-#git-log-list li {
+.git-log-item {
   display: grid;
-  grid-template-columns: 5.5em 1fr 7em;
+  grid-template-columns: 5.5em 1fr auto auto;
   align-items: baseline;
-  gap: .5rem;
+  gap: .4rem;
   padding: .35rem .9rem;
   border-bottom: 1px solid var(--border);
   font-size: .8rem;
+  cursor: pointer;
 }
-#git-log-list li:last-child { border-bottom: none; }
+.git-log-item:hover { background: var(--surface); }
+.git-log-item:last-child { border-bottom: none; }
+.git-log-item.git-log-active { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .git-hash {
   font-family: 'Cascadia Code', monospace;
   color: var(--accent);
   font-size: .78rem;
 }
 .git-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.git-date { font-size: .72rem; color: var(--muted); text-align: right; white-space: nowrap; }
+.git-meta { font-size: .72rem; color: var(--muted); white-space: nowrap; text-align: right; }
+.git-expand-icon { font-size: .6rem; color: var(--muted); padding-left: .3rem; }
+
+/* コミット詳細パネル */
+#git-commit-detail {
+  margin: 0 .9rem .5rem;
+  padding: .75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: .8rem;
+}
+.git-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: baseline;
+  margin-bottom: .5rem;
+}
+.git-detail-hash {
+  font-family: 'Cascadia Code', monospace;
+  font-size: .75rem;
+  color: var(--accent);
+}
+.git-detail-meta { font-size: .75rem; color: var(--muted); }
+.git-detail-body {
+  margin: .5rem 0;
+  padding: .5rem .75rem;
+  background: var(--surface);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: .8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.git-detail-stat {
+  font-size: .78rem;
+  color: var(--muted);
+  margin: .4rem 0 .2rem;
+}
+.git-detail-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: 'Cascadia Code', monospace;
+  font-size: .75rem;
+}
+.git-detail-file {
+  padding: .1rem 0;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ページネーション */
+#git-log-pager {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .5rem .9rem;
+  font-size: .8rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+.git-log-count {
+  font-size: .75rem;
+  color: var(--muted);
+  margin-left: .5rem;
+}
 
 .git-empty {
   padding: .75rem .9rem;

@@ -1263,19 +1263,85 @@ const gitStashList    = document.getElementById('git-stash-list');
 const gitChangesList  = document.getElementById('git-changes-list');
 const gitChangesCount = document.getElementById('git-changes-count');
 const gitLogList      = document.getElementById('git-log-list');
+const gitCommitDetail = document.getElementById('git-commit-detail');
+const gitLogPager     = document.getElementById('git-log-pager');
+const gitLogPrev      = document.getElementById('git-log-prev');
+const gitLogNext      = document.getElementById('git-log-next');
+const gitLogPageInfo  = document.getElementById('git-log-page-info');
+const gitLogCount     = document.getElementById('git-log-count');
 const gitRefreshBtn   = document.getElementById('git-refresh-btn');
 
-gitRefreshBtn.onclick = () => loadGitStatus();
+const GIT_LOG_LIMIT = 20;
+let gitLogOffset    = 0;
+let gitLogTotal     = 0;
+let gitActiveHash   = null; // 展開中のコミット hash
 
-async function loadGitStatus() {
+gitRefreshBtn.onclick = () => { gitLogOffset = 0; loadGitStatus(); };
+gitLogPrev.onclick    = () => { gitLogOffset = Math.max(0, gitLogOffset - GIT_LOG_LIMIT); loadGitStatus(true); };
+gitLogNext.onclick    = () => { gitLogOffset = gitLogOffset + GIT_LOG_LIMIT; loadGitStatus(true); };
+
+const gitDiffPanel    = document.getElementById('git-diff-panel');
+const gitDiffFilename = document.getElementById('git-diff-filename');
+const gitDiffBody     = document.getElementById('git-diff-body');
+const gitDiffClose    = document.getElementById('git-diff-close');
+let   gitActiveDiffFile = null;
+
+gitDiffClose.onclick = () => {
+  gitDiffPanel.classList.add('hidden');
+  gitDiffBody.innerHTML = '';
+  gitActiveDiffFile = null;
+  gitChangesList.querySelectorAll('.git-change-item').forEach(el => el.classList.remove('git-log-active'));
+};
+
+async function showDiff(file, staged) {
+  // 同じファイル再クリックで閉じる
+  if (gitActiveDiffFile === file) { gitDiffClose.onclick(); return; }
+  gitActiveDiffFile = file;
+
+  gitChangesList.querySelectorAll('.git-change-item').forEach(el =>
+    el.classList.toggle('git-log-active', el.dataset.file === file)
+  );
+
+  gitDiffPanel.classList.remove('hidden');
+  gitDiffFilename.textContent = file;
+  gitDiffBody.innerHTML = '<span class="log-muted">diff 取得中...</span>';
+
+  const res  = await fetch(
+    `/api/git/diff?path=${encodeURIComponent(currentProjectPath)}&file=${encodeURIComponent(file)}&staged=${staged ? 1 : 0}`
+  );
+  const data = await res.json();
+  if (data.error) { gitDiffBody.textContent = data.error; return; }
+  if (!data.diff)  { gitDiffBody.innerHTML = '<span class="log-muted">差分なし（untracked または バイナリ）</span>'; return; }
+
+  gitDiffBody.innerHTML = '';
+  data.diff.split('\n').forEach(line => {
+    const span = document.createElement('span');
+    span.textContent = line + '\n';
+    if      (line.startsWith('+') && !line.startsWith('+++')) span.className = 'diff-add';
+    else if (line.startsWith('-') && !line.startsWith('---')) span.className = 'diff-del';
+    else if (line.startsWith('@@'))                           span.className = 'diff-hunk';
+    else if (line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++'))
+                                                              span.className = 'diff-meta';
+    gitDiffBody.appendChild(span);
+  });
+}
+
+async function loadGitStatus(logOnly = false) {
   if (!currentProjectPath) return;
 
-  gitBranch.textContent    = '読み込み中...';
-  gitSummary.innerHTML     = '';
-  gitChangesList.innerHTML = '';
-  gitLogList.innerHTML     = '';
+  if (!logOnly) {
+    gitBranch.textContent    = '読み込み中...';
+    gitSummary.innerHTML     = '';
+    gitChangesList.innerHTML = '';
+  }
+  gitLogList.innerHTML = '';
+  gitCommitDetail.classList.add('hidden');
+  gitCommitDetail.innerHTML = '';
+  gitActiveHash = null;
 
-  const res  = await fetch(`/api/git/status?path=${encodeURIComponent(currentProjectPath)}`);
+  const res  = await fetch(
+    `/api/git/status?path=${encodeURIComponent(currentProjectPath)}&logOffset=${gitLogOffset}&logLimit=${GIT_LOG_LIMIT}`
+  );
   const data = await res.json();
 
   if (!data.isGit) {
@@ -1319,6 +1385,8 @@ async function loadGitStatus() {
   // 変更ファイル
   gitChangesCount.textContent = data.changes.length ? `${data.changes.length}件` : '';
   gitChangesList.innerHTML = '';
+  gitDiffPanel.classList.add('hidden');
+  gitActiveDiffFile = null;
   if (data.changes.length === 0) {
     gitChangesList.innerHTML = '<li class="git-empty">変更なし（クリーン）</li>';
   } else {
@@ -1328,28 +1396,89 @@ async function loadGitStatus() {
       const label  = { modified:'M', added:'A', deleted:'D', renamed:'R', untracked:'?' }[c.status] || '?';
       const dot    = c.staged ? '<span class="git-staged-dot" title="ステージ済み"></span>' : '';
       const li     = document.createElement('li');
+      li.className = 'git-change-item';
+      li.dataset.file = c.file;
+      li.title = 'クリックで diff を表示';
       li.innerHTML = `
         <span class="git-status-badge ${cssCls}">${label}</span>
         ${dot}
-        <span>${escHtml(c.file)}</span>`;
+        <span class="git-change-file">${escHtml(c.file)}</span>`;
+      li.addEventListener('click', () => showDiff(c.file, c.staged));
       gitChangesList.appendChild(li);
     });
   }
 
   // コミット履歴
-  gitLogList.innerHTML = '';
+  gitLogTotal = data.totalCommits || 0;
+  const totalPages = Math.ceil(gitLogTotal / GIT_LOG_LIMIT) || 1;
+  const curPage    = Math.floor(gitLogOffset / GIT_LOG_LIMIT) + 1;
+
+  gitLogCount.textContent = gitLogTotal ? `${gitLogTotal}件` : '';
+  gitLogPageInfo.textContent = `${curPage} / ${totalPages} ページ`;
+
+  // ページネーション表示制御
+  const showPager = gitLogTotal > GIT_LOG_LIMIT;
+  gitLogPager.classList.toggle('hidden', !showPager);
+  gitLogPrev.disabled = gitLogOffset === 0;
+  gitLogNext.disabled = gitLogOffset + GIT_LOG_LIMIT >= gitLogTotal;
+
   if (data.commits.length === 0) {
     gitLogList.innerHTML = '<li class="git-empty">コミットなし</li>';
   } else {
     data.commits.forEach(c => {
       const li = document.createElement('li');
+      li.className = 'git-log-item';
+      li.dataset.hash = c.hash;
       li.innerHTML = `
         <span class="git-hash">${escHtml(c.short)}</span>
         <span class="git-subject" title="${escHtml(c.subject)}">${escHtml(c.subject)}</span>
-        <span class="git-date">${escHtml(c.relDate)}</span>`;
+        <span class="git-meta">${escHtml(c.author)} · ${escHtml(c.relDate)}</span>
+        <span class="git-expand-icon">▶</span>`;
+      li.addEventListener('click', () => toggleCommitDetail(c.hash, li));
       gitLogList.appendChild(li);
     });
   }
+}
+
+async function toggleCommitDetail(hash, li) {
+  // 同じコミットを再クリック → 閉じる
+  if (gitActiveHash === hash) {
+    gitCommitDetail.classList.add('hidden');
+    gitCommitDetail.innerHTML = '';
+    li.classList.remove('git-log-active');
+    li.querySelector('.git-expand-icon').textContent = '▶';
+    gitActiveHash = null;
+    return;
+  }
+
+  // 前の選択を解除
+  gitLogList.querySelectorAll('.git-log-item').forEach(el => {
+    el.classList.remove('git-log-active');
+    el.querySelector('.git-expand-icon').textContent = '▶';
+  });
+  li.classList.add('git-log-active');
+  li.querySelector('.git-expand-icon').textContent = '▼';
+  gitActiveHash = hash;
+
+  gitCommitDetail.classList.remove('hidden');
+  gitCommitDetail.innerHTML = '<span class="log-muted">詳細取得中...</span>';
+
+  const res  = await fetch(`/api/git/commit?path=${encodeURIComponent(currentProjectPath)}&hash=${encodeURIComponent(hash)}`);
+  const d    = await res.json();
+  if (d.error) { gitCommitDetail.innerHTML = `<span class="log-stderr">${escHtml(d.error)}</span>`; return; }
+
+  const filesHtml = d.fileStats.length
+    ? d.fileStats.map(f => `<li class="git-detail-file">${escHtml(f)}</li>`).join('')
+    : '';
+
+  gitCommitDetail.innerHTML = `
+    <div class="git-detail-header">
+      <code class="git-detail-hash">${escHtml(d.fullHash)}</code>
+      <span class="git-detail-meta">${escHtml(d.author)} &lt;${escHtml(d.email)}&gt; · ${escHtml(d.date)}</span>
+    </div>
+    ${d.body ? `<pre class="git-detail-body">${escHtml(d.body)}</pre>` : ''}
+    ${d.statSummary ? `<div class="git-detail-stat">${escHtml(d.statSummary)}</div>` : ''}
+    ${filesHtml ? `<ul class="git-detail-files">${filesHtml}</ul>` : ''}`;
 }
 
 // =====================================================================

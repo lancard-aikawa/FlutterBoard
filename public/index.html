@@ -401,10 +401,28 @@
             <div class="git-section">
               <div class="git-section-title">変更ファイル <span id="git-changes-count"></span></div>
               <ul id="git-changes-list"></ul>
+              <div id="git-diff-panel" class="hidden">
+                <div class="git-diff-toolbar">
+                  <span id="git-diff-filename"></span>
+                  <button id="git-diff-close" class="btn-secondary">✕</button>
+                </div>
+                <pre id="git-diff-body"></pre>
+              </div>
             </div>
             <div class="git-section">
-              <div class="git-section-title">コミット履歴（最新15件）</div>
+              <div class="git-section-title">
+                コミット履歴
+                <span id="git-log-count" class="git-log-count"></span>
+              </div>
               <ul id="git-log-list"></ul>
+              <!-- 詳細パネル -->
+              <div id="git-commit-detail" class="hidden"></div>
+              <!-- ページネーション -->
+              <div id="git-log-pager" class="hidden">
+                <button id="git-log-prev" class="btn-secondary">◀ 前</button>
+                <span id="git-log-page-info"></span>
+                <button id="git-log-next" class="btn-secondary">次 ▶</button>
+              </div>
             </div>
           </div>
 
