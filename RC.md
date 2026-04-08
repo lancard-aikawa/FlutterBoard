@@ -109,12 +109,59 @@ Flutter / Firebase / Node 開発でよく遭遇する「困った・面倒」と
 
 ---
 
+### [R9] コンテキスト対応コマンドパネル（動的コマンドビルダー）
+
+静的なボタンでは対応できない「その場で情報を取得して組み立てる」定例フローをUI化する。  
+実行前に選択肢を提示 → ワンクリックでコマンド入力欄にセット（または即実行）する形。
+
+#### Flutter
+
+| パターン | 取得元 | 組み立てるコマンド例 |
+|----------|--------|----------------------|
+| デバイス選択 → run | `flutter devices --machine` | `flutter run -d emulator-5554` |
+| デバイス選択 → attach | `flutter devices --machine` | `flutter attach -d RQ8A...` |
+| フレーバー選択 → run | `pubspec.yaml` の `flavors:` | `flutter run --flavor staging -d <device>` |
+| エントリポイント選択 → run | `lib/main*.dart` をスキャン | `flutter run -t lib/main_dev.dart` |
+| フレーバー × デバイス → build | 上記2つの組み合わせ | `flutter build apk --flavor prod` |
+| テストファイル選択 → test | `test/` 以下を一覧 | `flutter test test/login_test.dart` |
+| Dart スクリプト実行 | `tool/*.dart` をスキャン | `dart run tool/generate.dart` |
+
+#### Firebase
+
+| パターン | 取得元 | 組み立てるコマンド例 |
+|----------|--------|----------------------|
+| プロジェクト切り替え | `.firebaserc` の aliases | `firebase use staging` |
+| Emulator の種別選択 | `firebase.json` の emulators | `firebase emulators:start --only auth,firestore` |
+| Hosting ターゲット選択 | `firebase.json` の hosting targets | `firebase deploy --only hosting:app` |
+| Functions ログ閲覧 | `firebase.json` の functions | `firebase functions:log --only onUserCreate` |
+| Functions 個別デプロイ | `firebase.json` の functions | `firebase deploy --only functions:onUserCreate` |
+
+#### Git
+
+| パターン | 取得元 | 組み立てるコマンド例 |
+|----------|--------|----------------------|
+| ブランチ選択 → checkout | `git branch -a` | `git checkout feature/login` |
+| スタッシュ選択 → pop | `git stash list` | `git stash pop stash@{1}` |
+| タグ選択 → checkout | `git tag` | `git checkout v1.2.3` |
+| リモートブランチ → pull | `git branch -r` | `git pull origin feature/login` |
+
+#### 設計方針
+
+- **取得 → 選択 → 実行** の3ステップUI。選択はドロップダウンまたはクリックリスト
+- コマンドは常に入力欄にセットして確認・編集してから実行（直接実行はしない）
+- 接続デバイスのように変化する情報は「更新」ボタンで再取得
+- 情報が取れない場合（Flutter SDK なし等）はフォールバックで手入力
+- Flutter タブ・Firebase タブ・Git タブにそれぞれ対応セクションを追加する形で実装
+
+---
+
 ## 優先度の考え方
 
 ```
 高優先（毎日使う・ミス防止）
-  R3 コマンドシーケンス   — clean → get の儀式を自動化
-  R4 Firebase 環境切り替え — 本番誤操作のリスク軽減
+  R3 コマンドシーケンス        — clean → get の儀式を自動化  ✅ 実装済
+  R4 Firebase 環境切り替え     — 本番誤操作のリスク軽減
+  R9 コンテキスト対応コマンド  — デバイス/フレーバー/ブランチを取得してコマンド組み立て
 
 中優先（あると便利）
   R6 npm audit            — セキュリティ確認の省力化
