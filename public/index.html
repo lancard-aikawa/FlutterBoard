@@ -111,11 +111,16 @@
 
       <!-- コマンドタブ -->
       <div id="tab-commands" class="tab-content hidden">
-        <div id="commands-container">
+        <div id="cmd-subtab-bar">
+          <button class="cmd-tab active" data-cmd-tab="flutter">Flutter</button>
+          <button class="cmd-tab" data-cmd-tab="firebase">Firebase</button>
+          <button class="cmd-tab" data-cmd-tab="npm">npm</button>
+          <button class="cmd-tab" data-cmd-tab="seq">シーケンス</button>
+        </div>
 
-          <!-- Flutter -->
+        <!-- Flutter パネル -->
+        <div id="cmd-panel-flutter" class="cmd-tab-content">
           <section class="cmd-section">
-            <h3 class="cmd-section-title">Flutter</h3>
             <table class="cmd-table">
               <tr>
                 <td class="cmd-category">プロジェクト</td>
@@ -167,10 +172,11 @@
               </tr>
             </table>
           </section>
+        </div>
 
-          <!-- Firebase -->
+        <!-- Firebase パネル -->
+        <div id="cmd-panel-firebase" class="cmd-tab-content hidden">
           <section class="cmd-section">
-            <h3 class="cmd-section-title">Firebase</h3>
             <table class="cmd-table">
               <tr>
                 <td class="cmd-category">エミュレーター</td>
@@ -201,8 +207,10 @@
               </tr>
             </table>
           </section>
+        </div>
 
-          <!-- npm scripts -->
+        <!-- npm パネル -->
+        <div id="cmd-panel-npm" class="cmd-tab-content hidden">
           <section class="cmd-section">
             <h3 class="cmd-section-title">npm scripts <span id="npm-project-name"></span></h3>
             <table class="cmd-table hidden" id="npm-pinned-row">
@@ -215,8 +223,10 @@
               <span class="cmd-empty">プロジェクトを選択すると npm scripts が表示されます</span>
             </div>
           </section>
+        </div>
 
-          <!-- シーケンス -->
+        <!-- シーケンス パネル -->
+        <div id="cmd-panel-seq" class="cmd-tab-content hidden">
           <section class="cmd-section" id="seq-section">
             <h3 class="cmd-section-title">
               シーケンス
@@ -246,8 +256,8 @@
               </div>
             </div>
           </section>
-
         </div>
+
       </div>
 
       <!-- ドキュメントタブ -->

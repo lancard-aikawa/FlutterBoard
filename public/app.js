@@ -152,6 +152,16 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
+// コマンドタブ内サブタブ
+document.querySelectorAll('.cmd-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.cmd-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.cmd-tab-content').forEach(c => c.classList.add('hidden'));
+    tab.classList.add('active');
+    document.getElementById(`cmd-panel-${tab.dataset.cmdTab}`).classList.remove('hidden');
+  });
+});
+
 // =====================================================================
 // プロセス管理
 // =====================================================================
