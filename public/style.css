@@ -2829,3 +2829,127 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
 }
 .port-remove-btn:hover { color: var(--err); }
 
+
+/* ===== S6: FVM 連携 ===== */
+.fvm-pill {
+  cursor: default;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 400;
+  font-size: .78rem;
+}
+.fvm-pill.fvm-mismatch {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+/* ===== S7: ビルドサイズトラッカー ===== */
+.build-size-section {}
+.build-size-header {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .5rem;
+}
+#buildsize-artifact-list { display: flex; flex-direction: column; gap: .3rem; margin-top: .3rem; }
+.bs-artifact-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .25rem .4rem;
+  background: var(--surface);
+  border-radius: 4px;
+  font-size: .83rem;
+}
+.bs-type-badge {
+  padding: .1rem .4rem;
+  border-radius: 3px;
+  font-size: .7rem;
+  font-weight: 700;
+  background: #1a2a3a;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.bs-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-size { font-family: monospace; font-size: .82rem; color: var(--text); white-space: nowrap; }
+
+#buildsize-label-row { margin: .5rem 0 .3rem; }
+.buildsize-label-input {
+  width: 100%;
+  padding: .3rem .6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: .83rem;
+}
+#buildsize-history-list { display: flex; flex-direction: column; gap: .4rem; margin-top: .3rem; }
+.bs-history-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.bs-history-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .6rem;
+  background: var(--surface);
+  font-size: .78rem;
+}
+.bs-history-date  { color: var(--muted); }
+.bs-history-label { color: var(--accent); flex: 1; }
+.bs-history-artifacts { padding: .3rem .6rem; display: flex; flex-direction: column; gap: .2rem; }
+.bs-history-artifact {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .82rem;
+}
+.bs-diff-grow   { color: var(--err);  font-family: monospace; font-size: .78rem; }
+.bs-diff-shrink { color: var(--ok);   font-family: monospace; font-size: .78rem; }
+.bs-diff-zero   { color: var(--muted); font-family: monospace; font-size: .78rem; }
+.bs-delete-btn {
+  margin-left: auto;
+  padding: 0 .3rem;
+  font-size: .75rem;
+  color: var(--muted);
+}
+.bs-delete-btn:hover { color: var(--err); }
+
+/* ===== S8: エミュレータ スナップショット ===== */
+.emu-snapshot-section {}
+.snapshot-name-field {
+  flex: 1;
+  padding: .3rem .6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: .83rem;
+}
+.snapshot-list { display: flex; flex-direction: column; gap: .3rem; margin-top: .5rem; }
+.snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .3rem .6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.snapshot-info { display: flex; flex-direction: column; gap: .1rem; }
+.snapshot-name { font-size: .85rem; font-weight: 600; color: var(--text); }
+.snapshot-meta { font-size: .75rem; color: var(--muted); }
+.snapshot-actions { display: flex; gap: .4rem; align-items: center; }
+.snap-load-btn {
+  padding: .2rem .6rem;
+  font-size: .78rem;
+}
+.snap-del-btn {
+  padding: .15rem .4rem;
+  font-size: .75rem;
+  color: var(--muted);
+}
+.snap-del-btn:hover { color: var(--err); }

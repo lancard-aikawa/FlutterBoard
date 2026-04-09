@@ -126,6 +126,7 @@ async function selectProject(projectPath) {
   loadEnvList(data.selected);
   loadGitStatus();
   loadFirebaseEnvStatus(data.selected);
+  loadFvmInfo(data.selected);
 }
 
 openBtn.onclick = () => {
@@ -3828,6 +3829,280 @@ async function saveWatchedPorts(ports) {
   });
   portWatched = ports;
 }
+
+// =====================================================================
+// S6: FVM 連携
+// =====================================================================
+
+const fvmHeader      = document.getElementById('fvm-header');
+const fvmVersionPill = document.getElementById('fvm-version-pill');
+const fvmVersionText = document.getElementById('fvm-version-text');
+
+async function loadFvmInfo(projectPath) {
+  fvmHeader.classList.add('hidden');
+  fvmVersionPill.classList.remove('fvm-mismatch');
+  try {
+    const res  = await fetch(`/api/fvm/info?path=${encodeURIComponent(projectPath)}`);
+    const data = await res.json();
+    if (!data.hasFvm) return;
+    fvmVersionText.textContent = data.sdkVersion || '—';
+    fvmVersionPill.title = data.globalVersion
+      ? `FVM SDK: ${data.sdkVersion} / グローバル flutter: ${data.globalVersion}`
+      : `FVM SDK: ${data.sdkVersion}`;
+    if (data.mismatch) {
+      fvmVersionPill.classList.add('fvm-mismatch');
+      fvmVersionPill.title += ' ⚠ バージョン不一致';
+    }
+    fvmHeader.classList.remove('hidden');
+  } catch { /* FVM 未使用なら非表示のまま */ }
+}
+
+// =====================================================================
+// S7: ビルドサイズトラッカー
+// =====================================================================
+
+const buildsizeScanBtn       = document.getElementById('buildsize-scan-btn');
+const buildsizeRecordBtn     = document.getElementById('buildsize-record-btn');
+const buildsizeHistoryToggle = document.getElementById('buildsize-history-toggle');
+const buildsizeArtifacts     = document.getElementById('buildsize-artifacts');
+const buildsizeArtifactList  = document.getElementById('buildsize-artifact-list');
+const buildsizeHistorySection = document.getElementById('buildsize-history-section');
+const buildsizeLabelInput    = document.getElementById('buildsize-label-input');
+const buildsizeHistoryList   = document.getElementById('buildsize-history-list');
+
+let buildsizeCurrentArtifacts = [];
+
+function fmtBytes(bytes) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  if (bytes >= 1024)        return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+function fmtDiff(diff) {
+  if (diff === 0) return '<span class="bs-diff-zero">±0</span>';
+  const sign = diff > 0 ? '+' : '';
+  const cls  = diff > 0 ? 'bs-diff-grow' : 'bs-diff-shrink';
+  return `<span class="${cls}">${sign}${fmtBytes(diff)}</span>`;
+}
+
+buildsizeScanBtn.onclick = async () => {
+  if (!currentProjectPath) { alert('プロジェクトを選択してください'); return; }
+  buildsizeScanBtn.disabled = true;
+  buildsizeScanBtn.textContent = 'スキャン中...';
+  try {
+    const res  = await fetch(`/api/buildsize/scan?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    buildsizeCurrentArtifacts = data.artifacts || [];
+    renderBuildsizeArtifacts(buildsizeCurrentArtifacts);
+    buildsizeArtifacts.classList.remove('hidden');
+    buildsizeRecordBtn.classList.toggle('hidden', buildsizeCurrentArtifacts.length === 0);
+  } catch (e) {
+    buildsizeArtifactList.innerHTML = `<div class="deps-empty">スキャンエラー: ${escHtml(e.message)}</div>`;
+    buildsizeArtifacts.classList.remove('hidden');
+  } finally {
+    buildsizeScanBtn.disabled = false;
+    buildsizeScanBtn.textContent = 'スキャン ▶';
+  }
+};
+
+function renderBuildsizeArtifacts(artifacts) {
+  if (artifacts.length === 0) {
+    buildsizeArtifactList.innerHTML = '<div class="deps-empty">ビルド成果物が見つかりません（flutter build を実行してください）</div>';
+    return;
+  }
+  buildsizeArtifactList.innerHTML = '';
+  artifacts.forEach(a => {
+    const row = document.createElement('div');
+    row.className = 'bs-artifact-row';
+    row.innerHTML = `
+      <span class="bs-type-badge">${escHtml(a.type)}</span>
+      <span class="bs-name" title="${escHtml(a.path)}">${escHtml(a.name)}</span>
+      <span class="bs-size">${fmtBytes(a.size)}</span>`;
+    buildsizeArtifactList.appendChild(row);
+  });
+}
+
+buildsizeRecordBtn.onclick = async () => {
+  if (!currentProjectPath || buildsizeCurrentArtifacts.length === 0) return;
+  const label = buildsizeLabelInput.value.trim();
+  try {
+    const res  = await fetch('/api/buildsize/record', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ path: currentProjectPath, label, artifacts: buildsizeCurrentArtifacts }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      buildsizeLabelInput.value = '';
+      renderBuildsizeHistory(data.history);
+      buildsizeHistorySection.classList.remove('hidden');
+      buildsizeHistoryToggle.textContent = '履歴 ▲';
+    }
+  } catch (e) { alert(`記録エラー: ${e.message}`); }
+};
+
+buildsizeHistoryToggle.onclick = async () => {
+  const open = !buildsizeHistorySection.classList.contains('hidden');
+  if (open) {
+    buildsizeHistorySection.classList.add('hidden');
+    buildsizeHistoryToggle.textContent = '履歴 ▼';
+  } else {
+    await loadBuildsizeHistory();
+    buildsizeHistorySection.classList.remove('hidden');
+    buildsizeHistoryToggle.textContent = '履歴 ▲';
+  }
+};
+
+async function loadBuildsizeHistory() {
+  if (!currentProjectPath) return;
+  try {
+    const res  = await fetch(`/api/buildsize/history?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    renderBuildsizeHistory(data.history || []);
+  } catch { buildsizeHistoryList.innerHTML = '<div class="deps-empty">履歴の読み込みに失敗しました</div>'; }
+}
+
+function renderBuildsizeHistory(history) {
+  if (history.length === 0) {
+    buildsizeHistoryList.innerHTML = '<div class="deps-empty">記録なし — 「記録 💾」で保存してください</div>';
+    return;
+  }
+  buildsizeHistoryList.innerHTML = '';
+  history.forEach((entry, idx) => {
+    const prev = history[idx + 1];
+    const date = new Date(entry.timestamp).toLocaleString('ja-JP');
+    const card = document.createElement('div');
+    card.className = 'bs-history-card';
+
+    const artifactsHtml = entry.artifacts.map(a => {
+      let diffHtml = '';
+      if (prev) {
+        const prevA = prev.artifacts.find(p => p.name === a.name);
+        if (prevA) diffHtml = ` ${fmtDiff(a.size - prevA.size)}`;
+      }
+      return `<div class="bs-history-artifact">
+        <span class="bs-type-badge">${escHtml(a.type)}</span>
+        <span class="bs-name">${escHtml(a.name)}</span>
+        <span class="bs-size">${fmtBytes(a.size)}${diffHtml}</span>
+      </div>`;
+    }).join('');
+
+    card.innerHTML = `
+      <div class="bs-history-header">
+        <span class="bs-history-date">${date}</span>
+        ${entry.label ? `<span class="bs-history-label">${escHtml(entry.label)}</span>` : ''}
+        <button class="bs-delete-btn btn-ghost" data-idx="${idx}" title="この記録を削除">✕</button>
+      </div>
+      <div class="bs-history-artifacts">${artifactsHtml}</div>`;
+    buildsizeHistoryList.appendChild(card);
+  });
+
+  buildsizeHistoryList.querySelectorAll('.bs-delete-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const idx = parseInt(btn.dataset.idx);
+      if (!confirm('この記録を削除しますか？')) return;
+      try {
+        const res  = await fetch('/api/buildsize/delete', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ path: currentProjectPath, index: idx }),
+        });
+        const data = await res.json();
+        if (data.ok) renderBuildsizeHistory(data.history);
+      } catch (e) { alert(`削除エラー: ${e.message}`); }
+    };
+  });
+}
+
+// =====================================================================
+// S8: エミュレータ データスナップショット UI
+// =====================================================================
+
+const snapshotRefreshBtn  = document.getElementById('snapshot-refresh-btn');
+const snapshotNameInput   = document.getElementById('snapshot-name-input');
+const snapshotNewBtn      = document.getElementById('snapshot-new-btn');
+const snapshotList        = document.getElementById('snapshot-list');
+
+snapshotRefreshBtn.onclick = loadSnapshotList;
+snapshotNewBtn.onclick = () => {
+  const name = snapshotNameInput.value.trim();
+  if (!name) { alert('スナップショット名を入力してください'); return; }
+  if (/[/\\<>:"|?*]/.test(name)) { alert('使用できない文字が含まれています'); return; }
+  const rel = `./emu-snapshots/${name}`;
+  runCommand(
+    `firebase emulators:start --export-on-exit=${rel}`,
+    `emulators (new snapshot: ${name})`
+  );
+  snapshotNameInput.value = '';
+};
+
+async function loadSnapshotList() {
+  if (!currentProjectPath) return;
+  snapshotList.innerHTML = '<div class="deps-empty">読み込み中...</div>';
+  try {
+    const res  = await fetch(`/api/emusnapshot/list?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    renderSnapshotList(data.snapshots || []);
+  } catch (e) {
+    snapshotList.innerHTML = `<div class="deps-empty">エラー: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function renderSnapshotList(snapshots) {
+  if (snapshots.length === 0) {
+    snapshotList.innerHTML = '<div class="deps-empty">スナップショットなし — 「新規で起動」で作成してください</div>';
+    return;
+  }
+  snapshotList.innerHTML = '';
+  snapshots.forEach(snap => {
+    const date = new Date(snap.mtime).toLocaleString('ja-JP');
+    const row  = document.createElement('div');
+    row.className = 'snapshot-row';
+    row.innerHTML = `
+      <div class="snapshot-info">
+        <span class="snapshot-name">${escHtml(snap.name)}</span>
+        <span class="snapshot-meta">${date} · ${snap.fileCount} files</span>
+      </div>
+      <div class="snapshot-actions">
+        <button class="cmd-btn snap-load-btn" data-name="${escHtml(snap.name)}" title="このスナップショットを読み込んでエミュレータを起動">起動</button>
+        <button class="btn-ghost snap-del-btn"  data-name="${escHtml(snap.name)}" title="削除">✕</button>
+      </div>`;
+    snapshotList.appendChild(row);
+  });
+
+  snapshotList.querySelectorAll('.snap-load-btn').forEach(btn => {
+    btn.onclick = () => {
+      const name = btn.dataset.name;
+      const rel  = `./emu-snapshots/${name}`;
+      runCommand(
+        `firebase emulators:start --import=${rel} --export-on-exit=${rel}`,
+        `emulators (snapshot: ${name})`
+      );
+    };
+  });
+
+  snapshotList.querySelectorAll('.snap-del-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const name = btn.dataset.name;
+      if (!confirm(`スナップショット「${name}」を削除しますか？`)) return;
+      try {
+        const res  = await fetch('/api/emusnapshot/delete', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ path: currentProjectPath, name }),
+        });
+        const data = await res.json();
+        if (data.ok) renderSnapshotList(data.snapshots || []);
+        else alert(data.error || '削除に失敗しました');
+      } catch (e) { alert(`削除エラー: ${e.message}`); }
+    };
+  });
+}
+
+// Firebaseパネルが開いたときにスナップショット一覧を自動ロード
+document.querySelector('.cmd-tab[data-cmd-tab="firebase"]').addEventListener('click', () => {
+  if (currentProjectPath) loadSnapshotList();
+});
 
 // =====================================================================
 // 初期ロード

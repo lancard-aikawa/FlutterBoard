@@ -16,6 +16,9 @@ const { handleFlutterAnalyze }  = require('./flutterAnalyze');
 const { handleOsvCheck }        = require('./osvCheck');
 const { handleDepsTree }        = require('./depsTree');
 const { handlePortMonitor }     = require('./portMonitor');
+const { handleFvmInfo }         = require('./fvmInfo');
+const { handleBuildSize }       = require('./buildSize');
+const { handleEmuSnapshot }     = require('./emuSnapshot');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -93,6 +96,18 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/ports')) {
     return handlePortMonitor(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/fvm')) {
+    return handleFvmInfo(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/buildsize')) {
+    return handleBuildSize(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/emusnapshot')) {
+    return handleEmuSnapshot(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

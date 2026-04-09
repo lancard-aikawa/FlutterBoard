@@ -19,6 +19,11 @@
         ENV: <span id="fb-header-envname">—</span>
       </button>
     </div>
+    <span id="fvm-header" class="hidden">
+      <span id="fvm-version-pill" class="fb-env-pill fvm-pill" title="FVM Flutter SDK バージョン">
+        FVM: <span id="fvm-version-text">—</span>
+      </span>
+    </span>
     <button id="change-project-btn" class="btn-ghost">変更</button>
   </header>
 
@@ -164,6 +169,25 @@
         <!-- Flutter パネル -->
         <div id="cmd-panel-flutter" class="cmd-tab-content">
           <!-- Analyze パネル -->
+          <!-- S7: ビルドサイズトラッカー -->
+          <section class="cmd-section build-size-section">
+            <div class="build-size-header">
+              <span class="ctx-builder-title">ビルドサイズ</span>
+              <button id="buildsize-scan-btn" class="ctx-fetch-btn">スキャン ▶</button>
+              <button id="buildsize-record-btn" class="btn-ghost hidden">記録 💾</button>
+              <button id="buildsize-history-toggle" class="btn-ghost">履歴 ▼</button>
+            </div>
+            <div id="buildsize-artifacts" class="hidden">
+              <div id="buildsize-artifact-list"></div>
+            </div>
+            <div id="buildsize-history-section" class="hidden">
+              <div id="buildsize-label-row">
+                <input type="text" id="buildsize-label-input" class="buildsize-label-input" placeholder="記録ラベル（例: v1.2.0 release）">
+              </div>
+              <div id="buildsize-history-list"></div>
+            </div>
+          </section>
+
           <section class="cmd-section analyze-section">
             <div class="analyze-header">
               <span class="analyze-title">flutter analyze</span>
@@ -309,6 +333,22 @@
               </div>
             </div>
           </section>
+          <!-- S8: エミュレータ データスナップショット UI -->
+          <section class="cmd-section emu-snapshot-section">
+            <div class="ctx-builder-header">
+              <span class="ctx-builder-title">エミュレータ スナップショット</span>
+              <button id="snapshot-refresh-btn" class="ctx-fetch-btn">一覧更新 ↺</button>
+            </div>
+            <div id="snapshot-body">
+              <div class="ctx-row" style="gap:.5rem;align-items:center">
+                <span class="ctx-label">スナップショット名</span>
+                <input type="text" id="snapshot-name-input" placeholder="例: before-test" class="ctx-select snapshot-name-field">
+                <button id="snapshot-new-btn" class="cmd-btn">新規で起動</button>
+              </div>
+              <div id="snapshot-list" class="snapshot-list"></div>
+            </div>
+          </section>
+
           <section class="cmd-section">
             <table class="cmd-table">
               <tr>
