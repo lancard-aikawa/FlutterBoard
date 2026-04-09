@@ -1,10 +1,7 @@
 'use strict';
 const fs   = require('fs');
 const path = require('path');
-
-function hashPath(p) {
-  return p.replace(/[:\\\/]/g, '_');
-}
+const { hashPath } = require('./projectInfo');
 
 function getHistoryFile(projectPath) {
   return path.join(__dirname, '..', 'config', `buildsize_${hashPath(projectPath)}.json`);
@@ -130,7 +127,7 @@ async function handleBuildSize(req, res, url) {
   // GET /api/buildsize/history?path=...
   if (pathname === '/api/buildsize/history' && req.method === 'GET') {
     const p = url.searchParams.get('path');
-    if (!p) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    if (!p || !fs.existsSync(p)) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
     res.writeHead(200);
     return res.end(JSON.stringify({ history: loadHistory(p) }));
   }
@@ -155,11 +152,11 @@ async function handleBuildSize(req, res, url) {
   if (pathname === '/api/buildsize/delete' && req.method === 'POST') {
     const body = await readBody(req);
     const { path: p, index } = body;
-    if (!p || index == null) {
+    const history = loadHistory(p || '');
+    if (!p || typeof index !== 'number' || index < 0 || index >= history.length) {
       res.writeHead(400);
-      return res.end(JSON.stringify({ error: 'path and index required' }));
+      return res.end(JSON.stringify({ error: 'path and valid index required' }));
     }
-    const history = loadHistory(p);
     history.splice(index, 1);
     saveHistory(p, history);
     res.writeHead(200);

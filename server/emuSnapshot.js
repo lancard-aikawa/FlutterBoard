@@ -10,7 +10,10 @@ function getSnapshotRoot(projectPath) {
 
 // スナップショット名の安全性チェック（パストラバーサル防止）
 function isSafeName(name) {
-  return typeof name === 'string' && name.length > 0 && !/[/\\<>:"|?*\x00-\x1f]/.test(name);
+  return typeof name === 'string' &&
+    name.length > 0 &&
+    name !== '.' && name !== '..' &&
+    !/[/\\<>:"|?*\x00-\x1f]/.test(name);
 }
 
 function listSnapshots(projectPath) {

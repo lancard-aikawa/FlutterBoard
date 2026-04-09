@@ -121,4 +121,4 @@ function readBody(req, cb) {
   req.on('end', () => cb(body));
 }
 
-module.exports = { handleProjectInfo };
+module.exports = { handleProjectInfo, hashPath: p => p.replace(/[:\\\/]/g, '_') };

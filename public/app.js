@@ -4027,7 +4027,7 @@ snapshotRefreshBtn.onclick = loadSnapshotList;
 snapshotNewBtn.onclick = () => {
   const name = snapshotNameInput.value.trim();
   if (!name) { alert('スナップショット名を入力してください'); return; }
-  if (/[/\\<>:"|?*]/.test(name)) { alert('使用できない文字が含まれています'); return; }
+  if (/[/\\<>:"|?*\x00-\x1f]/.test(name) || name === '.' || name === '..') { alert('使用できない文字が含まれています'); return; }
   const rel = `./emu-snapshots/${name}`;
   runCommand(
     `firebase emulators:start --export-on-exit=${rel}`,
