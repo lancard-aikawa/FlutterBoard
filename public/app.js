@@ -359,6 +359,9 @@ function buildProcessItem(p) {
 
 // ---- プロセス選択 → SSE接続 ----
 function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = null) {
+  // S4: combined view が開いていたら閉じる
+  if (typeof combinedActive !== 'undefined' && combinedActive) exitCombinedView();
+
   if (activeSSE) { activeSSE.close(); activeSSE = null; }
 
   activeId  = id;
@@ -3482,6 +3485,210 @@ function renderFbEnvPanel(data) {
     };
   });
 }
+
+// =====================================================================
+// S4: 全プロセス統合ログビュー
+// =====================================================================
+
+const combinedViewBtn     = document.getElementById('combined-view-btn');
+const combinedPanel       = document.getElementById('combined-panel');
+const combinedOutput      = document.getElementById('combined-output');
+const combinedFilter      = document.getElementById('combined-filter');
+const combinedProcFilter  = document.getElementById('combined-proc-filter');
+const combinedRefresh     = document.getElementById('combined-refresh');
+const combinedCount       = document.getElementById('combined-count');
+const combinedAutoscroll  = document.getElementById('combined-autoscroll');
+
+let combinedActive    = false;
+let combinedPollTimer = null;
+let combinedActiveLevels = new Set(); // 空 = フィルタなし
+
+// プロセスラベルごとに色を割り当て（HSL で均等分散）
+const procColorCache = {};
+let   procColorIndex = 0;
+const PROC_COLORS = [
+  '#4a9eff', '#4fc77a', '#f0a830', '#e05c5c',
+  '#a67de8', '#40c8d0', '#f07850', '#c0c040',
+];
+function procColor(id) {
+  if (!procColorCache[id]) {
+    procColorCache[id] = PROC_COLORS[procColorIndex % PROC_COLORS.length];
+    procColorIndex++;
+  }
+  return procColorCache[id];
+}
+
+function fmtTs(ts) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  const ms = String(d.getMilliseconds()).padStart(3, '0');
+  return `${hh}:${mm}:${ss}.${ms}`;
+}
+
+// ログエントリをレベル判定（既存の logLevelOf 相当）
+function combinedLevel(text) {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (/\berror\b|\bfatal\b|\bexception\b/.test(t)) return 'error';
+  if (/\bwarn(ing)?\b/.test(t))                    return 'warn';
+  if (/\binfo\b/.test(t))                           return 'info';
+  return null;
+}
+
+function renderCombined() {
+  const filterText  = combinedFilter.value.trim();
+  const procId      = combinedProcFilter.value;
+  let re = null;
+  if (filterText) { try { re = new RegExp(filterText, 'i'); } catch { re = null; } }
+
+  let visible = 0;
+  const lines = combinedOutput.querySelectorAll('.combined-line');
+  lines.forEach(el => {
+    const level   = el.dataset.level;
+    const eid     = el.dataset.pid;
+    const text    = el.dataset.text || '';
+
+    let show = true;
+    if (combinedActiveLevels.size && level && !combinedActiveLevels.has(level)) show = false;
+    if (procId && eid !== procId) show = false;
+    if (re && !re.test(text)) show = false;
+
+    el.classList.toggle('combined-hidden', !show);
+    if (show) visible++;
+  });
+
+  combinedCount.textContent = `${visible} / ${lines.length} 行`;
+
+  if (combinedAutoscroll.checked) {
+    combinedOutput.scrollTop = combinedOutput.scrollHeight;
+  }
+}
+
+async function fetchCombined() {
+  try {
+    const res  = await fetch('/api/process/combined-log');
+    const data = await res.json();
+    buildCombinedOutput(data);
+    updateCombinedProcFilter(data);
+    renderCombined();
+  } catch {}
+}
+
+function buildCombinedOutput(entries) {
+  // 既存行数と同じなら差分だけ追加（全再描画を避ける）
+  const existing = combinedOutput.querySelectorAll('.combined-line').length;
+  if (existing === entries.length) return;
+
+  if (existing === 0) combinedOutput.innerHTML = '';
+
+  for (let i = existing; i < entries.length; i++) {
+    const e    = entries[i];
+    const text = (e.data || '').replace(/\n$/, '');
+    if (!text) continue;
+
+    const level = e.type === 'exit' ? 'exit' : combinedLevel(text);
+    const color = procColor(e.id);
+
+    const div = document.createElement('div');
+    div.className = 'combined-line';
+    div.dataset.level = level || '';
+    div.dataset.pid   = String(e.id);
+    div.dataset.text  = text;
+
+    const ts = document.createElement('span');
+    ts.className   = 'combined-ts';
+    ts.textContent = fmtTs(e.ts);
+
+    const badge = document.createElement('span');
+    badge.className   = 'combined-proc-badge';
+    badge.textContent = e.label;
+    badge.style.background = color + '28';
+    badge.style.color      = color;
+    badge.style.borderLeft = `2px solid ${color}`;
+
+    const textSpan = document.createElement('span');
+    textSpan.className = 'combined-text' +
+      (e.type === 'stderr' ? ' combined-stderr' : '') +
+      (e.type === 'exit'   ? ' combined-exit'   : '');
+    textSpan.textContent = text;
+
+    div.appendChild(ts);
+    div.appendChild(badge);
+    div.appendChild(textSpan);
+    combinedOutput.appendChild(div);
+  }
+}
+
+function updateCombinedProcFilter(entries) {
+  const cur = combinedProcFilter.value;
+  const ids  = new Map();
+  entries.forEach(e => { if (!ids.has(e.id)) ids.set(e.id, e.label); });
+
+  combinedProcFilter.innerHTML = '<option value="">全プロセス</option>';
+  ids.forEach((label, id) => {
+    const opt = document.createElement('option');
+    opt.value       = String(id);
+    opt.textContent = label;
+    combinedProcFilter.appendChild(opt);
+  });
+  if (cur) combinedProcFilter.value = cur;
+}
+
+function startCombinedPoll() {
+  fetchCombined();
+  combinedPollTimer = setInterval(fetchCombined, 2000);
+}
+function stopCombinedPoll() {
+  clearInterval(combinedPollTimer);
+  combinedPollTimer = null;
+}
+
+function enterCombinedView() {
+  combinedActive = true;
+  combinedViewBtn.classList.add('active');
+  logOutput.classList.add('hidden');
+  stdinBar.classList.add('hidden');
+  devtoolsBar.classList.add('hidden');
+  combinedPanel.classList.remove('hidden');
+  combinedOutput.innerHTML = '';
+  startCombinedPoll();
+}
+function exitCombinedView() {
+  combinedActive = false;
+  combinedViewBtn.classList.remove('active');
+  combinedPanel.classList.add('hidden');
+  logOutput.classList.remove('hidden');
+  stopCombinedPoll();
+}
+
+combinedViewBtn.onclick = () => {
+  if (combinedActive) exitCombinedView();
+  else                enterCombinedView();
+};
+
+combinedRefresh.onclick = () => {
+  combinedOutput.innerHTML = '';
+  fetchCombined();
+};
+
+combinedFilter.addEventListener('input', renderCombined);
+combinedProcFilter.addEventListener('change', renderCombined);
+
+document.querySelectorAll('.combined-level-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const lv = btn.dataset.level;
+    if (combinedActiveLevels.has(lv)) {
+      combinedActiveLevels.delete(lv);
+      btn.classList.remove('active');
+    } else {
+      combinedActiveLevels.add(lv);
+      btn.classList.add('active');
+    }
+    renderCombined();
+  });
+});
 
 // =====================================================================
 // 初期ロード

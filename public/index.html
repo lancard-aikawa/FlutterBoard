@@ -65,6 +65,9 @@
               <input type="checkbox" id="autoreload" checked> 自動更新
             </label>
           </div>
+          <div id="combined-proc-item">
+            <button id="combined-view-btn" class="btn-ghost combined-proc-btn">全プロセス統合</button>
+          </div>
           <ul id="process-list"></ul>
         </aside>
         <div id="log-area">
@@ -96,6 +99,27 @@
             <a id="vmservice-link" href="#" target="_blank" rel="noopener" class="devtools-btn devtools-btn-vm hidden">VM Service ↗</a>
           </div>
           <div id="log-output"><span class="log-muted">Select a process to view logs</span></div>
+
+          <!-- S4: 全プロセス統合ビュー -->
+          <div id="combined-panel" class="hidden">
+            <div id="combined-toolbar">
+              <input type="text" id="combined-filter" placeholder="フィルタ（正規表現可）..." class="combined-filter-input">
+              <div id="combined-level-filters" title="レベルフィルター">
+                <button class="combined-level-btn" data-level="error">E</button>
+                <button class="combined-level-btn" data-level="warn">W</button>
+                <button class="combined-level-btn" data-level="info">I</button>
+              </div>
+              <select id="combined-proc-filter" title="プロセスを絞り込み">
+                <option value="">全プロセス</option>
+              </select>
+              <label class="combined-autoscroll-label">
+                <input type="checkbox" id="combined-autoscroll" checked> Auto scroll
+              </label>
+              <button id="combined-refresh" class="btn-ghost">↺</button>
+              <span id="combined-count" class="combined-count"></span>
+            </div>
+            <div id="combined-output"></div>
+          </div>
           <div id="stdin-bar" class="hidden">
             <!-- Ctrl キー -->
             <div id="stdin-ctrl-group">

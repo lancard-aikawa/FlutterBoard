@@ -289,6 +289,19 @@ function handleProcess(req, res, url) {
     return res.end(JSON.stringify(list));
   }
 
+  // GET /api/process/combined-log — 全プロセスのバッファをタイムスタンプ順で返す
+  if (pathname === '/api/process/combined-log' && req.method === 'GET') {
+    const entries = [];
+    processes.forEach((e, id) => {
+      e.buffer.forEach(item => {
+        entries.push({ id, label: e.label, running: e.exitCode === null, ...item });
+      });
+    });
+    entries.sort((a, b) => a.ts - b.ts);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(entries));
+  }
+
   res.writeHead(404);
   res.end('Not found');
 }
