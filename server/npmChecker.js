@@ -354,8 +354,66 @@ async function handleNpm(req, res, url) {
     return res.end(JSON.stringify({ ...result, cached: false, cachedAt }));
   }
 
+  // GET /api/npm/audit?path=...
+  if (url.pathname === '/api/npm/audit' && req.method === 'GET') {
+    const projectPath = url.searchParams.get('path');
+    if (!projectPath || !path.isAbsolute(projectPath)) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'Invalid path' }));
+    }
+    if (!fs.existsSync(path.join(projectPath, 'package.json'))) {
+      res.writeHead(404);
+      return res.end(JSON.stringify({ error: 'package.json not found' }));
+    }
+
+    const result = await runAudit(projectPath);
+    res.writeHead(200);
+    return res.end(JSON.stringify(result));
+  }
+
   res.writeHead(404);
   res.end(JSON.stringify({ error: 'Not found' }));
+}
+
+// npm audit --json は脆弱性があると exit code 非0 を返すため、
+// stdout を取得するために execFile をそのまま使わず個別実装する
+function runAudit(projectPath) {
+  const { execFile } = require('child_process');
+  return new Promise(resolve => {
+    const empty = { critical: 0, high: 0, moderate: 0, low: 0, info: 0, total: 0, fixAvailable: false };
+    execFile(
+      process.platform === 'win32' ? 'npm.cmd' : 'npm',
+      ['audit', '--json'],
+      { cwd: projectPath, encoding: 'utf-8', timeout: 30000 },
+      (err, stdout) => {
+        // npm audit は脆弱性があると非0 exit だが stdout に JSON が入る
+        const raw = stdout || (err && err.stdout) || '';
+        if (!raw) { resolve({ ...empty, error: 'npm audit に失敗しました' }); return; }
+        try {
+          const json = JSON.parse(raw);
+          // npm audit v7+ は metadata.vulnerabilities に集計がある
+          const meta = json.metadata?.vulnerabilities || {};
+          const counts = {
+            critical: meta.critical || 0,
+            high:     meta.high     || 0,
+            moderate: meta.moderate || 0,
+            low:      meta.low      || 0,
+            info:     meta.info     || 0,
+            total:    meta.total    || 0,
+          };
+          // fixAvailable: 1つでも fixAvailable が true/object なら true
+          let fixAvailable = false;
+          const vulns = json.vulnerabilities || {};
+          for (const v of Object.values(vulns)) {
+            if (v.fixAvailable) { fixAvailable = true; break; }
+          }
+          resolve({ ...counts, fixAvailable });
+        } catch {
+          resolve({ ...empty, error: 'JSON パースに失敗しました' });
+        }
+      }
+    );
+  });
 }
 
 const MAX_BODY = 1 * 1024 * 1024; // 1MB

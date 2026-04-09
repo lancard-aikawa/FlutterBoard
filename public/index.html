@@ -384,6 +384,21 @@
         </div>
         <div id="deps-status"></div>
 
+        <!-- npm audit バー（npm ソース選択時のみ表示） -->
+        <div id="npm-audit-bar" class="hidden">
+          <span class="npm-audit-label">脆弱性:</span>
+          <span id="npm-audit-critical" class="npm-audit-badge audit-critical">critical: <b id="npm-audit-critical-n">0</b></span>
+          <span id="npm-audit-high"     class="npm-audit-badge audit-high">high: <b id="npm-audit-high-n">0</b></span>
+          <span id="npm-audit-moderate" class="npm-audit-badge audit-moderate">moderate: <b id="npm-audit-moderate-n">0</b></span>
+          <span id="npm-audit-low"      class="npm-audit-badge audit-low">low: <b id="npm-audit-low-n">0</b></span>
+          <span id="npm-audit-ok"       class="npm-audit-ok hidden">問題なし ✓</span>
+          <div class="npm-audit-actions">
+            <button id="npm-audit-fix-btn"  class="btn-secondary" title="npm audit fix を実行">audit fix</button>
+            <button id="npm-audit-force-btn" class="btn-secondary" title="npm audit fix --force を実行（破壊的変更を含む）">fix --force</button>
+            <button id="npm-audit-recheck-btn" class="btn-ghost">再チェック ↺</button>
+          </div>
+        </div>
+
         <!-- パッケージ追加パネル -->
         <div id="npm-add-panel" class="hidden">
           <div id="npm-search-bar">

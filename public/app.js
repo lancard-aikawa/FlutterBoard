@@ -1436,6 +1436,28 @@ document.querySelectorAll('.deps-src-btn').forEach(btn => {
   });
 });
 
+const npmAuditBar        = document.getElementById('npm-audit-bar');
+const npmAuditCritical   = document.getElementById('npm-audit-critical');
+const npmAuditHigh       = document.getElementById('npm-audit-high');
+const npmAuditModerate   = document.getElementById('npm-audit-moderate');
+const npmAuditLow        = document.getElementById('npm-audit-low');
+const npmAuditOk         = document.getElementById('npm-audit-ok');
+const npmAuditCriticalN  = document.getElementById('npm-audit-critical-n');
+const npmAuditHighN      = document.getElementById('npm-audit-high-n');
+const npmAuditModerateN  = document.getElementById('npm-audit-moderate-n');
+const npmAuditLowN       = document.getElementById('npm-audit-low-n');
+
+document.getElementById('npm-audit-fix-btn').onclick = () => {
+  runCommand('npm audit fix', 'audit fix');
+  document.querySelector('.tab[data-tab="logs"]').click();
+};
+document.getElementById('npm-audit-force-btn').onclick = () => {
+  if (!confirm('npm audit fix --force は破壊的変更を含む可能性があります。実行しますか？')) return;
+  runCommand('npm audit fix --force', 'audit fix --force');
+  document.querySelector('.tab[data-tab="logs"]').click();
+};
+document.getElementById('npm-audit-recheck-btn').onclick = () => runNpmAudit();
+
 function applyDepsSourceUi() {
   const isNpm = depsSource === 'npm';
   const isCdn = depsSource === 'cdn';
@@ -1445,6 +1467,7 @@ function applyDepsSourceUi() {
   depsThType.textContent = isCdn ? 'ファイル' : '種別';
   depsNpmActions.classList.toggle('hidden', !isNpm);
   depsPubspecActions.classList.toggle('hidden', isNpm || isCdn);
+  npmAuditBar.classList.toggle('hidden', !isNpm);
 }
 
 depsRefreshBtn.onclick = () => checkDeps(true); // force=true でキャッシュ無視
@@ -1540,11 +1563,52 @@ async function checkDeps(force = false) {
     }
 
     depsStatus.textContent = summary;
+
+    // npm の場合は audit も実行
+    if (isNpm) runNpmAudit();
+
   } catch (e) {
     depsStatus.textContent = `エラー: ${e.message}`;
   } finally {
     depsRefreshBtn.disabled = false;
   }
+}
+
+async function runNpmAudit() {
+  if (!currentProjectPath) return;
+  npmAuditBar.classList.remove('hidden');
+  npmAuditOk.classList.add('hidden');
+  [npmAuditCritical, npmAuditHigh, npmAuditModerate, npmAuditLow].forEach(el => {
+    el.classList.remove('hidden');
+    el.classList.add('audit-loading');
+  });
+
+  const res  = await fetch(`/api/npm/audit?path=${encodeURIComponent(currentProjectPath)}`);
+  const data = await res.json();
+
+  [npmAuditCritical, npmAuditHigh, npmAuditModerate, npmAuditLow].forEach(el => el.classList.remove('audit-loading'));
+
+  if (data.error) {
+    npmAuditBar.innerHTML = `<span class="npm-audit-label" style="color:var(--err)">${escHtml(data.error)}</span>`;
+    return;
+  }
+
+  npmAuditCriticalN.textContent = data.critical;
+  npmAuditHighN.textContent     = data.high;
+  npmAuditModerateN.textContent = data.moderate;
+  npmAuditLowN.textContent      = data.low;
+
+  // 0 件の severity はグレーアウト
+  npmAuditCritical.classList.toggle('audit-zero', data.critical === 0);
+  npmAuditHigh.classList.toggle('audit-zero',     data.high     === 0);
+  npmAuditModerate.classList.toggle('audit-zero', data.moderate === 0);
+  npmAuditLow.classList.toggle('audit-zero',      data.low      === 0);
+
+  const noVulns = data.total === 0;
+  npmAuditOk.classList.toggle('hidden', !noVulns);
+  [npmAuditCritical, npmAuditHigh, npmAuditModerate, npmAuditLow].forEach(el => {
+    el.classList.toggle('hidden', noVulns);
+  });
 }
 
 /** Returns 'full' | 'partial' | 'none' based on provenance + age */
