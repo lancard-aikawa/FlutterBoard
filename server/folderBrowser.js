@@ -61,7 +61,7 @@ function handleBrowse(req, res, url) {
         type: 'dir',
         path: path.join(normalized, e.name),
       }));
-  } catch (err) {
+  } catch {
     res.writeHead(403);
     return res.end(JSON.stringify({ error: 'Cannot read directory' }));
   }

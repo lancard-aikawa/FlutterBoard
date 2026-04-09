@@ -22,19 +22,6 @@ RC.md の機能要望をもとにした実装順序と設計メモ。
 - [x] **R6** npm audit 表示 — severity 別バッジ + 折り畳み詳細パネル（パッケージ・影響範囲・fix 有無）
 - [x] **R8** ログ画面グループ化 — `[FB:SCREEN]` マーカーでセクション折り畳み、ライブインジケーター、グループ化トグル
 - [x] **R5** プロジェクト・ブランチ間依存比較 — git ブランチ / 別プロジェクトと pubspec・npm を横断比較
-
----
-
-## バックログ（優先度低）
-
-### R1: ログ正規表現フィルタ + レベルフィルタ
-- キーワードフィルタは実装済み
-- 残り: 正規表現モード切り替え、`ERROR`/`WARN`/`INFO` レベルバッジフィルタ
-
-### R7: Flutter analyze ビューア
-- `flutter analyze --machine` の JSON 出力をパース
-- ファイル名・行番号を `vscode://` URL でリンク
-
-### R2: Git 基本操作 UI
-- ステージ・コミット・プッシュ・ブランチ切り替え
-- 優先度低のため後回し
+- [x] **R1** ログ正規表現フィルタ + レベルフィルタ — 正規表現モード切り替え、ERROR/WARN/INFO レベルバッジフィルタ
+- [x] **R7** Flutter analyze ビューア — `flutter analyze --machine` パース、severity フィルタ、vscode:// リンク
+- [x] **R2** Git 基本操作 UI — ファイル個別 stage/unstage、全 add/unstage、コミット、pull/push

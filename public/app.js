@@ -370,6 +370,8 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
   logTitle.classList.remove('exited');
   logFilter.value = '';
   logFilter.classList.remove('active');
+  activeLevels.clear();
+  document.querySelectorAll('.log-level-btn').forEach(b => b.classList.remove('active'));
 
   // DevTools バーを初期化（既知 URL があればすぐ表示）
   activeDevToolsUrl  = devToolsUrl;
@@ -478,11 +480,10 @@ function appendLogEntry(type, text, ts = Date.now()) {
 }
 
 function appendLogEntryFlat(type, text) {
-  const keyword = logFilter.value.trim().toLowerCase();
-  const span    = document.createElement('span');
+  const span = document.createElement('span');
   span.className   = `log-${type}`;
   span.textContent = text;
-  if (keyword && !text.toLowerCase().includes(keyword)) span.classList.add('log-filtered-hidden');
+  if (!matchesTextFilter(text) || !matchesLevelFilter(text)) span.classList.add('log-filtered-hidden');
   logOutput.appendChild(span);
   if (autoscroll.checked) logOutput.scrollTop = logOutput.scrollHeight;
 }
@@ -561,11 +562,10 @@ function createLogSection(name, ts) {
 
 function appendToSection(type, text) {
   if (!currentSection) return;
-  const keyword = logFilter.value.trim().toLowerCase();
-  const span    = document.createElement('span');
+  const span = document.createElement('span');
   span.className   = `log-${type}`;
   span.textContent = text;
-  if (keyword && !text.toLowerCase().includes(keyword)) span.classList.add('log-filtered-hidden');
+  if (!matchesTextFilter(text) || !matchesLevelFilter(text)) span.classList.add('log-filtered-hidden');
   currentSection.contentEl.appendChild(span);
   currentSection.lineCount++;
   currentSection.countEl.textContent = `${currentSection.lineCount}行`;
@@ -591,16 +591,60 @@ function fmtTime(ts) {
     .map(n => String(n).padStart(2, '0')).join(':');
 }
 
-// ---- フィルター ----
-logFilter.addEventListener('input', () => {
-  const keyword = logFilter.value.trim().toLowerCase();
-  logFilter.classList.toggle('active', keyword.length > 0);
+// ---- フィルター（正規表現 + レベル） ----
+const logRegexBtn  = document.getElementById('log-regex-btn');
+let logRegexMode   = false;
+let activeLevels   = new Set(); // 空 = 全表示
 
+const LEVEL_RE = {
+  error: /\b(error|E\/flutter|FATAL|exception|AssertionError)\b/i,
+  warn:  /\b(warn|W\/flutter|warning|DEPRECATED)\b/i,
+  info:  /\b(info|I\/flutter)\b/i,
+};
+
+logRegexBtn.onclick = () => {
+  logRegexMode = !logRegexMode;
+  logRegexBtn.classList.toggle('active', logRegexMode);
+  applyLogFilter();
+};
+
+document.querySelectorAll('.log-level-btn').forEach(btn => {
+  btn.onclick = () => {
+    btn.classList.toggle('active');
+    const level = btn.dataset.level;
+    if (btn.classList.contains('active')) activeLevels.add(level);
+    else activeLevels.delete(level);
+    applyLogFilter();
+  };
+});
+
+function matchesTextFilter(text) {
+  const raw = logFilter.value.trim();
+  if (!raw) return true;
+  if (logRegexMode) {
+    try { return new RegExp(raw, 'i').test(text); }
+    catch { return true; } // 無効な正規表現は全表示
+  }
+  return text.toLowerCase().includes(raw.toLowerCase());
+}
+
+function matchesLevelFilter(text) {
+  if (activeLevels.size === 0) return true;
+  for (const level of activeLevels) {
+    if (LEVEL_RE[level].test(text)) return true;
+  }
+  return false;
+}
+
+function applyLogFilter() {
+  logFilter.classList.toggle('active', logFilter.value.trim().length > 0);
   logOutput.querySelectorAll('span[class^="log-"]').forEach(span => {
-    const hidden = keyword && !span.textContent.toLowerCase().includes(keyword);
+    const hidden = !matchesTextFilter(span.textContent) || !matchesLevelFilter(span.textContent);
     span.classList.toggle('log-filtered-hidden', hidden);
   });
-});
+}
+
+logFilter.addEventListener('input', applyLogFilter);
 
 // ---- ログ保存 ----
 logSave.onclick = () => {
@@ -1033,7 +1077,7 @@ async function startSeqStep() {
     });
     const data = await res.json();
     procId = data.id;
-  } catch (e) {
+  } catch {
     seqRunState = null;
     renderSeqList();
     return;
@@ -1782,8 +1826,6 @@ async function runNpmAudit() {
   }
 }
 
-const AUDIT_SEVERITY_LABEL = { critical: 'critical', high: 'high', moderate: 'moderate', low: 'low', info: 'info' };
-
 function renderNpmAuditDetail(details) {
   let html = '<table class="npm-audit-detail-table"><tbody>';
   for (const v of details) {
@@ -2000,7 +2042,6 @@ function renderCmpTable(data) {
 
 // ソース切り替え時に比較モードを終了
 document.querySelectorAll('.deps-src-btn').forEach(btn => {
-  const orig = btn.onclick;
   btn.addEventListener('click', () => {
     if (compareActive) {
       compareActive = false;
@@ -2434,6 +2475,14 @@ const gitLogNext      = document.getElementById('git-log-next');
 const gitLogPageInfo  = document.getElementById('git-log-page-info');
 const gitLogCount     = document.getElementById('git-log-count');
 const gitRefreshBtn   = document.getElementById('git-refresh-btn');
+const gitStageAllBtn  = document.getElementById('git-stage-all-btn');
+const gitUnstageAllBtn= document.getElementById('git-unstage-all-btn');
+const gitCommitMsg    = document.getElementById('git-commit-msg');
+const gitCommitBtn    = document.getElementById('git-commit-btn');
+const gitCommitResult = document.getElementById('git-commit-result');
+const gitPullBtn      = document.getElementById('git-pull-btn');
+const gitPushBtn      = document.getElementById('git-push-btn');
+const gitRemoteResult = document.getElementById('git-remote-result');
 
 const GIT_LOG_LIMIT = 20;
 let gitLogOffset    = 0;
@@ -2443,6 +2492,66 @@ let gitActiveHash   = null; // 展開中のコミット hash
 gitRefreshBtn.onclick = () => { gitLogOffset = 0; loadGitStatus(); };
 gitLogPrev.onclick    = () => { gitLogOffset = Math.max(0, gitLogOffset - GIT_LOG_LIMIT); loadGitStatus(true); };
 gitLogNext.onclick    = () => { gitLogOffset = gitLogOffset + GIT_LOG_LIMIT; loadGitStatus(true); };
+
+// ---- ステージ / アンステージ（全体）----
+gitStageAllBtn.onclick = async () => {
+  if (!currentProjectPath) return;
+  gitStageAllBtn.disabled = true;
+  await gitOp('/api/git/stage', { path: currentProjectPath });
+  gitStageAllBtn.disabled = false;
+  loadGitStatus();
+};
+gitUnstageAllBtn.onclick = async () => {
+  if (!currentProjectPath) return;
+  gitUnstageAllBtn.disabled = true;
+  await gitOp('/api/git/unstage', { path: currentProjectPath });
+  gitUnstageAllBtn.disabled = false;
+  loadGitStatus();
+};
+
+// ---- コミット ----
+gitCommitBtn.onclick = async () => {
+  if (!currentProjectPath) return;
+  const msg = gitCommitMsg.value.trim();
+  if (!msg) { showGitResult(gitCommitResult, false, 'メッセージを入力してください'); return; }
+  gitCommitBtn.disabled = true;
+  const ok = await gitOp('/api/git/do-commit', { path: currentProjectPath, message: msg });
+  gitCommitBtn.disabled = false;
+  if (ok) { gitCommitMsg.value = ''; showGitResult(gitCommitResult, true, 'コミット完了'); loadGitStatus(); }
+  else     { showGitResult(gitCommitResult, false, 'コミット失敗'); }
+};
+
+// ---- プル / プッシュ ----
+gitPullBtn.onclick = async () => {
+  if (!currentProjectPath) return;
+  gitPullBtn.disabled = true;
+  const ok = await gitOp('/api/git/pull', { path: currentProjectPath });
+  gitPullBtn.disabled = false;
+  showGitResult(gitRemoteResult, ok, ok ? 'pull 完了' : 'pull 失敗');
+  if (ok) loadGitStatus();
+};
+gitPushBtn.onclick = async () => {
+  if (!currentProjectPath) return;
+  gitPushBtn.disabled = true;
+  const ok = await gitOp('/api/git/push', { path: currentProjectPath });
+  gitPushBtn.disabled = false;
+  showGitResult(gitRemoteResult, ok, ok ? 'push 完了' : 'push 失敗');
+};
+
+async function gitOp(url, body) {
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    return !!data.ok;
+  } catch { return false; }
+}
+
+function showGitResult(el, ok, msg) {
+  el.textContent = msg;
+  el.className   = 'git-op-result ' + (ok ? 'git-op-ok' : 'git-op-err');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.textContent = ''; el.className = 'git-op-result'; }, 4000);
+}
 
 const gitDiffPanel    = document.getElementById('git-diff-panel');
 const gitDiffFilename = document.getElementById('git-diff-filename');
@@ -2558,16 +2667,28 @@ async function loadGitStatus(logOnly = false) {
       const cssCls = { modified:'gs-modified', added:'gs-added', deleted:'gs-deleted',
                        renamed:'gs-renamed', untracked:'gs-untracked' }[c.status] || 'gs-other';
       const label  = { modified:'M', added:'A', deleted:'D', renamed:'R', untracked:'?' }[c.status] || '?';
-      const dot    = c.staged ? '<span class="git-staged-dot" title="ステージ済み"></span>' : '';
       const li     = document.createElement('li');
       li.className = 'git-change-item';
       li.dataset.file = c.file;
       li.title = 'クリックで diff を表示';
       li.innerHTML = `
         <span class="git-status-badge ${cssCls}">${label}</span>
-        ${dot}
-        <span class="git-change-file">${escHtml(c.file)}</span>`;
-      li.addEventListener('click', () => showDiff(c.file, c.staged));
+        <span class="git-change-file">${escHtml(c.file)}</span>
+        <span class="git-file-actions">
+          ${c.staged
+            ? `<button class="git-file-btn git-unstage-btn" title="アンステージ">−</button>`
+            : `<button class="git-file-btn git-stage-btn"   title="ステージ">＋</button>`}
+        </span>`;
+      li.addEventListener('click', e => {
+        if (e.target.closest('.git-file-actions')) return;
+        showDiff(c.file, c.staged);
+      });
+      li.querySelector('.git-file-btn').addEventListener('click', async e => {
+        e.stopPropagation();
+        const url = c.staged ? '/api/git/unstage' : '/api/git/stage';
+        await gitOp(url, { path: currentProjectPath, file: c.file });
+        loadGitStatus();
+      });
       gitChangesList.appendChild(li);
     });
   }
@@ -2670,6 +2791,97 @@ setInterval(() => {
     refreshProcessList(null);
   }
 }, 10000);
+
+// =====================================================================
+// R7: Flutter analyze ビューア
+// =====================================================================
+
+const analyzeRunBtn    = document.getElementById('analyze-run-btn');
+const analyzePanel     = document.getElementById('analyze-panel');
+const analyzeStatus    = document.getElementById('analyze-status');
+const analyzeTbody     = document.getElementById('analyze-tbody');
+const analyzeTableWrap = document.getElementById('analyze-table-wrap');
+const analyzeHasFix    = document.getElementById('analyze-has-fix');
+
+let analyzeResults = [];
+let analyzeActiveSev = new Set(['ERROR', 'WARNING', 'INFO']);
+
+analyzeRunBtn.onclick = async () => {
+  if (!currentProjectPath) { alert('プロジェクトを選択してください'); return; }
+  analyzeRunBtn.disabled = true;
+  analyzeRunBtn.textContent = '実行中...';
+  analyzePanel.classList.remove('hidden');
+  analyzeStatus.textContent = '⏳ 解析中...';
+  analyzeTableWrap.classList.add('hidden');
+
+  const res  = await fetch(`/api/analyze?path=${encodeURIComponent(currentProjectPath)}`);
+  const data = await res.json();
+
+  analyzeRunBtn.disabled = false;
+  analyzeRunBtn.textContent = '実行 ▶';
+
+  if (data.error) { analyzeStatus.textContent = `⚠ ${data.error}`; return; }
+
+  analyzeResults = data.issues || [];
+  const errCnt  = analyzeResults.filter(i => i.severity === 'ERROR').length;
+  const warnCnt = analyzeResults.filter(i => i.severity === 'WARNING').length;
+  const infoCnt = analyzeResults.filter(i => i.severity === 'INFO').length;
+  analyzeStatus.textContent =
+    `${data.fileCount} ファイル解析 — ERROR: ${errCnt}  WARNING: ${warnCnt}  INFO: ${infoCnt}`;
+
+  renderAnalyzeTable();
+};
+
+document.querySelectorAll('.analyze-sev-btn').forEach(btn => {
+  btn.onclick = () => {
+    btn.classList.toggle('active');
+    const sev = btn.dataset.sev;
+    if (btn.classList.contains('active')) analyzeActiveSev.add(sev);
+    else analyzeActiveSev.delete(sev);
+    renderAnalyzeTable();
+  };
+});
+analyzeHasFix.addEventListener('change', renderAnalyzeTable);
+
+function renderAnalyzeTable() {
+  const hasFix = analyzeHasFix.checked;
+  const rows = analyzeResults.filter(i =>
+    analyzeActiveSev.has(i.severity) && (!hasFix || i.hasFix)
+  );
+
+  analyzeTbody.innerHTML = '';
+  if (rows.length === 0) {
+    analyzeTbody.innerHTML = `<tr><td colspan="5" class="deps-empty">該当なし</td></tr>`;
+    analyzeTableWrap.classList.remove('hidden');
+    return;
+  }
+
+  const SEV_CLS = { ERROR: 'analyze-error', WARNING: 'analyze-warn', INFO: 'analyze-info' };
+
+  rows.forEach(issue => {
+    const tr = document.createElement('tr');
+    const cls = SEV_CLS[issue.severity] || '';
+
+    // ファイルパスを短縮: プロジェクトルートからの相対パス
+    let relFile = issue.file;
+    if (currentProjectPath && relFile.startsWith(currentProjectPath)) {
+      relFile = relFile.slice(currentProjectPath.length).replace(/^[\\/]/, '');
+    }
+
+    // vscode:// リンク
+    const vsUrl = `vscode://file/${issue.file.replace(/\\/g, '/')}:${issue.line}:${issue.column}`;
+
+    tr.innerHTML = `
+      <td><span class="analyze-sev-badge ${cls}">${escHtml(issue.severity)}</span></td>
+      <td class="analyze-msg">${escHtml(issue.message)}</td>
+      <td class="analyze-file"><a href="${escHtml(vsUrl)}" class="analyze-file-link" title="${escHtml(issue.file)}">${escHtml(relFile)}</a></td>
+      <td class="analyze-line">${issue.line}</td>
+      <td class="analyze-fix">${issue.hasFix ? '<span class="audit-fix">✓</span>' : ''}</td>`;
+    analyzeTbody.appendChild(tr);
+  });
+
+  analyzeTableWrap.classList.remove('hidden');
+}
 
 // =====================================================================
 // R4: Firebase 環境切り替えパネル

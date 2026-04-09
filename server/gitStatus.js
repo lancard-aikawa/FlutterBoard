@@ -177,8 +177,71 @@ async function handleGit(req, res, url) {
     return res.end(JSON.stringify({ diff: diffOut || '' }));
   }
 
+  // POST /api/git/stage  { path, file? }  — file 省略時は git add -A
+  if (pathname === '/api/git/stage' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd, file } = body;
+    if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const args = file ? ['add', '--', file] : ['add', '-A'];
+    const out  = await git(args, cwd);
+    res.writeHead(out === null ? 500 : 200);
+    return res.end(JSON.stringify(out === null ? { error: 'git add failed' } : { ok: true }));
+  }
+
+  // POST /api/git/unstage  { path, file? }
+  if (pathname === '/api/git/unstage' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd, file } = body;
+    if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const args = file ? ['restore', '--staged', '--', file] : ['restore', '--staged', '.'];
+    const out  = await git(args, cwd);
+    res.writeHead(out === null ? 500 : 200);
+    return res.end(JSON.stringify(out === null ? { error: 'git restore failed' } : { ok: true }));
+  }
+
+  // POST /api/git/do-commit  { path, message }
+  if (pathname === '/api/git/do-commit' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd, message } = body;
+    if (!cwd || !message?.trim()) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'path and message required' }));
+    }
+    const out = await git(['commit', '-m', message.trim()], cwd);
+    res.writeHead(out === null ? 500 : 200);
+    return res.end(JSON.stringify(out === null ? { error: 'git commit failed' } : { ok: true, output: out }));
+  }
+
+  // POST /api/git/push  { path }
+  if (pathname === '/api/git/push' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd } = body;
+    if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const out = await git(['push'], cwd);
+    res.writeHead(out === null ? 500 : 200);
+    return res.end(JSON.stringify(out === null ? { error: 'git push failed' } : { ok: true, output: out }));
+  }
+
+  // POST /api/git/pull  { path }
+  if (pathname === '/api/git/pull' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd } = body;
+    if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const out = await git(['pull'], cwd);
+    res.writeHead(out === null ? 500 : 200);
+    return res.end(JSON.stringify(out === null ? { error: 'git pull failed' } : { ok: true, output: out }));
+  }
+
   res.writeHead(404);
   res.end(JSON.stringify({ error: 'Not found' }));
+}
+
+function readBody(req) {
+  return new Promise(resolve => {
+    let raw = '';
+    req.on('data', c => { raw += c; });
+    req.on('end', () => { try { resolve(JSON.parse(raw)); } catch { resolve({}); } });
+  });
 }
 
 module.exports = { handleGit };

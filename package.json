@@ -19,6 +19,7 @@
     "node-pty": "^1.1.0"
   },
   "devDependencies": {
-    "eslint": "^8.57.1"
+    "eslint": "^10.2.0",
+    "globals": "^17.4.0"
   }
 }

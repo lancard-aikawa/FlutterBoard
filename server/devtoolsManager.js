@@ -3,7 +3,7 @@ const { spawn } = require('child_process');
 
 // Singleton DevTools server state
 let devtoolsPort = null;
-let devtoolsProc = null;
+let devtoolsProc = null; // eslint-disable-line no-unused-vars
 
 // Pending requests waiting for DevTools to start
 const pendingQueue = [];

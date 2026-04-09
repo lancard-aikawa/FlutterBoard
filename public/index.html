@@ -72,6 +72,12 @@
             <span id="log-title">Select a process to view logs</span>
             <div id="log-actions">
               <input type="text" id="log-filter" placeholder="Filter..." title="Keyword filter">
+              <button id="log-regex-btn" class="btn-ghost log-regex-btn" title="正規表現モード">.*</button>
+              <div id="log-level-filters" title="レベルフィルター">
+                <button class="log-level-btn" data-level="error">E</button>
+                <button class="log-level-btn" data-level="warn">W</button>
+                <button class="log-level-btn" data-level="info">I</button>
+              </div>
               <button id="log-save">Save</button>
               <button id="log-clear">Clear</button>
               <label id="autoscroll-label">
@@ -132,6 +138,38 @@
 
         <!-- Flutter パネル -->
         <div id="cmd-panel-flutter" class="cmd-tab-content">
+          <!-- Analyze パネル -->
+          <section class="cmd-section analyze-section">
+            <div class="analyze-header">
+              <span class="analyze-title">flutter analyze</span>
+              <button id="analyze-run-btn" class="ctx-fetch-btn">実行 ▶</button>
+            </div>
+            <div id="analyze-panel" class="hidden">
+              <div id="analyze-status"></div>
+              <div id="analyze-filter-bar">
+                <button class="analyze-sev-btn active" data-sev="ERROR">ERROR</button>
+                <button class="analyze-sev-btn active" data-sev="WARNING">WARNING</button>
+                <button class="analyze-sev-btn active" data-sev="INFO">INFO</button>
+                <label class="analyze-filter-label">
+                  <input type="checkbox" id="analyze-has-fix"> fix あり のみ
+                </label>
+              </div>
+              <div id="analyze-table-wrap">
+                <table id="analyze-table">
+                  <thead>
+                    <tr>
+                      <th>重要度</th>
+                      <th>メッセージ</th>
+                      <th>ファイル</th>
+                      <th>行</th>
+                      <th>fix</th>
+                    </tr>
+                  </thead>
+                  <tbody id="analyze-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
           <!-- 実行ビルダー -->
           <section class="cmd-section ctx-builder-section">
             <div class="ctx-builder-header">
@@ -503,7 +541,7 @@
               </tr>
             </thead>
             <tbody id="deps-tbody">
-              <tr><td colspan="9" class="deps-empty">プロジェクトを選択して「更新チェック」を押してください</td></tr>
+              <tr><td colspan="10" class="deps-empty">プロジェクトを選択して「更新チェック」を押してください</td></tr>
             </tbody>
           </table>
         </div>
@@ -604,6 +642,30 @@
                 </div>
               </div>
             </div>
+            <!-- コミット操作 -->
+            <div class="git-card" id="git-commit-card">
+              <div class="git-card-label">
+                コミット
+                <div class="git-stage-actions">
+                  <button id="git-stage-all-btn"   class="btn-ghost git-op-btn" title="全ファイルをステージ">全 add</button>
+                  <button id="git-unstage-all-btn" class="btn-ghost git-op-btn" title="全解除">全 unstage</button>
+                </div>
+              </div>
+              <textarea id="git-commit-msg" placeholder="コミットメッセージ" rows="3"></textarea>
+              <button id="git-commit-btn" class="git-commit-submit-btn">コミット</button>
+              <div id="git-commit-result" class="git-op-result"></div>
+            </div>
+
+            <!-- リモート操作 -->
+            <div class="git-card" id="git-remote-card">
+              <div class="git-card-label">リモート</div>
+              <div class="git-remote-btns">
+                <button id="git-pull-btn" class="cmd-btn">↓ pull</button>
+                <button id="git-push-btn" class="cmd-btn">↑ push</button>
+              </div>
+              <div id="git-remote-result" class="git-op-result"></div>
+            </div>
+
             <button id="git-refresh-btn">更新</button>
           </aside>
 

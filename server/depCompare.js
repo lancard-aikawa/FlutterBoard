@@ -189,7 +189,7 @@ async function handleDepCompare(req, res, url) {
     try {
       const content = fs.readFileSync(path.join(p, filename), 'utf-8');
       currentParsed = parse(content);
-    } catch (e) {
+    } catch {
       res.writeHead(404);
       return res.end(JSON.stringify({ error: `${filename} が見つかりません` }));
     }
