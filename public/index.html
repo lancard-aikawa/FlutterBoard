@@ -371,6 +371,7 @@
               日
             </label>
             <button id="deps-refresh-btn">更新チェック</button>
+            <button id="deps-compare-btn" class="btn-ghost">比較 ⇄</button>
             <!-- pubspec 専用アクション (pubspec ソース選択時のみ表示) -->
             <div id="deps-pubspec-actions">
               <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
@@ -450,6 +451,38 @@
                 <button id="npm-install-run" disabled>npm install 実行</button>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- 依存比較パネル（比較モード時に表示） -->
+        <div id="deps-compare-panel" class="hidden">
+          <div id="cmp-config">
+            <div class="cmp-mode-btns">
+              <button class="cmp-mode-btn active" data-cmp-mode="branch">ブランチ</button>
+              <button class="cmp-mode-btn"        data-cmp-mode="project">別プロジェクト</button>
+            </div>
+            <select id="cmp-branch-select"  class="ctx-select cmp-select"></select>
+            <select id="cmp-project-select" class="ctx-select cmp-select hidden"></select>
+            <button id="cmp-fetch-btn"  class="ctx-fetch-btn">↺</button>
+            <button id="cmp-run-btn">比較実行</button>
+            <label class="cmp-diff-label">
+              <input type="checkbox" id="cmp-diff-only" checked> 差分のみ
+            </label>
+          </div>
+          <div id="cmp-status"></div>
+          <div id="cmp-table-wrap" class="hidden">
+            <table id="cmp-table">
+              <thead>
+                <tr>
+                  <th>パッケージ</th>
+                  <th id="cmp-th-current">現在</th>
+                  <th id="cmp-th-target">比較対象</th>
+                  <th>差分</th>
+                  <th>種別</th>
+                </tr>
+              </thead>
+              <tbody id="cmp-tbody"></tbody>
+            </table>
           </div>
         </div>
 

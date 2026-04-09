@@ -1835,6 +1835,182 @@ function trustLevel(p, threshold) {
   return 'none';
 }
 
+// =====================================================================
+// R5: 依存比較モード
+// =====================================================================
+
+const depsCompareBtn   = document.getElementById('deps-compare-btn');
+const depsComparePanel = document.getElementById('deps-compare-panel');
+const depsTableWrap    = document.getElementById('deps-table-wrap');
+const cmpBranchSelect  = document.getElementById('cmp-branch-select');
+const cmpProjectSelect = document.getElementById('cmp-project-select');
+const cmpFetchBtn      = document.getElementById('cmp-fetch-btn');
+const cmpRunBtn        = document.getElementById('cmp-run-btn');
+const cmpDiffOnly      = document.getElementById('cmp-diff-only');
+const cmpStatus        = document.getElementById('cmp-status');
+const cmpTableWrap     = document.getElementById('cmp-table-wrap');
+const cmpTbody         = document.getElementById('cmp-tbody');
+const cmpThCurrent     = document.getElementById('cmp-th-current');
+const cmpThTarget      = document.getElementById('cmp-th-target');
+
+let cmpMode        = 'branch'; // 'branch' | 'project'
+let compareActive  = false;
+let lastCmpData    = null;
+
+// 比較ボタン（比較モードは pubspec / npm のみ）
+depsCompareBtn.onclick = () => {
+  compareActive = !compareActive;
+  depsCompareBtn.classList.toggle('active', compareActive);
+  depsComparePanel.classList.toggle('hidden', !compareActive);
+  depsTableWrap.classList.toggle('hidden', compareActive);
+  npmAuditBar.classList.toggle('hidden', compareActive || depsSource !== 'npm');
+  npmAuditDetail.classList.toggle('hidden', true);
+  if (compareActive) loadCmpOptions();
+};
+
+// モード切り替え
+document.querySelectorAll('.cmp-mode-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.cmp-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    cmpMode = btn.dataset.cmpMode;
+    cmpBranchSelect.classList.toggle('hidden',  cmpMode !== 'branch');
+    cmpProjectSelect.classList.toggle('hidden', cmpMode !== 'project');
+  };
+});
+
+cmpFetchBtn.onclick = () => loadCmpOptions();
+cmpDiffOnly.addEventListener('change', () => { if (lastCmpData) renderCmpTable(lastCmpData); });
+
+async function loadCmpOptions() {
+  cmpFetchBtn.disabled = true;
+
+  if (cmpMode === 'branch') {
+    cmpBranchSelect.innerHTML = '<option value="">読み込み中...</option>';
+    const res  = await fetch(`/api/depcompare/branches?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    cmpBranchSelect.innerHTML = '';
+    if (data.error || !data.branches.length) {
+      cmpBranchSelect.innerHTML = '<option value="">ブランチなし</option>';
+    } else {
+      data.branches.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value       = b;
+        opt.textContent = b;
+        cmpBranchSelect.appendChild(opt);
+      });
+    }
+  } else {
+    cmpProjectSelect.innerHTML = '<option value="">読み込み中...</option>';
+    const res  = await fetch('/api/depcompare/history');
+    const data = await res.json();
+    cmpProjectSelect.innerHTML = '';
+    const others = (data.history || []).filter(h => h.path !== currentProjectPath);
+    if (!others.length) {
+      cmpProjectSelect.innerHTML = '<option value="">他のプロジェクトなし</option>';
+    } else {
+      others.forEach(h => {
+        const opt = document.createElement('option');
+        opt.value       = h.path;
+        opt.textContent = h.name;
+        opt.title       = h.path;
+        cmpProjectSelect.appendChild(opt);
+      });
+    }
+  }
+
+  cmpFetchBtn.disabled = false;
+}
+
+cmpRunBtn.onclick = async () => {
+  if (!currentProjectPath) return;
+  const type = depsSource === 'npm' ? 'npm' : 'pubspec';
+
+  let qp = `path=${encodeURIComponent(currentProjectPath)}&type=${type}`;
+  if (cmpMode === 'branch') {
+    const branch = cmpBranchSelect.value;
+    if (!branch) { cmpStatus.textContent = 'ブランチを選択してください'; return; }
+    qp += `&branch=${encodeURIComponent(branch)}`;
+  } else {
+    const otherPath = cmpProjectSelect.value;
+    if (!otherPath) { cmpStatus.textContent = 'プロジェクトを選択してください'; return; }
+    qp += `&otherPath=${encodeURIComponent(otherPath)}`;
+  }
+
+  cmpRunBtn.disabled = true;
+  cmpStatus.textContent = '比較中...';
+  cmpTableWrap.classList.add('hidden');
+
+  const res  = await fetch(`/api/depcompare/compare?${qp}`);
+  const data = await res.json();
+  cmpRunBtn.disabled = false;
+
+  if (data.error) { cmpStatus.textContent = `⚠ ${data.error}`; return; }
+
+  lastCmpData = data;
+  cmpThCurrent.textContent = data.currentName;
+  cmpThTarget.textContent  = data.targetName || data.targetLabel;
+
+  renderCmpTable(data);
+
+  const added   = data.diff.filter(r => r.status === 'added').length;
+  const removed = data.diff.filter(r => r.status === 'removed').length;
+  const newer   = data.diff.filter(r => r.status === 'newer').length;
+  const older   = data.diff.filter(r => r.status === 'older').length;
+  const same    = data.diff.filter(r => r.status === 'same').length;
+  cmpStatus.textContent =
+    `${data.diff.length}件 — 新: ${newer}件  旧: ${older}件  追加: ${added}件  削除: ${removed}件  同: ${same}件`;
+};
+
+function renderCmpTable(data) {
+  const diffOnly = cmpDiffOnly.checked;
+  const rows = diffOnly ? data.diff.filter(r => r.status !== 'same') : data.diff;
+
+  cmpTbody.innerHTML = '';
+  if (rows.length === 0) {
+    cmpTbody.innerHTML = `<tr><td colspan="5" class="deps-empty">差分なし</td></tr>`;
+    cmpTableWrap.classList.remove('hidden');
+    return;
+  }
+
+  const statusLabel = {
+    newer:   { text: '↑ 現在が新しい', cls: 'cmp-newer' },
+    older:   { text: '↓ 現在が古い',   cls: 'cmp-older' },
+    same:    { text: '─',              cls: 'cmp-same'  },
+    added:   { text: '＋ 追加',         cls: 'cmp-added' },
+    removed: { text: '－ 削除',         cls: 'cmp-removed' },
+    changed: { text: '≠ 変更',          cls: 'cmp-changed' },
+  };
+
+  rows.forEach(r => {
+    const tr  = document.createElement('tr');
+    const { text, cls } = statusLabel[r.status] || { text: r.status, cls: '' };
+    tr.className = cls;
+    tr.innerHTML = `
+      <td class="cmp-pkg-name">${escHtml(r.name)}</td>
+      <td class="cmp-ver">${escHtml(r.current || '—')}</td>
+      <td class="cmp-ver">${escHtml(r.target  || '—')}</td>
+      <td class="cmp-status-cell"><span class="cmp-badge ${cls}">${text}</span></td>
+      <td class="cmp-dev">${r.dev ? '<span class="badge-dev">dev</span>' : ''}</td>`;
+    cmpTbody.appendChild(tr);
+  });
+
+  cmpTableWrap.classList.remove('hidden');
+}
+
+// ソース切り替え時に比較モードを終了
+document.querySelectorAll('.deps-src-btn').forEach(btn => {
+  const orig = btn.onclick;
+  btn.addEventListener('click', () => {
+    if (compareActive) {
+      compareActive = false;
+      depsCompareBtn.classList.remove('active');
+      depsComparePanel.classList.add('hidden');
+      depsTableWrap.classList.remove('hidden');
+    }
+  });
+});
+
 function renderDepsTable(packages, source) {
   const showProvenance = source === 'npm';
   const showCdn        = source === 'cdn';
