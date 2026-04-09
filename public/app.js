@@ -3691,6 +3691,145 @@ document.querySelectorAll('.combined-level-btn').forEach(btn => {
 });
 
 // =====================================================================
+// S5: ポートモニター
+// =====================================================================
+
+const portAddInput    = document.getElementById('port-add-input');
+const portAddBtn      = document.getElementById('port-add-btn');
+const portRefreshBtn  = document.getElementById('port-refresh-btn');
+const portAutoRefresh = document.getElementById('port-auto-refresh');
+const portLastUpdated = document.getElementById('port-last-updated');
+const portTbody       = document.getElementById('port-tbody');
+
+let portPollTimer  = null;
+let portWatched    = [];   // 現在の監視ポート一覧
+
+// ポートタブが開いたときに起動、閉じたときに停止
+document.querySelector('.tab[data-tab="ports"]').addEventListener('click', startPortMonitor);
+document.querySelectorAll('.tab:not([data-tab="ports"])').forEach(t => {
+  t.addEventListener('click', stopPortMonitor);
+});
+
+function startPortMonitor() {
+  fetchPortStatus();
+  if (portAutoRefresh.checked && !portPollTimer) {
+    portPollTimer = setInterval(fetchPortStatus, 3000);
+  }
+}
+function stopPortMonitor() {
+  clearInterval(portPollTimer);
+  portPollTimer = null;
+}
+
+portAutoRefresh.addEventListener('change', () => {
+  if (portAutoRefresh.checked) {
+    if (!portPollTimer) portPollTimer = setInterval(fetchPortStatus, 3000);
+  } else {
+    clearInterval(portPollTimer);
+    portPollTimer = null;
+  }
+});
+
+portRefreshBtn.onclick = fetchPortStatus;
+
+async function fetchPortStatus() {
+  try {
+    const res  = await fetch('/api/ports/status');
+    const data = await res.json();
+    portWatched = data.watched || [];
+    renderPortTable(data.ports || []);
+    portLastUpdated.textContent = `最終更新: ${new Date().toLocaleTimeString('ja-JP')}`;
+  } catch (e) {
+    portTbody.innerHTML = `<tr><td colspan="6" class="deps-empty">⚠ ${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+function renderPortTable(ports) {
+  if (ports.length === 0) {
+    portTbody.innerHTML = `<tr><td colspan="6" class="deps-empty">監視ポートがありません。ポートを追加してください。</td></tr>`;
+    return;
+  }
+  portTbody.innerHTML = '';
+  ports.forEach(({ port, status, proto, pid, name }) => {
+    const tr   = document.createElement('tr');
+    const isUp = status === 'listening';
+
+    const badgeCls = isUp ? 'port-status-listening' : 'port-status-free';
+    const badgeTxt = isUp ? '使用中' : '空き';
+
+    const killCell = isUp
+      ? `<button class="port-kill-btn" data-pid="${pid}" data-port="${port}">Kill</button>`
+      : '';
+    const removeBtn = `<button class="port-remove-btn" data-port="${port}" title="監視から除外">✕</button>`;
+
+    tr.innerHTML = `
+      <td class="port-num">${port}</td>
+      <td><span class="port-status-badge ${badgeCls}">${badgeTxt}</span></td>
+      <td>${escHtml(proto)}</td>
+      <td class="port-pid">${pid != null ? pid : '—'}</td>
+      <td class="port-name">${escHtml(name || '—')}</td>
+      <td style="display:flex;gap:.4rem;align-items:center">${killCell}${removeBtn}</td>`;
+    portTbody.appendChild(tr);
+  });
+
+  // Kill ボタン
+  portTbody.querySelectorAll('.port-kill-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const pid  = parseInt(btn.dataset.pid);
+      const port = btn.dataset.port;
+      if (!confirm(`ポート ${port} を使用しているプロセス (PID: ${pid}) を強制終了しますか？`)) return;
+      btn.disabled = true;
+      btn.textContent = '終了中...';
+      try {
+        const res  = await fetch('/api/ports/kill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pid }),
+        });
+        const data = await res.json();
+        if (data.ports) renderPortTable(data.ports);
+      } catch (e) {
+        alert(`Kill 失敗: ${e.message}`);
+        btn.disabled = false;
+        btn.textContent = 'Kill';
+      }
+      portLastUpdated.textContent = `最終更新: ${new Date().toLocaleTimeString('ja-JP')}`;
+    };
+  });
+
+  // 監視除外ボタン
+  portTbody.querySelectorAll('.port-remove-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const port = parseInt(btn.dataset.port);
+      const next = portWatched.filter(p => p !== port);
+      await saveWatchedPorts(next);
+      fetchPortStatus();
+    };
+  });
+}
+
+portAddBtn.onclick = async () => {
+  const val  = parseInt(portAddInput.value);
+  if (!val || val < 1 || val > 65535) { alert('1〜65535 の範囲で入力してください'); return; }
+  if (portWatched.includes(val)) { alert(`ポート ${val} はすでに監視中です`); return; }
+  const next = [...portWatched, val].sort((a, b) => a - b);
+  portAddInput.value = '';
+  await saveWatchedPorts(next);
+  fetchPortStatus();
+};
+
+portAddInput.addEventListener('keydown', e => { if (e.key === 'Enter') portAddBtn.click(); });
+
+async function saveWatchedPorts(ports) {
+  await fetch('/api/ports/watched', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ports }),
+  });
+  portWatched = ports;
+}
+
+// =====================================================================
 // 初期ロード
 // =====================================================================
 browse('');

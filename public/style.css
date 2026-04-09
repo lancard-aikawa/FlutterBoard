@@ -2706,3 +2706,126 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
 }
 .git-stage-btn:hover   { border-color: var(--ok);  color: var(--ok); }
 .git-unstage-btn:hover { border-color: var(--err); color: var(--err); }
+
+/* ===== S5: ポートモニター ===== */
+#tab-ports { height: calc(100vh - var(--header-h) - 90px); }
+
+#port-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: .5rem;
+}
+
+#port-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.port-add-input {
+  width: 7rem;
+  padding: .3rem .5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .82rem;
+}
+.port-auto-label {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .78rem;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.port-muted {
+  font-size: .72rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+#port-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+#port-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .83rem;
+}
+#port-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  padding: .4rem .75rem;
+  text-align: left;
+  font-size: .72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border-bottom: 1px solid var(--border);
+}
+#port-table td {
+  padding: .4rem .75rem;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: .82rem;
+  vertical-align: middle;
+}
+#port-table tr:last-child td { border-bottom: none; }
+#port-table tr:hover td { background: var(--bg); }
+
+.port-num  { font-weight: 700; color: var(--text); }
+.port-pid  { color: var(--muted); }
+.port-name { color: var(--text); }
+
+/* 状態バッジ */
+.port-status-badge {
+  display: inline-block;
+  padding: .1rem .45rem;
+  border-radius: 3px;
+  font-size: .72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.port-status-listening {
+  background: #1a2a1a;
+  color: var(--ok);
+  border: 1px solid var(--ok);
+}
+.port-status-free {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+/* kill ボタン */
+.port-kill-btn {
+  padding: .15rem .55rem;
+  font-size: .75rem;
+  border: 1px solid var(--err);
+  background: transparent;
+  color: var(--err);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.port-kill-btn:hover { background: var(--err); color: #fff; }
+
+/* 削除ボタン */
+.port-remove-btn {
+  padding: .15rem .4rem;
+  font-size: .72rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 3px;
+}
+.port-remove-btn:hover { color: var(--err); }
+

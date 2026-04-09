@@ -15,6 +15,7 @@ const { handleDepCompare }      = require('./depCompare');
 const { handleFlutterAnalyze }  = require('./flutterAnalyze');
 const { handleOsvCheck }        = require('./osvCheck');
 const { handleDepsTree }        = require('./depsTree');
+const { handlePortMonitor }     = require('./portMonitor');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -88,6 +89,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/deps-tree')) {
     return handleDepsTree(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/ports')) {
+    return handlePortMonitor(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
