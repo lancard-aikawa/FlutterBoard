@@ -4,39 +4,24 @@ RC.md の機能要望をもとにした実装順序と設計メモ。
 
 ---
 
-## フェーズ 1 — R3: コマンドシーケンス（タスクランナー）
+## 完了済み
 
-**目的:** `flutter clean → pub get → run --flavor dev` のような定型フローをワンクリック実行。
-
-### UI イメージ
-
-```
-コマンドタブ > [シーケンス] セクション
-┌─────────────────────────────────────────┐
-│ + 新しいシーケンス                       │
-│                                          │
-│ ▶ clean & run (dev)          [▶] [編集] [✕] │
-│   flutter clean                          │
-│   flutter pub get                        │
-│   flutter run --flavor dev               │
-│                                          │
-│ ▶ deploy staging             [▶] [編集] [✕] │
-│   firebase use staging                   │
-│   firebase deploy                        │
-└─────────────────────────────────────────┘
-```
-
-### 設計
-
-- **保存先:** `config/sequences_<projectHash>.json`
-- **実行:** ステップを順番に `/api/process/start` で起動し、`exit code 0` を確認してから次へ
-- **失敗時:** そのステップで停止 + エラー表示（続行オプションあり）
-- **新規ファイル:** `server/sequenceRunner.js`
-- **変更ファイル:** `server/api.js`, `public/index.html`, `public/app.js`, `public/style.css`
+- [x] プロセス管理 + リアルタイムログ（SSE）
+- [x] PTY モード（Hot Reload / stdin 送信）
+- [x] Flutter / Firebase / npm コマンドランナー（ピン留め）
+- [x] Markdown ドキュメントビューア（Mermaid / ズーム / 全画面）
+- [x] pubspec.yaml 依存チェック（pub.dev）
+- [x] npm 依存チェック（registry）
+- [x] CDN ライブラリ更新チェック
+- [x] 環境変数マネージャー（マスク表示）
+- [x] Git ステータス表示
+- [x] Flutter DevTools 連携（VM Service URL 自動検出 / dart devtools 起動）
+- [x] **R3** コマンドシーケンス（タスクランナー） — flutter clean → pub get → run の定型フロー保存・実行
+- [x] **R9** コンテキスト対応コマンドビルダー — デバイス/フレーバー/エントリポイント/ブランチ/スタッシュを取得してコマンド組み立て
 
 ---
 
-## フェーズ 2 — R4: Firebase 環境切り替えパネル
+## フェーズ 1 — R4: Firebase 環境切り替えパネル
 
 **目的:** `firebase use` のプロジェクト切り替えと `.env` ファイルの環境切り替えを安全に一元管理。
 
@@ -62,7 +47,7 @@ RC.md の機能要望をもとにした実装順序と設計メモ。
 
 ---
 
-## フェーズ 3 — R6: npm audit 表示
+## フェーズ 2 — R6: npm audit 表示
 
 **目的:** 依存チェックタブの npm ソースに脆弱性情報を追加。
 
@@ -84,7 +69,7 @@ RC.md の機能要望をもとにした実装順序と設計メモ。
 
 ---
 
-## フェーズ 4 — R8: ログ画面グループ化
+## フェーズ 3 — R8: ログ画面グループ化
 
 **目的:** `flutter run` のログを画面（ルート）単位の折り畳みセクションで整理。
 
@@ -111,7 +96,7 @@ RC.md の機能要望をもとにした実装順序と設計メモ。
 
 ---
 
-## フェーズ 5 — R5: プロジェクト・ブランチ間依存比較
+## フェーズ 4 — R5: プロジェクト・ブランチ間依存比較
 
 **目的:** 複数プロジェクトまたはブランチ間でパッケージバージョンを横断比較。
 
@@ -148,18 +133,3 @@ dio              5.7.0          5.4.0          ↑ newer
 ### R2: Git 基本操作 UI
 - ステージ・コミット・プッシュ・ブランチ切り替え
 - 優先度低のため後回し
-
----
-
-## 完了済み
-
-- [x] プロセス管理 + リアルタイムログ（SSE）
-- [x] PTY モード（Hot Reload / stdin 送信）
-- [x] Flutter / Firebase / npm コマンドランナー（ピン留め）
-- [x] Markdown ドキュメントビューア（Mermaid / ズーム / 全画面）
-- [x] pubspec.yaml 依存チェック（pub.dev）
-- [x] npm 依存チェック（registry）
-- [x] CDN ライブラリ更新チェック
-- [x] 環境変数マネージャー（マスク表示）
-- [x] Git ステータス表示
-- [x] Flutter DevTools 連携（VM Service URL 自動検出 / dart devtools 起動）
