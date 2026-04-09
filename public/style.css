@@ -1275,6 +1275,31 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   font-style: italic;
 }
 
+/* npm タブ内 audit サマリー */
+#npm-audit-summary {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  padding: .35rem .1rem 0;
+  border-top: 1px solid var(--border);
+  margin-top: .4rem;
+}
+.npm-audit-summary-label {
+  font-size: .75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.npm-audit-summary-ok {
+  font-size: .78rem;
+  color: var(--ok);
+}
+.npm-audit-goto-btn {
+  margin-left: auto;
+  font-size: .75rem;
+  padding: .15rem .5rem;
+}
+
 .deps-threshold-label {
   display: flex;
   align-items: center;

@@ -1836,7 +1836,28 @@ async function runNpmAudit() {
     npmAuditDetailBtn.classList.remove('hidden');
     renderNpmAuditDetail(data.details);
   }
+
+  // npm タブのサマリー行を更新
+  const summaryEl = document.getElementById('npm-audit-summary');
+  const badgesEl  = document.getElementById('npm-audit-summary-badges');
+  summaryEl.classList.remove('hidden');
+  if (noVulns) {
+    badgesEl.innerHTML = '<span class="npm-audit-summary-ok">問題なし ✓</span>';
+  } else {
+    const SEV = [
+      ['critical', data.critical], ['high', data.high],
+      ['moderate', data.moderate], ['low', data.low],
+    ];
+    badgesEl.innerHTML = SEV
+      .filter(([, n]) => n > 0)
+      .map(([s, n]) => `<span class="npm-audit-badge audit-${s}">${s}: <b>${n}</b></span>`)
+      .join('');
+  }
 }
+
+document.getElementById('npm-audit-goto-security').onclick = () => {
+  document.querySelector('.deps-tab[data-deps-tab="security"]').click();
+};
 
 function renderNpmAuditDetail(details) {
   let html = '<table class="npm-audit-detail-table"><tbody>';

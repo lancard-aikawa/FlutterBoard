@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "close-order": "error",
+    "no-dup-id": "error",
+    "no-missing-references": "error",
+    "no-unknown-elements": "error",
+    "attr-quotes": "error",
+    "no-implicit-button-type": "off",
+    "unique-landmark": "off",
+    "prefer-tbody": "off",
+    "require-sri": "off",
+    "script-type": "off",
+    "no-inline-style": "off",
+    "long-title": "off"
+  }
+}

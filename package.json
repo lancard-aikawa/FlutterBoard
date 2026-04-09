@@ -5,7 +5,8 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "lint": "eslint server/ public/app.js && html-validate public/index.html"
   },
   "keywords": [
     "flutter",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "eslint": "^10.2.0",
-    "globals": "^17.4.0"
+    "globals": "^17.4.0",
+    "html-validate": "^10.11.3"
   }
 }
