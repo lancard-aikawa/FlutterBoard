@@ -25,3 +25,18 @@ RC.md の機能要望をもとにした実装順序と設計メモ。
 - [x] **R1** ログ正規表現フィルタ + レベルフィルタ — 正規表現モード切り替え、ERROR/WARN/INFO レベルバッジフィルタ
 - [x] **R7** Flutter analyze ビューア — `flutter analyze --machine` パース、severity フィルタ、vscode:// リンク
 - [x] **R2** Git 基本操作 UI — ファイル個別 stage/unstage、全 add/unstage、コミット、pull/push
+
+---
+
+## 第二弾 — 未着手
+
+優先度は RC.md の `[S*]` 番号を参照。
+
+- [ ] **S1** pubspec セキュリティ診断 — OSV.dev API で Dart パッケージの CVE 照会、discontinued/unlisted 警告
+- [ ] **S2** 依存ツリービューア — `flutter pub deps` / `npm ls` をツリー描画、逆引きハイライト、競合ノードを赤表示
+- [ ] **S3** 環境変数 diff — `.env.*` ファイル間のキー差分比較、片方にしかないキーを警告
+- [ ] **S4** マルチプロセス横断ログ検索 — 全プロセス統合ビュー、タイムスタンプ順に並べて横断フィルタ
+- [ ] **S5** ポートモニター — 指定ポートの使用状況をリアルタイム表示、競合プロセスのワンクリック kill
+- [ ] **S6** FVM 連携 — `.fvm/fvm_config.json` からSDKバージョン読み取り、ヘッダーに表示
+- [ ] **S7** ビルドサイズトラッカー — APK/AAB/IPA のサイズを記録・前回比で増減表示
+- [ ] **S8** エミュレータ データスナップショット UI — Firebase Emulator の import/export をボタンで管理
