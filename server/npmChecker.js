@@ -376,43 +376,49 @@ async function handleNpm(req, res, url) {
 }
 
 // npm audit --json は脆弱性があると exit code 非0 を返すため、
-// stdout を取得するために execFile をそのまま使わず個別実装する
+// stdout を取得するために spawn でストリームを直接読む
 function runAudit(projectPath) {
-  const { execFile } = require('child_process');
+  const { spawn } = require('child_process');
   return new Promise(resolve => {
     const empty = { critical: 0, high: 0, moderate: 0, low: 0, info: 0, total: 0, fixAvailable: false };
-    execFile(
-      process.platform === 'win32' ? 'npm.cmd' : 'npm',
+    const isWin = process.platform === 'win32';
+    const child = spawn(
+      isWin ? 'npm.cmd' : 'npm',
       ['audit', '--json'],
-      { cwd: projectPath, encoding: 'utf-8', timeout: 30000 },
-      (err, stdout) => {
-        // npm audit は脆弱性があると非0 exit だが stdout に JSON が入る
-        const raw = stdout || (err && err.stdout) || '';
-        if (!raw) { resolve({ ...empty, error: 'npm audit に失敗しました' }); return; }
-        try {
-          const json = JSON.parse(raw);
-          // npm audit v7+ は metadata.vulnerabilities に集計がある
-          const meta = json.metadata?.vulnerabilities || {};
-          const counts = {
-            critical: meta.critical || 0,
-            high:     meta.high     || 0,
-            moderate: meta.moderate || 0,
-            low:      meta.low      || 0,
-            info:     meta.info     || 0,
-            total:    meta.total    || 0,
-          };
-          // fixAvailable: 1つでも fixAvailable が true/object なら true
-          let fixAvailable = false;
-          const vulns = json.vulnerabilities || {};
-          for (const v of Object.values(vulns)) {
-            if (v.fixAvailable) { fixAvailable = true; break; }
-          }
-          resolve({ ...counts, fixAvailable });
-        } catch {
-          resolve({ ...empty, error: 'JSON パースに失敗しました' });
-        }
-      }
+      { cwd: projectPath, shell: isWin, timeout: 30000 }
     );
+
+    let raw = '';
+    child.stdout.on('data', chunk => { raw += chunk; });
+    // npm audit が stderr に何か出力しても無視
+    child.stderr.on('data', () => {});
+
+    child.on('error', () => resolve({ ...empty, error: 'npm が見つかりません' }));
+    child.on('close', () => {
+      if (!raw) { resolve({ ...empty, error: 'npm audit の出力がありません' }); return; }
+      try {
+        const json = JSON.parse(raw);
+        // npm audit v7+ は metadata.vulnerabilities に集計がある
+        const meta = json.metadata?.vulnerabilities || {};
+        const counts = {
+          critical: meta.critical || 0,
+          high:     meta.high     || 0,
+          moderate: meta.moderate || 0,
+          low:      meta.low      || 0,
+          info:     meta.info     || 0,
+          total:    meta.total    || 0,
+        };
+        // fixAvailable: 1つでも fixAvailable が true/object なら true
+        let fixAvailable = false;
+        const vulns = json.vulnerabilities || {};
+        for (const v of Object.values(vulns)) {
+          if (v.fixAvailable) { fixAvailable = true; break; }
+        }
+        resolve({ ...counts, fixAvailable });
+      } catch {
+        resolve({ ...empty, error: 'JSON パースに失敗しました' });
+      }
+    });
   });
 }
 
