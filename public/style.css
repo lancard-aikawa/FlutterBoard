@@ -338,6 +338,46 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 }
 
 .log-filtered-hidden { display: none; }
+
+/* ===== R8: ログセクショングループ化 ===== */
+#log-group-label {
+  display: flex; align-items: center; gap: .3rem;
+  font-size: .75rem; color: var(--muted); cursor: pointer; white-space: nowrap;
+}
+.log-group-marker-input {
+  width: 110px; padding: .2rem .45rem; font-size: .75rem;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  border-radius: 4px;
+}
+
+.log-section { border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+.log-section:last-child { border-bottom: none; }
+
+.log-section-header {
+  display: flex; align-items: center; gap: .45rem;
+  padding: .28rem .6rem;
+  background: color-mix(in srgb, var(--surface) 80%, var(--border));
+  cursor: pointer;
+  user-select: none;
+  white-space: normal;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: .76rem;
+  position: sticky; top: 0; z-index: 1;
+}
+.log-section-header:hover { background: color-mix(in srgb, var(--border) 60%, var(--surface)); }
+
+.log-section-toggle { color: var(--accent); font-size: .7rem; flex-shrink: 0; }
+.log-section-time   { color: var(--muted); flex-shrink: 0; }
+.log-section-name   { color: var(--text); font-weight: 600; }
+.log-section-count  { color: var(--muted); font-size: .72rem; margin-left: auto; flex-shrink: 0; }
+.log-section-live   {
+  color: var(--ok); font-size: .72rem; flex-shrink: 0;
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+@keyframes live-pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+.log-section-content { padding: 0; }
+.log-section-folded  { display: none; }
 .log-highlight { background: color-mix(in srgb, var(--warn) 30%, transparent); border-radius: 2px; }
 
 /* === DevTools バー === */

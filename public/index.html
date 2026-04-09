@@ -77,6 +77,10 @@
               <label id="autoscroll-label">
                 <input type="checkbox" id="autoscroll" checked> Auto scroll
               </label>
+              <label id="log-group-label" title="[FB:SCREEN] マーカーでセクション分割">
+                <input type="checkbox" id="log-group-toggle"> グループ化
+              </label>
+              <input type="text" id="log-group-marker" class="log-group-marker-input hidden" placeholder="[FB:SCREEN]" title="セクション区切りマーカー">
             </div>
           </div>
           <div id="devtools-bar" class="hidden">
@@ -85,7 +89,7 @@
             <button id="devtools-launch-btn" class="devtools-btn devtools-btn-launch hidden">DevTools を起動</button>
             <a id="vmservice-link" href="#" target="_blank" rel="noopener" class="devtools-btn devtools-btn-vm hidden">VM Service ↗</a>
           </div>
-          <pre id="log-output"><span class="log-muted">Select a process to view logs</span></pre>
+          <div id="log-output"><span class="log-muted">Select a process to view logs</span></div>
           <div id="stdin-bar" class="hidden">
             <!-- Ctrl キー -->
             <div id="stdin-ctrl-group">

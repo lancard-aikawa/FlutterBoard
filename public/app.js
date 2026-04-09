@@ -364,6 +364,8 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
   activeId  = id;
   logBuffer = [];
   logOutput.innerHTML = '';
+  logSections    = [];
+  currentSection = null;
   logTitle.textContent = label;
   logTitle.classList.remove('exited');
   logFilter.value = '';
@@ -386,9 +388,9 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
   let exited = false; // 二重発火防止フラグ
 
   sse.onmessage = e => {
-    const { type, data } = JSON.parse(e.data);
-    logBuffer.push({ type, data });
-    appendLogEntry(type, data);
+    const { type, data, ts } = JSON.parse(e.data);
+    logBuffer.push({ type, data, ts });
+    appendLogEntry(type, data, ts);
 
     // DevTools / VM Service URL をリアルタイム検出
     if (data && (type === 'stdout' || type === 'stderr')) {
@@ -410,6 +412,8 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
       autoreload.checked = false;
       logTitle.classList.add('exited');
       stdinBar.classList.add('hidden');
+      // グループ化中なら現在セクションの「ライブ」を消す
+      if (currentSection) { currentSection.isLive = false; renderSectionHeader(currentSection); }
       // stdin バーが隠れたら activeId はそのまま（ログは引き続き閲覧可）
       sse.close();
       activeSSE = null;
@@ -426,19 +430,165 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
   };
 }
 
-// ---- ログ表示 ----
-function appendLogEntry(type, text) {
+// ---- グループ化設定 ----
+const logGroupToggle = document.getElementById('log-group-toggle');
+const logGroupMarker = document.getElementById('log-group-marker');
+
+logGroupToggle.checked = localStorage.getItem('log-group-enabled') === '1';
+logGroupMarker.value   = localStorage.getItem('log-group-marker') || '[FB:SCREEN]';
+logGroupMarker.classList.toggle('hidden', !logGroupToggle.checked);
+
+logGroupToggle.addEventListener('change', () => {
+  const on = logGroupToggle.checked;
+  localStorage.setItem('log-group-enabled', on ? '1' : '0');
+  logGroupMarker.classList.toggle('hidden', !on);
+  rebuildLogView();
+});
+logGroupMarker.addEventListener('change', () => {
+  localStorage.setItem('log-group-marker', logGroupMarker.value.trim() || '[FB:SCREEN]');
+  rebuildLogView();
+});
+
+function isGroupingEnabled() {
+  return logGroupToggle.checked && logGroupMarker.value.trim().length > 0;
+}
+function getMarker() {
+  return logGroupMarker.value.trim() || '[FB:SCREEN]';
+}
+
+// グループ化セクション状態
+let logSections    = [];
+let currentSection = null;
+
+// バッファ全体を再描画（グループ化ON/OFF切り替え時）
+function rebuildLogView() {
+  logOutput.innerHTML = '';
+  logSections    = [];
+  currentSection = null;
+  logBuffer.forEach(({ type, data, ts }) => appendLogEntry(type, data, ts));
+}
+
+// ---- ログ表示（エントリポイント） ----
+function appendLogEntry(type, text, ts = Date.now()) {
+  if (isGroupingEnabled() && (type === 'stdout' || type === 'stderr')) {
+    appendLogEntryGrouped(type, text, ts);
+  } else {
+    appendLogEntryFlat(type, text);
+  }
+}
+
+function appendLogEntryFlat(type, text) {
   const keyword = logFilter.value.trim().toLowerCase();
   const span    = document.createElement('span');
   span.className   = `log-${type}`;
   span.textContent = text;
-
-  if (keyword && !text.toLowerCase().includes(keyword)) {
-    span.classList.add('log-filtered-hidden');
-  }
-
+  if (keyword && !text.toLowerCase().includes(keyword)) span.classList.add('log-filtered-hidden');
   logOutput.appendChild(span);
   if (autoscroll.checked) logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+// ---- グループ化モード ----
+function appendLogEntryGrouped(type, text, ts) {
+  const marker = getMarker();
+  if (text.includes(marker)) {
+    // マーカー行 → 新しいセクションを開始（行自体はコンテンツに含めない）
+    const idx  = text.indexOf(marker);
+    const rest = text.slice(idx + marker.length).replace(/\n[\s\S]*/, '').trim();
+    createLogSection(rest || '—', ts);
+    return;
+  }
+  // セクションがなければ「起動」セクションを自動生成
+  if (!currentSection) createLogSection(null, ts);
+  appendToSection(type, text);
+}
+
+function createLogSection(name, ts) {
+  // 直前のセクションをライブ終了 & 折り畳み
+  if (currentSection) {
+    currentSection.isLive = false;
+    renderSectionHeader(currentSection);
+    foldSection(currentSection);
+  }
+
+  const section = { name: name || '起動', isUnnamed: !name, timestamp: ts,
+                    lineCount: 0, isLive: true, folded: false,
+                    el: null, contentEl: null, countEl: null, liveEl: null, toggleEl: null };
+
+  const el      = document.createElement('div');
+  el.className  = 'log-section';
+
+  const header  = document.createElement('div');
+  header.className = 'log-section-header';
+
+  const toggle  = document.createElement('span');
+  toggle.className = 'log-section-toggle';
+  toggle.textContent = '▼';
+  section.toggleEl = toggle;
+
+  const time    = document.createElement('span');
+  time.className = 'log-section-time';
+  time.textContent = `[${fmtTime(ts)}]`;
+
+  const nameEl  = document.createElement('span');
+  nameEl.className = 'log-section-name';
+  nameEl.textContent = section.name;
+
+  const countEl = document.createElement('span');
+  countEl.className = 'log-section-count';
+  countEl.textContent = '0行';
+  section.countEl = countEl;
+
+  const liveEl  = document.createElement('span');
+  liveEl.className = 'log-section-live';
+  liveEl.textContent = '● ライブ';
+  section.liveEl = liveEl;
+
+  header.append(toggle, time, nameEl, countEl, liveEl);
+  header.onclick = () => section.folded ? unfoldSection(section) : foldSection(section);
+
+  const content = document.createElement('div');
+  content.className = 'log-section-content';
+  section.contentEl = content;
+  section.el = el;
+
+  el.append(header, content);
+  logSections.push(section);
+  currentSection = section;
+  logOutput.appendChild(el);
+  if (autoscroll.checked) logOutput.scrollTop = logOutput.scrollHeight;
+  return section;
+}
+
+function appendToSection(type, text) {
+  if (!currentSection) return;
+  const keyword = logFilter.value.trim().toLowerCase();
+  const span    = document.createElement('span');
+  span.className   = `log-${type}`;
+  span.textContent = text;
+  if (keyword && !text.toLowerCase().includes(keyword)) span.classList.add('log-filtered-hidden');
+  currentSection.contentEl.appendChild(span);
+  currentSection.lineCount++;
+  currentSection.countEl.textContent = `${currentSection.lineCount}行`;
+  if (autoscroll.checked) logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function foldSection(section) {
+  section.folded = true;
+  section.contentEl.classList.add('log-section-folded');
+  section.toggleEl.textContent = '▶';
+}
+function unfoldSection(section) {
+  section.folded = false;
+  section.contentEl.classList.remove('log-section-folded');
+  section.toggleEl.textContent = '▼';
+}
+function renderSectionHeader(section) {
+  section.liveEl.textContent = section.isLive ? '● ライブ' : '';
+}
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(n => String(n).padStart(2, '0')).join(':');
 }
 
 // ---- フィルター ----
