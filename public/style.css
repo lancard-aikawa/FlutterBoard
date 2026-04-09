@@ -766,6 +766,134 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 }
 .seq-save-btn:hover { opacity: .88; }
 
+/* ── R9 コンテキストビルダー ─────────────────────────────────────── */
+.ctx-builder-section {
+  margin-top: .75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ctx-builder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .35rem .7rem;
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+  border-bottom: 1px solid var(--border);
+}
+.ctx-builder-title {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.ctx-fetch-btn {
+  font-size: .72rem;
+  padding: .2rem .55rem;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background .15s;
+}
+.ctx-fetch-btn:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.ctx-fetch-btn:disabled { opacity: .4; cursor: default; }
+
+.ctx-builder-body {
+  padding: .55rem .7rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+.ctx-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.ctx-label {
+  font-size: .72rem;
+  color: var(--muted);
+  width: 5.5rem;
+  flex-shrink: 0;
+}
+.ctx-select {
+  flex: 1;
+  min-width: 120px;
+  padding: .22rem .45rem;
+  font-size: .8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+.ctx-select:focus { border-color: var(--accent); outline: none; }
+.ctx-select-sm {
+  width: 90px;
+  flex: none;
+}
+
+.ctx-mode-btns {
+  display: flex;
+  gap: .25rem;
+  flex-wrap: wrap;
+}
+.ctx-mode-btn {
+  font-size: .72rem;
+  padding: .18rem .5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+.ctx-mode-btn:hover { color: var(--text); border-color: var(--text); }
+.ctx-mode-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.ctx-check-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem .7rem;
+}
+.ctx-check-label {
+  display: flex;
+  align-items: center;
+  gap: .28rem;
+  font-size: .78rem;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.ctx-check-label input[type=checkbox] { accent-color: var(--accent); }
+
+.ctx-actions {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-top: .1rem;
+}
+.ctx-actions-sm {
+  display: flex;
+  gap: .3rem;
+  flex-wrap: wrap;
+}
+.ctx-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: .25rem 0;
+}
+.ctx-muted {
+  font-size: .72rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
 /* npm scripts テーブル */
 #npm-grid { margin-top: .25rem; }
 .npm-scripts-table {

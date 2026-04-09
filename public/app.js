@@ -148,7 +148,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
     tab.classList.add('active');
     document.getElementById(`tab-${tab.dataset.tab}`).classList.remove('hidden');
-    if (tab.dataset.tab === 'git') loadGitStatus();
+    if (tab.dataset.tab === 'git') { loadGitStatus(); loadGitContext(); }
   });
 });
 
@@ -926,6 +926,228 @@ async function startSeqStep() {
     if (seqRunState) { seqRunState = null; renderSeqList(); }
   };
 }
+
+// =====================================================================
+// R9: コンテキスト対応コマンドビルダー
+// =====================================================================
+
+// ---- Flutter ビルダー ----
+
+const ctxFlutterFetch = document.getElementById('ctx-flutter-fetch');
+const ctxFlutterBody  = document.getElementById('ctx-flutter-body');
+const ctxDeviceSelect = document.getElementById('ctx-device');
+const ctxEntrySelect  = document.getElementById('ctx-entry');
+const ctxFlavorRow    = document.getElementById('ctx-flavor-row');
+const ctxFlavorSelect = document.getElementById('ctx-flavor');
+const ctxRunSet       = document.getElementById('ctx-run-set');
+const ctxAttachSet    = document.getElementById('ctx-attach-set');
+const ctxBuildSet     = document.getElementById('ctx-build-set');
+
+let ctxFlutterMode = ''; // '' = debug | '--release' | '--profile'
+
+document.querySelectorAll('.ctx-mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.ctx-mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ctxFlutterMode = btn.dataset.mode;
+  });
+});
+
+ctxFlutterFetch.addEventListener('click', async () => {
+  ctxFlutterFetch.textContent = '取得中...';
+  ctxFlutterFetch.disabled    = true;
+  try {
+    const res  = await fetch(`/api/context/flutter?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+
+    // デバイス
+    ctxDeviceSelect.innerHTML = data.devices && data.devices.length
+      ? '<option value="">-- 選択 --</option>'
+      : '<option value="">（接続なし）</option>';
+    (data.devices || []).forEach(d => {
+      const opt = document.createElement('option');
+      opt.value       = d.id;
+      opt.textContent = `${d.emulator ? '📱' : '🔌'} ${d.name}  (${d.id})`;
+      ctxDeviceSelect.appendChild(opt);
+    });
+
+    // エントリポイント
+    ctxEntrySelect.innerHTML = '';
+    (data.entryPoints && data.entryPoints.length ? data.entryPoints : ['lib/main.dart']).forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = e;
+      ctxEntrySelect.appendChild(opt);
+    });
+
+    // フレーバー
+    if (data.flavors && data.flavors.length) {
+      ctxFlavorSelect.innerHTML = '<option value="">-- なし --</option>';
+      data.flavors.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = f;
+        ctxFlavorSelect.appendChild(opt);
+      });
+      ctxFlavorRow.classList.remove('hidden');
+    } else {
+      ctxFlavorRow.classList.add('hidden');
+    }
+
+    ctxFlutterBody.classList.remove('hidden');
+  } finally {
+    ctxFlutterFetch.textContent = '更新 ↺';
+    ctxFlutterFetch.disabled    = false;
+  }
+});
+
+function buildFlutterCmd(base) {
+  const device = ctxDeviceSelect.value;
+  const entry  = ctxEntrySelect.value;
+  const flavor = ctxFlavorSelect ? ctxFlavorSelect.value : '';
+  let cmd = base;
+  if (device) cmd += ` -d ${device}`;
+  if (flavor) cmd += ` --flavor ${flavor}`;
+  if (entry && entry !== 'lib/main.dart') cmd += ` -t ${entry}`;
+  if (ctxFlutterMode) cmd += ` ${ctxFlutterMode}`;
+  return cmd;
+}
+
+ctxRunSet.addEventListener('click', () => {
+  runCommand(buildFlutterCmd('flutter run'), 'flutter run');
+});
+ctxAttachSet.addEventListener('click', () => {
+  const d = ctxDeviceSelect.value;
+  runCommand(`flutter attach${d ? ' -d ' + d : ''}`, 'flutter attach');
+});
+ctxBuildSet.addEventListener('click', () => {
+  runCommand(buildFlutterCmd('flutter build apk'), 'flutter build apk');
+});
+
+// ---- Firebase ビルダー ----
+
+const ctxFbFetch     = document.getElementById('ctx-firebase-fetch');
+const ctxFbBody      = document.getElementById('ctx-firebase-body');
+const ctxFbEmulators = document.getElementById('ctx-fb-emulators');
+const ctxFbDeploy    = document.getElementById('ctx-fb-deploy');
+const ctxFbEmuSet    = document.getElementById('ctx-fb-emu-set');
+const ctxFbDeploySet = document.getElementById('ctx-fb-deploy-set');
+
+ctxFbFetch.addEventListener('click', async () => {
+  ctxFbFetch.textContent = '読み込み中...';
+  ctxFbFetch.disabled    = true;
+  try {
+    const res  = await fetch(`/api/context/firebase?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+
+    // Emulator チェックボックス
+    ctxFbEmulators.innerHTML = '';
+    if (data.emulators && data.emulators.length) {
+      data.emulators.forEach(e => {
+        const lbl = document.createElement('label');
+        lbl.className = 'ctx-check-label';
+        lbl.innerHTML = `<input type="checkbox" value="${escHtml(e)}" checked> ${escHtml(e)}`;
+        ctxFbEmulators.appendChild(lbl);
+      });
+    } else {
+      ctxFbEmulators.innerHTML = '<span class="ctx-muted">firebase.json に emulators 設定なし</span>';
+    }
+
+    // Deploy ターゲット チェックボックス
+    ctxFbDeploy.innerHTML = '';
+    if (data.deployTargets && data.deployTargets.length) {
+      data.deployTargets.forEach(t => {
+        const lbl = document.createElement('label');
+        lbl.className = 'ctx-check-label';
+        lbl.innerHTML = `<input type="checkbox" value="${escHtml(t)}"> ${escHtml(t)}`;
+        ctxFbDeploy.appendChild(lbl);
+      });
+    } else {
+      ctxFbDeploy.innerHTML = '<span class="ctx-muted">firebase.json 未検出</span>';
+    }
+
+    ctxFbBody.classList.remove('hidden');
+  } finally {
+    ctxFbFetch.textContent = '再読み込み ↺';
+    ctxFbFetch.disabled    = false;
+  }
+});
+
+ctxFbEmuSet.addEventListener('click', () => {
+  const checked = [...ctxFbEmulators.querySelectorAll('input:checked')].map(i => i.value);
+  const only    = checked.length ? ` --only ${checked.join(',')}` : '';
+  runCommand(`firebase emulators:start${only}`, `emulators:start${only}`);
+});
+
+ctxFbDeploySet.addEventListener('click', () => {
+  const checked = [...ctxFbDeploy.querySelectorAll('input:checked')].map(i => i.value);
+  if (!checked.length) { alert('デプロイ対象を選択してください'); return; }
+  const only = ` --only ${checked.join(',')}`;
+  runCommand(`firebase deploy${only}`, `deploy${only}`);
+});
+
+// ---- Git クイックアクション ----
+
+const gitQaFetch       = document.getElementById('git-qa-fetch');
+const ctxGitBranch     = document.getElementById('ctx-git-branch');
+const ctxGitCheckout   = document.getElementById('ctx-git-checkout');
+const ctxGitMerge      = document.getElementById('ctx-git-merge');
+const ctxGitStashRow   = document.getElementById('ctx-git-stash-row');
+const ctxGitStash      = document.getElementById('ctx-git-stash');
+const ctxGitStashPop   = document.getElementById('ctx-git-stash-pop');
+const ctxGitStashApply = document.getElementById('ctx-git-stash-apply');
+
+async function loadGitContext() {
+  if (!currentProjectPath) return;
+  gitQaFetch.textContent = '取得中...';
+  gitQaFetch.disabled    = true;
+  try {
+    const res  = await fetch(`/api/context/git?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+
+    // ブランチ
+    ctxGitBranch.innerHTML = '';
+    (data.branches || []).forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = b;
+      if (b === data.currentBranch) opt.selected = true;
+      ctxGitBranch.appendChild(opt);
+    });
+
+    // スタッシュ
+    if (data.stashes && data.stashes.length) {
+      ctxGitStash.innerHTML = '';
+      data.stashes.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value       = s.ref;
+        opt.textContent = `${s.ref}: ${s.message}`;
+        ctxGitStash.appendChild(opt);
+      });
+      ctxGitStashRow.classList.remove('hidden');
+    } else {
+      ctxGitStashRow.classList.add('hidden');
+    }
+  } finally {
+    gitQaFetch.textContent = '更新 ↺';
+    gitQaFetch.disabled    = false;
+  }
+}
+
+gitQaFetch.addEventListener('click', loadGitContext);
+ctxGitCheckout.addEventListener('click', () => {
+  const b = ctxGitBranch.value;
+  if (b) runCommand(`git checkout ${b}`, `checkout ${b}`);
+});
+ctxGitMerge.addEventListener('click', () => {
+  const b = ctxGitBranch.value;
+  if (b) runCommand(`git merge ${b}`, `merge ${b}`);
+});
+ctxGitStashPop.addEventListener('click', () => {
+  const s = ctxGitStash.value;
+  if (s) runCommand(`git stash pop ${s}`, 'stash pop');
+});
+ctxGitStashApply.addEventListener('click', () => {
+  const s = ctxGitStash.value;
+  if (s) runCommand(`git stash apply ${s}`, 'stash apply');
+});
 
 // =====================================================================
 // ドキュメントビューア（フェーズ4）

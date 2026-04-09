@@ -120,6 +120,40 @@
 
         <!-- Flutter パネル -->
         <div id="cmd-panel-flutter" class="cmd-tab-content">
+          <!-- 実行ビルダー -->
+          <section class="cmd-section ctx-builder-section">
+            <div class="ctx-builder-header">
+              <span class="ctx-builder-title">実行ビルダー</span>
+              <button id="ctx-flutter-fetch" class="ctx-fetch-btn">デバイス取得 ↺</button>
+            </div>
+            <div id="ctx-flutter-body" class="ctx-builder-body hidden">
+              <div class="ctx-row">
+                <span class="ctx-label">デバイス</span>
+                <select id="ctx-device" class="ctx-select"><option value="">-- 取得中 --</option></select>
+              </div>
+              <div class="ctx-row" id="ctx-entry-row">
+                <span class="ctx-label">エントリ</span>
+                <select id="ctx-entry" class="ctx-select"></select>
+              </div>
+              <div class="ctx-row ctx-flavor-row hidden" id="ctx-flavor-row">
+                <span class="ctx-label">フレーバー</span>
+                <select id="ctx-flavor" class="ctx-select"></select>
+              </div>
+              <div class="ctx-row">
+                <span class="ctx-label">モード</span>
+                <div class="ctx-mode-btns">
+                  <button class="ctx-mode-btn active" data-mode="">debug</button>
+                  <button class="ctx-mode-btn" data-mode="--release">release</button>
+                  <button class="ctx-mode-btn" data-mode="--profile">profile</button>
+                </div>
+              </div>
+              <div class="ctx-actions">
+                <button id="ctx-run-set"    class="cmd-btn">▶ flutter run</button>
+                <button id="ctx-attach-set" class="cmd-btn">▶ flutter attach</button>
+                <button id="ctx-build-set"  class="cmd-btn">▶ flutter build apk</button>
+              </div>
+            </div>
+          </section>
           <section class="cmd-section">
             <table class="cmd-table">
               <tr>
@@ -176,6 +210,30 @@
 
         <!-- Firebase パネル -->
         <div id="cmd-panel-firebase" class="cmd-tab-content hidden">
+          <!-- コマンドビルダー -->
+          <section class="cmd-section ctx-builder-section">
+            <div class="ctx-builder-header">
+              <span class="ctx-builder-title">コマンドビルダー</span>
+              <button id="ctx-firebase-fetch" class="ctx-fetch-btn">設定を読み込む ↺</button>
+            </div>
+            <div id="ctx-firebase-body" class="ctx-builder-body hidden">
+              <div class="ctx-row">
+                <span class="ctx-label">Emulator</span>
+                <div class="ctx-check-group" id="ctx-fb-emulators"></div>
+              </div>
+              <div class="ctx-actions">
+                <button id="ctx-fb-emu-set" class="cmd-btn">▶ emulators:start --only</button>
+              </div>
+              <hr class="ctx-divider">
+              <div class="ctx-row">
+                <span class="ctx-label">Deploy</span>
+                <div class="ctx-check-group" id="ctx-fb-deploy"></div>
+              </div>
+              <div class="ctx-actions">
+                <button id="ctx-fb-deploy-set" class="cmd-btn">▶ firebase deploy --only</button>
+              </div>
+            </div>
+          </section>
           <section class="cmd-section">
             <table class="cmd-table">
               <tr>
@@ -449,6 +507,30 @@
             <div class="git-card" id="git-stash-card">
               <div class="git-card-label">スタッシュ</div>
               <ul id="git-stash-list"></ul>
+            </div>
+            <div class="git-card" id="git-qa-card">
+              <div class="git-card-label">
+                クイックアクション
+                <button id="git-qa-fetch" class="ctx-fetch-btn">取得 ↺</button>
+              </div>
+              <div class="ctx-row">
+                <span class="ctx-label">ブランチ</span>
+                <select id="ctx-git-branch" class="ctx-select ctx-select-sm"></select>
+              </div>
+              <div class="ctx-actions ctx-actions-sm">
+                <button id="ctx-git-checkout" class="cmd-btn">checkout</button>
+                <button id="ctx-git-merge"    class="cmd-btn">merge</button>
+              </div>
+              <div id="ctx-git-stash-row" class="hidden">
+                <div class="ctx-row" style="margin-top:.4rem">
+                  <span class="ctx-label">スタッシュ</span>
+                  <select id="ctx-git-stash" class="ctx-select ctx-select-sm"></select>
+                </div>
+                <div class="ctx-actions ctx-actions-sm">
+                  <button id="ctx-git-stash-pop"   class="cmd-btn">pop</button>
+                  <button id="ctx-git-stash-apply" class="cmd-btn">apply</button>
+                </div>
+              </div>
             </div>
             <button id="git-refresh-btn">更新</button>
           </aside>
