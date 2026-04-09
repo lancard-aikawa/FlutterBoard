@@ -395,14 +395,11 @@
 
       <!-- 依存チェックタブ -->
       <div id="tab-deps" class="tab-content hidden">
+
+        <!-- 共通ツールバー -->
         <div id="deps-toolbar">
           <span id="deps-project-name"></span>
           <div id="deps-actions">
-            <div id="deps-source-toggle">
-              <button class="deps-src-btn active" data-src="pubspec">pubspec.yaml</button>
-              <button class="deps-src-btn"        data-src="npm">package.json</button>
-              <button class="deps-src-btn"        data-src="cdn">CDN</button>
-            </div>
             <label class="deps-threshold-label" title="N日以内に公開されたバージョンを警告表示">
               ⚠ しきい値
               <input type="number" id="deps-threshold" value="7" min="1" max="365">
@@ -410,85 +407,111 @@
             </label>
             <button id="deps-refresh-btn">更新チェック</button>
             <button id="deps-compare-btn" class="btn-ghost">比較 ⇄</button>
-            <!-- pubspec 専用アクション (pubspec ソース選択時のみ表示) -->
-            <div id="deps-pubspec-actions">
-              <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
-              <button id="deps-upgrade-btn" class="btn-secondary">flutter pub upgrade</button>
+          </div>
+        </div>
+
+        <!-- サブタブバー -->
+        <div id="deps-subtab-bar">
+          <button class="deps-tab active" data-deps-tab="pubspec">pubspec.yaml</button>
+          <button class="deps-tab"        data-deps-tab="npm">package.json</button>
+          <button class="deps-tab"        data-deps-tab="cdn">CDN</button>
+          <button class="deps-tab"        data-deps-tab="security">セキュリティ</button>
+        </div>
+
+        <!-- pubspec サブパネル -->
+        <div id="deps-panel-pubspec" class="deps-subtab-panel">
+          <div id="deps-pubspec-actions">
+            <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
+            <button id="deps-upgrade-btn" class="btn-secondary">flutter pub upgrade</button>
+          </div>
+        </div>
+
+        <!-- npm サブパネル -->
+        <div id="deps-panel-npm" class="deps-subtab-panel hidden">
+          <div id="deps-npm-actions">
+            <button id="deps-select-trusted" class="btn-secondary" title="Provenance あり かつ N日以上経過したパッケージを選択">信頼済みのみ選択</button>
+            <button id="deps-select-all"     class="btn-secondary">全選択</button>
+            <button id="deps-deselect-all"   class="btn-secondary">全解除</button>
+            <button id="deps-install-btn"    title="チェックしたパッケージを npm install で一括インストール">選択をインストール</button>
+            <button id="npm-add-toggle"      title="npm パッケージを検索して追加">＋ パッケージ追加</button>
+          </div>
+          <!-- パッケージ追加パネル -->
+          <div id="npm-add-panel" class="hidden">
+            <div id="npm-search-bar">
+              <input type="text" id="npm-search-input" placeholder="パッケージ名を検索（例: node-pty）">
+              <button id="npm-search-btn">検索</button>
+              <button id="npm-add-close" class="btn-ghost">✕</button>
             </div>
-            <!-- npm 専用アクション (npm ソース選択時のみ表示) -->
-            <div id="deps-npm-actions" class="hidden">
-              <button id="deps-select-trusted" class="btn-secondary" title="Provenance あり かつ N日以上経過したパッケージを選択">信頼済みのみ選択</button>
-              <button id="deps-select-all"     class="btn-secondary">全選択</button>
-              <button id="deps-deselect-all"   class="btn-secondary">全解除</button>
-              <button id="deps-install-btn"                          title="チェックしたパッケージを npm install で一括インストール">選択をインストール</button>
-              <button id="npm-add-toggle"      title="npm パッケージを検索して追加">＋ パッケージ追加</button>
+            <div id="npm-add-body">
+              <div id="npm-results-col">
+                <div id="npm-search-status" class="npm-add-hint">パッケージ名を入力して検索</div>
+                <ul id="npm-search-results"></ul>
+              </div>
+              <div id="npm-detail-col" class="hidden">
+                <div id="npm-detail-header">
+                  <span id="npm-detail-name"></span>
+                  <span id="npm-detail-desc"></span>
+                  <a id="npm-detail-link" href="#" target="_blank" rel="noopener">npm ↗</a>
+                </div>
+                <div id="npm-version-wrap">
+                  <table id="npm-version-table">
+                    <thead>
+                      <tr>
+                        <th></th>
+                        <th>バージョン</th>
+                        <th>公開日</th>
+                        <th>経過日数</th>
+                        <th>Provenance</th>
+                      </tr>
+                    </thead>
+                    <tbody id="npm-version-tbody"></tbody>
+                  </table>
+                </div>
+                <div id="npm-action-bar">
+                  <span id="npm-selected-label">← バージョンを選択</span>
+                  <select id="npm-dep-type" title="依存関係の種別">
+                    <option value="dep">dependencies</option>
+                    <option value="dev">devDependencies</option>
+                  </select>
+                  <button id="npm-write-btn"   disabled>package.json に追記</button>
+                  <button id="npm-install-run" disabled>npm install 実行</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div id="deps-status"></div>
 
-        <!-- npm audit バー（npm ソース選択時のみ表示） -->
-        <div id="npm-audit-bar" class="hidden">
-          <span class="npm-audit-label">脆弱性:</span>
-          <span id="npm-audit-critical" class="npm-audit-badge audit-critical">critical: <b id="npm-audit-critical-n">0</b></span>
-          <span id="npm-audit-high"     class="npm-audit-badge audit-high">high: <b id="npm-audit-high-n">0</b></span>
-          <span id="npm-audit-moderate" class="npm-audit-badge audit-moderate">moderate: <b id="npm-audit-moderate-n">0</b></span>
-          <span id="npm-audit-low"      class="npm-audit-badge audit-low">low: <b id="npm-audit-low-n">0</b></span>
-          <span id="npm-audit-ok"       class="npm-audit-ok hidden">問題なし ✓</span>
-          <div class="npm-audit-actions">
-            <button id="npm-audit-detail-btn" class="btn-ghost npm-audit-detail-toggle hidden">詳細 ▼</button>
-            <button id="npm-audit-fix-btn"    class="btn-secondary" title="npm audit fix を実行">audit fix</button>
-            <button id="npm-audit-force-btn"  class="btn-secondary" title="npm audit fix --force を実行（破壊的変更を含む）">fix --force</button>
-            <button id="npm-audit-recheck-btn" class="btn-ghost">再チェック ↺</button>
-          </div>
-        </div>
-        <!-- 脆弱性詳細（折り畳み） -->
-        <div id="npm-audit-detail" class="hidden"></div>
+        <!-- CDN サブパネル -->
+        <div id="deps-panel-cdn" class="deps-subtab-panel hidden"></div>
 
-        <!-- パッケージ追加パネル -->
-        <div id="npm-add-panel" class="hidden">
-          <div id="npm-search-bar">
-            <input type="text" id="npm-search-input" placeholder="パッケージ名を検索（例: node-pty）">
-            <button id="npm-search-btn">検索</button>
-            <button id="npm-add-close" class="btn-ghost">✕</button>
-          </div>
-          <div id="npm-add-body">
-            <!-- 左: 検索結果 -->
-            <div id="npm-results-col">
-              <div id="npm-search-status" class="npm-add-hint">パッケージ名を入力して検索</div>
-              <ul id="npm-search-results"></ul>
-            </div>
-            <!-- 右: バージョン詳細 -->
-            <div id="npm-detail-col" class="hidden">
-              <div id="npm-detail-header">
-                <span id="npm-detail-name"></span>
-                <span id="npm-detail-desc"></span>
-                <a id="npm-detail-link" href="#" target="_blank" rel="noopener">npm ↗</a>
-              </div>
-              <div id="npm-version-wrap">
-                <table id="npm-version-table">
-                  <thead>
-                    <tr>
-                      <th></th>
-                      <th>バージョン</th>
-                      <th>公開日</th>
-                      <th>経過日数</th>
-                      <th>Provenance</th>
-                    </tr>
-                  </thead>
-                  <tbody id="npm-version-tbody"></tbody>
-                </table>
-              </div>
-              <div id="npm-action-bar">
-                <span id="npm-selected-label">← バージョンを選択</span>
-                <select id="npm-dep-type" title="依存関係の種別">
-                  <option value="dep">dependencies</option>
-                  <option value="dev">devDependencies</option>
-                </select>
-                <button id="npm-write-btn"   disabled>package.json に追記</button>
-                <button id="npm-install-run" disabled>npm install 実行</button>
+        <!-- セキュリティ サブパネル -->
+        <div id="deps-panel-security" class="deps-subtab-panel hidden">
+          <!-- npm audit -->
+          <div class="security-section">
+            <div class="security-section-header">npm audit</div>
+            <div id="npm-audit-bar">
+              <span class="npm-audit-label">脆弱性:</span>
+              <span id="npm-audit-critical" class="npm-audit-badge audit-critical">critical: <b id="npm-audit-critical-n">0</b></span>
+              <span id="npm-audit-high"     class="npm-audit-badge audit-high">high: <b id="npm-audit-high-n">0</b></span>
+              <span id="npm-audit-moderate" class="npm-audit-badge audit-moderate">moderate: <b id="npm-audit-moderate-n">0</b></span>
+              <span id="npm-audit-low"      class="npm-audit-badge audit-low">low: <b id="npm-audit-low-n">0</b></span>
+              <span id="npm-audit-ok"       class="npm-audit-ok hidden">問題なし ✓</span>
+              <div class="npm-audit-actions">
+                <button id="npm-audit-detail-btn" class="btn-ghost npm-audit-detail-toggle hidden">詳細 ▼</button>
+                <button id="npm-audit-fix-btn"    class="btn-secondary" title="npm audit fix を実行">audit fix</button>
+                <button id="npm-audit-force-btn"  class="btn-secondary" title="npm audit fix --force を実行（破壊的変更を含む）">fix --force</button>
+                <button id="npm-audit-recheck-btn" class="btn-ghost">再チェック ↺</button>
               </div>
             </div>
+            <div id="npm-audit-detail" class="hidden"></div>
+          </div>
+          <!-- S1: pubspec OSV 診断（準備中） -->
+          <div class="security-section">
+            <div class="security-section-header">
+              pubspec.yaml（OSV.dev）
+              <span class="security-coming-soon">準備中</span>
+            </div>
+            <p class="security-placeholder">OSV.dev API による Dart パッケージのセキュリティ診断（S1）</p>
           </div>
         </div>
 
@@ -524,6 +547,7 @@
           </div>
         </div>
 
+        <div id="deps-status"></div>
         <div id="deps-table-wrap">
           <table id="deps-table">
             <thead>

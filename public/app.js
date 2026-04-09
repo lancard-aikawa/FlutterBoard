@@ -1608,8 +1608,6 @@ const depsThreshold    = document.getElementById('deps-threshold');
 const depsThProvenance = document.getElementById('deps-th-provenance');
 const depsThCheck      = document.getElementById('deps-th-check');
 const depsCheckAll     = document.getElementById('deps-check-all');
-const depsNpmActions      = document.getElementById('deps-npm-actions');
-const depsPubspecActions  = document.getElementById('deps-pubspec-actions');
 const depsThType          = document.getElementById('deps-th-type');
 
 // Persist threshold in localStorage
@@ -1618,15 +1616,18 @@ depsThreshold.addEventListener('change', () => {
   localStorage.setItem('deps-threshold', depsThreshold.value);
 });
 
-// Source toggle: pubspec | npm | cdn
-let depsSource = 'pubspec';
-document.querySelectorAll('.deps-src-btn').forEach(btn => {
+// サブタブ切り替え: pubspec | npm | cdn | security
+let depsSource    = 'pubspec';
+let depsActiveTab = 'pubspec';
+
+document.querySelectorAll('.deps-tab').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.deps-src-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.deps-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    depsSource = btn.dataset.src;
-    applyDepsSourceUi();
-    if (currentProjectPath) checkDeps();
+    depsActiveTab = btn.dataset.depsTab;
+    if (depsActiveTab !== 'security') depsSource = depsActiveTab;
+    applyDepsTabUi(depsActiveTab);
+    if (depsActiveTab !== 'security' && currentProjectPath) checkDeps();
   });
 });
 
@@ -1662,16 +1663,27 @@ npmAuditDetailBtn.onclick = () => {
   npmAuditDetailBtn.textContent = npmAuditDetailOpen ? '詳細 ▲' : '詳細 ▼';
 };
 
-function applyDepsSourceUi() {
-  const isNpm = depsSource === 'npm';
-  const isCdn = depsSource === 'cdn';
+function applyDepsTabUi(tab) {
+  const isSecurity = tab === 'security';
+  const isNpm = tab === 'npm';
+  const isCdn = tab === 'cdn';
+
+  // サブパネル切り替え
+  ['pubspec', 'npm', 'cdn', 'security'].forEach(t => {
+    document.getElementById(`deps-panel-${t}`).classList.toggle('hidden', t !== tab);
+  });
+
+  // セキュリティタブではテーブル・ツールバーを非表示
+  depsTableWrap.classList.toggle('hidden', isSecurity);
+  depsStatus.classList.toggle('hidden', isSecurity);
+  depsRefreshBtn.classList.toggle('hidden', isSecurity);
+  depsCompareBtn.classList.toggle('hidden', isSecurity);
+
+  // テーブルカラム制御
   depsThCheck.classList.toggle('hidden', !isNpm);
   depsThProvenance.classList.toggle('hidden', !isNpm && !isCdn);
   depsThProvenance.textContent = isCdn ? 'CDN' : 'Provenance';
   depsThType.textContent = isCdn ? 'ファイル' : '種別';
-  depsNpmActions.classList.toggle('hidden', !isNpm);
-  depsPubspecActions.classList.toggle('hidden', isNpm || isCdn);
-  npmAuditBar.classList.toggle('hidden', !isNpm);
 }
 
 depsRefreshBtn.onclick = () => checkDeps(true); // force=true でキャッシュ無視
@@ -1722,7 +1734,7 @@ async function checkDeps(force = false) {
   depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">読み込み中...</td></tr>`;
   depsRefreshBtn.disabled = true;
 
-  applyDepsSourceUi();
+  applyDepsTabUi(depsActiveTab);
   depsCheckAll.checked = false;
 
   const forceParam = force ? '&force=1' : '';
@@ -1905,7 +1917,6 @@ depsCompareBtn.onclick = () => {
   depsCompareBtn.classList.toggle('active', compareActive);
   depsComparePanel.classList.toggle('hidden', !compareActive);
   depsTableWrap.classList.toggle('hidden', compareActive);
-  npmAuditBar.classList.toggle('hidden', compareActive || depsSource !== 'npm');
   npmAuditDetail.classList.toggle('hidden', true);
   if (compareActive) loadCmpOptions();
 };
@@ -2040,8 +2051,8 @@ function renderCmpTable(data) {
   cmpTableWrap.classList.remove('hidden');
 }
 
-// ソース切り替え時に比較モードを終了
-document.querySelectorAll('.deps-src-btn').forEach(btn => {
+// タブ切り替え時に比較モードを終了
+document.querySelectorAll('.deps-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     if (compareActive) {
       compareActive = false;
