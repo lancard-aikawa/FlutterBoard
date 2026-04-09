@@ -1446,6 +1446,10 @@ const npmAuditCriticalN  = document.getElementById('npm-audit-critical-n');
 const npmAuditHighN      = document.getElementById('npm-audit-high-n');
 const npmAuditModerateN  = document.getElementById('npm-audit-moderate-n');
 const npmAuditLowN       = document.getElementById('npm-audit-low-n');
+const npmAuditDetailBtn  = document.getElementById('npm-audit-detail-btn');
+const npmAuditDetail     = document.getElementById('npm-audit-detail');
+
+let npmAuditDetailOpen = false;
 
 document.getElementById('npm-audit-fix-btn').onclick = () => {
   runCommand('npm audit fix', 'audit fix');
@@ -1457,6 +1461,12 @@ document.getElementById('npm-audit-force-btn').onclick = () => {
   document.querySelector('.tab[data-tab="logs"]').click();
 };
 document.getElementById('npm-audit-recheck-btn').onclick = () => runNpmAudit();
+
+npmAuditDetailBtn.onclick = () => {
+  npmAuditDetailOpen = !npmAuditDetailOpen;
+  npmAuditDetail.classList.toggle('hidden', !npmAuditDetailOpen);
+  npmAuditDetailBtn.textContent = npmAuditDetailOpen ? '詳細 ▲' : '詳細 ▼';
+};
 
 function applyDepsSourceUi() {
   const isNpm = depsSource === 'npm';
@@ -1578,6 +1588,10 @@ async function runNpmAudit() {
   if (!currentProjectPath) return;
   npmAuditBar.classList.remove('hidden');
   npmAuditOk.classList.add('hidden');
+  npmAuditDetailBtn.classList.add('hidden');
+  npmAuditDetail.classList.add('hidden');
+  npmAuditDetailOpen = false;
+  npmAuditDetailBtn.textContent = '詳細 ▼';
   [npmAuditCritical, npmAuditHigh, npmAuditModerate, npmAuditLow].forEach(el => {
     el.classList.remove('hidden');
     el.classList.add('audit-loading');
@@ -1589,7 +1603,12 @@ async function runNpmAudit() {
   [npmAuditCritical, npmAuditHigh, npmAuditModerate, npmAuditLow].forEach(el => el.classList.remove('audit-loading'));
 
   if (data.error) {
-    npmAuditBar.innerHTML = `<span class="npm-audit-label" style="color:var(--err)">${escHtml(data.error)}</span>`;
+    npmAuditCritical.classList.add('hidden');
+    npmAuditHigh.classList.add('hidden');
+    npmAuditModerate.classList.add('hidden');
+    npmAuditLow.classList.add('hidden');
+    npmAuditOk.textContent = `⚠ ${data.error}`;
+    npmAuditOk.classList.remove('hidden');
     return;
   }
 
@@ -1598,17 +1617,60 @@ async function runNpmAudit() {
   npmAuditModerateN.textContent = data.moderate;
   npmAuditLowN.textContent      = data.low;
 
-  // 0 件の severity はグレーアウト
-  npmAuditCritical.classList.toggle('audit-zero', data.critical === 0);
-  npmAuditHigh.classList.toggle('audit-zero',     data.high     === 0);
-  npmAuditModerate.classList.toggle('audit-zero', data.moderate === 0);
-  npmAuditLow.classList.toggle('audit-zero',      data.low      === 0);
-
   const noVulns = data.total === 0;
+  npmAuditOk.textContent = '問題なし ✓';
   npmAuditOk.classList.toggle('hidden', !noVulns);
   [npmAuditCritical, npmAuditHigh, npmAuditModerate, npmAuditLow].forEach(el => {
     el.classList.toggle('hidden', noVulns);
+    el.classList.toggle('audit-zero', !noVulns && +el.querySelector('b').textContent === 0);
   });
+
+  // 詳細ボタンは脆弱性がある場合のみ表示
+  if (!noVulns && data.details && data.details.length > 0) {
+    npmAuditDetailBtn.classList.remove('hidden');
+    renderNpmAuditDetail(data.details);
+  }
+}
+
+const AUDIT_SEVERITY_LABEL = { critical: 'critical', high: 'high', moderate: 'moderate', low: 'low', info: 'info' };
+
+function renderNpmAuditDetail(details) {
+  let html = '<table class="npm-audit-detail-table"><tbody>';
+  for (const v of details) {
+    const sev   = escHtml(v.severity);
+    const name  = escHtml(v.name);
+    const range = v.range ? escHtml(v.range) : '—';
+    const via   = v.isDirect
+      ? '<span class="audit-direct">直接</span>'
+      : v.via.length > 0
+        ? `via: ${v.via.map(escHtml).join(', ')}`
+        : '間接';
+
+    let fixCell = '<span class="audit-nofix">fix なし</span>';
+    if (v.fixAvailable === true) {
+      fixCell = '<span class="audit-fix">fix あり</span>';
+    } else if (v.fixAvailable && typeof v.fixAvailable === 'object') {
+      const major = v.fixAvailable.isSemVerMajor ? ' <span class="badge badge-major">MAJOR</span>' : '';
+      fixCell = `<span class="audit-fix">fix: ${escHtml(v.fixAvailable.name)}@${escHtml(v.fixAvailable.version)}</span>${major}`;
+    }
+
+    const titleHtml = v.title
+      ? v.url
+        ? `<a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="audit-advisory-link">${escHtml(v.title)}</a>`
+        : `<span class="audit-advisory-title">${escHtml(v.title)}</span>`
+      : '';
+
+    html += `<tr>
+      <td><span class="npm-audit-badge audit-${sev}">${sev}</span></td>
+      <td class="audit-pkg-name">${name}</td>
+      <td class="audit-range">${range}</td>
+      <td class="audit-via">${via}</td>
+      <td class="audit-title">${titleHtml}</td>
+      <td>${fixCell}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  npmAuditDetail.innerHTML = html;
 }
 
 /** Returns 'full' | 'partial' | 'none' based on provenance + age */

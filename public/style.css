@@ -1877,6 +1877,40 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
 }
 .npm-audit-actions .btn-secondary { font-size: .75rem; padding: .2rem .55rem; }
 .npm-audit-actions .btn-ghost     { font-size: .75rem; padding: .2rem .55rem; }
+.npm-audit-detail-toggle          { font-size: .75rem; padding: .2rem .55rem; }
+
+/* 脆弱性詳細テーブル */
+#npm-audit-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  overflow-x: auto;
+  margin-bottom: .5rem;
+}
+.npm-audit-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+.npm-audit-detail-table td {
+  padding: .35rem .6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.npm-audit-detail-table tr:last-child td { border-bottom: none; }
+.npm-audit-detail-table tr:hover td     { background: color-mix(in srgb, var(--border) 40%, transparent); }
+.audit-pkg-name  { font-family: 'Cascadia Code', 'Consolas', monospace; font-weight: 600; }
+.audit-range     { font-family: 'Cascadia Code', 'Consolas', monospace; color: var(--muted); }
+.audit-via       { color: var(--muted); font-size: .74rem; }
+.audit-direct    { color: var(--accent); }
+.audit-title     { color: var(--text); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-advisory-link  { color: var(--accent); text-decoration: none; }
+.audit-advisory-link:hover { text-decoration: underline; }
+.audit-advisory-title { color: var(--muted); }
+.audit-fix       { color: var(--ok); }
+.audit-nofix     { color: var(--muted); }
 
 /* ===== R4: Firebase 環境切り替えパネル ===== */
 

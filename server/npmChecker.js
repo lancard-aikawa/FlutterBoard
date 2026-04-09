@@ -408,13 +408,39 @@ function runAudit(projectPath) {
           info:     meta.info     || 0,
           total:    meta.total    || 0,
         };
-        // fixAvailable: 1つでも fixAvailable が true/object なら true
-        let fixAvailable = false;
+
+        // 脆弱性ごとの詳細を抽出
+        // severity 順でソート: critical > high > moderate > low > info
+        const SEVERITY_ORDER = { critical: 0, high: 1, moderate: 2, low: 3, info: 4 };
         const vulns = json.vulnerabilities || {};
-        for (const v of Object.values(vulns)) {
-          if (v.fixAvailable) { fixAvailable = true; break; }
-        }
-        resolve({ ...counts, fixAvailable });
+        const details = Object.values(vulns)
+          .map(v => {
+            // via[] はアドバイザリオブジェクト or パッケージ名文字列の混在
+            let title = null, url = null;
+            const viaNames = [];
+            for (const item of (v.via || [])) {
+              if (typeof item === 'object' && item.title) {
+                if (!title) { title = item.title; url = item.url || null; }
+              } else if (typeof item === 'string') {
+                viaNames.push(item);
+              }
+            }
+            return {
+              name:         v.name,
+              severity:     v.severity,
+              isDirect:     v.isDirect,
+              range:        v.range   || null,
+              title,
+              url,
+              via:          viaNames,
+              fixAvailable: v.fixAvailable,
+            };
+          })
+          .sort((a, b) =>
+            (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9)
+          );
+
+        resolve({ ...counts, details });
       } catch {
         resolve({ ...empty, error: 'JSON パースに失敗しました' });
       }

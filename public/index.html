@@ -393,11 +393,14 @@
           <span id="npm-audit-low"      class="npm-audit-badge audit-low">low: <b id="npm-audit-low-n">0</b></span>
           <span id="npm-audit-ok"       class="npm-audit-ok hidden">問題なし ✓</span>
           <div class="npm-audit-actions">
-            <button id="npm-audit-fix-btn"  class="btn-secondary" title="npm audit fix を実行">audit fix</button>
-            <button id="npm-audit-force-btn" class="btn-secondary" title="npm audit fix --force を実行（破壊的変更を含む）">fix --force</button>
+            <button id="npm-audit-detail-btn" class="btn-ghost npm-audit-detail-toggle hidden">詳細 ▼</button>
+            <button id="npm-audit-fix-btn"    class="btn-secondary" title="npm audit fix を実行">audit fix</button>
+            <button id="npm-audit-force-btn"  class="btn-secondary" title="npm audit fix --force を実行（破壊的変更を含む）">fix --force</button>
             <button id="npm-audit-recheck-btn" class="btn-ghost">再チェック ↺</button>
           </div>
         </div>
+        <!-- 脆弱性詳細（折り畳み） -->
+        <div id="npm-audit-detail" class="hidden"></div>
 
         <!-- パッケージ追加パネル -->
         <div id="npm-add-panel" class="hidden">
