@@ -2916,6 +2916,77 @@ function renderAnalyzeTable() {
 }
 
 // =====================================================================
+// S1: pubspec OSV セキュリティ診断
+// =====================================================================
+
+const osvRunBtn    = document.getElementById('osv-run-btn');
+const osvStatus    = document.getElementById('osv-status');
+const osvResult    = document.getElementById('osv-result');
+const osvSummary   = document.getElementById('osv-summary');
+const osvTbody     = document.getElementById('osv-tbody');
+
+osvRunBtn.onclick = async () => {
+  if (!currentProjectPath) return;
+  osvRunBtn.disabled = true;
+  osvRunBtn.textContent = '照会中...';
+  osvStatus.textContent = '⏳ OSV.dev に問い合わせ中...';
+  osvResult.classList.add('hidden');
+
+  try {
+    const res  = await fetch(`/api/osv/check?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+
+    if (data.error) {
+      osvStatus.textContent = `⚠ ${data.error}`;
+    } else {
+      osvStatus.textContent = '';
+      renderOsvResult(data);
+    }
+  } catch (e) {
+    osvStatus.textContent = `⚠ エラー: ${e.message}`;
+  } finally {
+    osvRunBtn.disabled = false;
+    osvRunBtn.textContent = 'チェック ▶';
+  }
+};
+
+function renderOsvResult(data) {
+  const { checkedCount = 0, totalVulns = 0, results = [], sourceFile = '' } = data;
+  const src = sourceFile ? `（${sourceFile}）` : '';
+
+  if (totalVulns === 0) {
+    osvSummary.innerHTML =
+      `<span class="osv-summary-ok">問題なし ✓</span>` +
+      `<span class="osv-summary-meta">${checkedCount} パッケージを確認${src}</span>`;
+    osvTbody.innerHTML = '';
+    osvResult.classList.remove('hidden');
+    return;
+  }
+
+  osvSummary.innerHTML =
+    `<span class="osv-summary-warn">${totalVulns} 件の脆弱性</span>` +
+    `<span class="osv-summary-meta">${checkedCount} パッケージ中${src}</span>`;
+
+  const SEV_CLS = { CRITICAL: 'analyze-error', HIGH: 'analyze-warn', MEDIUM: 'analyze-info', LOW: 'analyze-info', UNKNOWN: '' };
+  osvTbody.innerHTML = '';
+
+  for (const v of results) {
+    const tr  = document.createElement('tr');
+    const cls = SEV_CLS[v.severity] || '';
+    const cve = v.aliases.length ? `<br><span class="osv-alias">${escHtml(v.aliases[0])}</span>` : '';
+    tr.innerHTML = `
+      <td><span class="analyze-sev-badge ${cls}">${escHtml(v.severity)}</span></td>
+      <td class="osv-pkg">${escHtml(v.package)}</td>
+      <td class="osv-ver">${escHtml(v.version)}</td>
+      <td class="osv-id"><a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="analyze-file-link">${escHtml(v.id)}</a>${cve}</td>
+      <td class="osv-summary-cell">${escHtml(v.summary)}</td>`;
+    osvTbody.appendChild(tr);
+  }
+
+  osvResult.classList.remove('hidden');
+}
+
+// =====================================================================
 // R4: Firebase 環境切り替えパネル
 // =====================================================================
 

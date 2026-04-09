@@ -1275,6 +1275,35 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   font-style: italic;
 }
 
+/* OSV 結果 */
+#osv-summary {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .5rem;
+  font-size: .85rem;
+}
+.osv-summary-ok   { color: var(--ok); font-weight: 600; }
+.osv-summary-warn { color: var(--err); font-weight: 600; }
+.osv-summary-meta { color: var(--muted); font-size: .78rem; }
+
+#osv-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+#osv-table th {
+  text-align: left;
+  padding: .3rem .5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+#osv-table td { padding: .3rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+#osv-table tr:last-child td { border-bottom: none; }
+.osv-pkg  { font-family: 'Cascadia Code', monospace; font-weight: 600; white-space: nowrap; }
+.osv-ver  { font-family: 'Cascadia Code', monospace; color: var(--muted); white-space: nowrap; }
+.osv-id   { font-family: 'Cascadia Code', monospace; font-size: .75rem; white-space: nowrap; }
+.osv-alias { color: var(--muted); font-size: .72rem; }
+.osv-summary-cell { max-width: 26rem; word-break: break-word; }
+
 /* npm タブ内 audit サマリー */
 #npm-audit-summary {
   display: flex;

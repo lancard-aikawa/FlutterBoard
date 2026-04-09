@@ -511,13 +511,30 @@
             </div>
             <div id="npm-audit-detail" class="hidden"></div>
           </div>
-          <!-- S1: pubspec OSV 診断（準備中） -->
+          <!-- S1: pubspec OSV 診断 -->
           <div class="security-section">
             <div class="security-section-header">
               pubspec.yaml（OSV.dev）
-              <span class="security-coming-soon">準備中</span>
+              <button id="osv-run-btn" class="ctx-fetch-btn">チェック ▶</button>
             </div>
-            <p class="security-placeholder">OSV.dev API による Dart パッケージのセキュリティ診断（S1）</p>
+            <div id="osv-status" class="security-placeholder"></div>
+            <div id="osv-result" class="hidden">
+              <div id="osv-summary"></div>
+              <div id="osv-table-wrap">
+                <table id="osv-table">
+                  <thead>
+                    <tr>
+                      <th>重要度</th>
+                      <th>パッケージ</th>
+                      <th>バージョン</th>
+                      <th>ID</th>
+                      <th>概要</th>
+                    </tr>
+                  </thead>
+                  <tbody id="osv-tbody"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 

@@ -13,6 +13,7 @@ const { handleContext }     = require('./contextProvider');
 const { handleFirebaseEnv } = require('./firebaseEnv');
 const { handleDepCompare }      = require('./depCompare');
 const { handleFlutterAnalyze }  = require('./flutterAnalyze');
+const { handleOsvCheck }        = require('./osvCheck');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -78,6 +79,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/analyze')) {
     return handleFlutterAnalyze(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/osv')) {
+    return handleOsvCheck(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
