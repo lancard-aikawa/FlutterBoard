@@ -14,6 +14,7 @@ const { handleFirebaseEnv } = require('./firebaseEnv');
 const { handleDepCompare }      = require('./depCompare');
 const { handleFlutterAnalyze }  = require('./flutterAnalyze');
 const { handleOsvCheck }        = require('./osvCheck');
+const { handleDepsTree }        = require('./depsTree');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -83,6 +84,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/osv')) {
     return handleOsvCheck(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/deps-tree')) {
+    return handleDepsTree(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

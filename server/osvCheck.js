@@ -3,6 +3,38 @@ const fs    = require('fs');
 const path  = require('path');
 const https = require('https');
 
+// ── キャッシュ ────────────────────────────────────────────────────────────────
+const CACHE_DIR = path.join(__dirname, '..', 'config');
+const CACHE_TTL = 12 * 60 * 60 * 1000; // 12h
+
+function getCacheFile(projectPath) {
+  const safe = projectPath.replace(/[:\\/]/g, '_');
+  return path.join(CACHE_DIR, `osv_${safe}.json`);
+}
+
+// pubspec.lock の更新日時がキャッシュより新しい場合は失効扱い
+function loadOsvCache(projectPath) {
+  try {
+    const file     = getCacheFile(projectPath);
+    const c        = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    if (Date.now() - c.cachedAt >= CACHE_TTL) return null;
+
+    const lockFile = path.join(projectPath, 'pubspec.lock');
+    if (fs.existsSync(lockFile)) {
+      const lockMtime = fs.statSync(lockFile).mtimeMs;
+      if (lockMtime > c.cachedAt) return null; // ロックファイルが更新された
+    }
+    return c;
+  } catch {}
+  return null;
+}
+
+function saveOsvCache(projectPath, data) {
+  const file = getCacheFile(projectPath);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ cachedAt: Date.now(), data }), 'utf-8');
+}
+
 // =====================================================================
 // OSV.dev API クライアント
 // =====================================================================
@@ -193,10 +225,25 @@ async function handleOsvCheck(req, res, url) {
   res.setHeader('Content-Type', 'application/json');
 
   if (url.pathname === '/api/osv/check' && req.method === 'GET') {
-    const p = url.searchParams.get('path');
+    const p     = url.searchParams.get('path');
+    const force = url.searchParams.get('force') === '1';
     if (!p) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
 
+    // キャッシュ確認
+    if (!force) {
+      const cached = loadOsvCache(p);
+      if (cached) {
+        res.writeHead(200);
+        return res.end(JSON.stringify({ ...cached.data, cached: true, cachedAt: cached.cachedAt }));
+      }
+    }
+
     const result = await checkOsv(p);
+    if (!result.error) {
+      saveOsvCache(p, result);
+      result.cached   = false;
+      result.cachedAt = Date.now();
+    }
     res.writeHead(200);
     return res.end(JSON.stringify(result));
   }

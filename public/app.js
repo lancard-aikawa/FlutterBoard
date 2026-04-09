@@ -1625,9 +1625,11 @@ document.querySelectorAll('.deps-tab').forEach(btn => {
     document.querySelectorAll('.deps-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     depsActiveTab = btn.dataset.depsTab;
-    if (depsActiveTab !== 'security') depsSource = depsActiveTab;
+    if (depsActiveTab !== 'security' && depsActiveTab !== 'tree') depsSource = depsActiveTab;
     applyDepsTabUi(depsActiveTab);
-    if (depsActiveTab !== 'security' && currentProjectPath) checkDeps();
+    if (depsActiveTab === 'tree'     && currentProjectPath) { loadTree(false); return; }
+    if (depsActiveTab === 'security' && currentProjectPath) { loadOsv(false); return; }
+    if (currentProjectPath) checkDeps();
   });
 });
 
@@ -1667,17 +1669,19 @@ function applyDepsTabUi(tab) {
   const isSecurity = tab === 'security';
   const isNpm = tab === 'npm';
   const isCdn = tab === 'cdn';
+  const isTree = tab === 'tree';
+  const hideTable = isSecurity || isTree;
 
   // サブパネル切り替え
-  ['pubspec', 'npm', 'cdn', 'security'].forEach(t => {
+  ['pubspec', 'npm', 'cdn', 'security', 'tree'].forEach(t => {
     document.getElementById(`deps-panel-${t}`).classList.toggle('hidden', t !== tab);
   });
 
-  // セキュリティタブではテーブル・ツールバーを非表示
-  depsTableWrap.classList.toggle('hidden', isSecurity);
-  depsStatus.classList.toggle('hidden', isSecurity);
-  depsRefreshBtn.classList.toggle('hidden', isSecurity);
-  depsCompareBtn.classList.toggle('hidden', isSecurity);
+  // セキュリティ・ツリータブではテーブル・ツールバーを非表示
+  depsTableWrap.classList.toggle('hidden', hideTable);
+  depsStatus.classList.toggle('hidden', hideTable);
+  depsRefreshBtn.classList.toggle('hidden', hideTable);
+  depsCompareBtn.classList.toggle('hidden', hideTable);
 
   // テーブルカラム制御
   depsThCheck.classList.toggle('hidden', !isNpm);
@@ -2925,21 +2929,25 @@ const osvResult    = document.getElementById('osv-result');
 const osvSummary   = document.getElementById('osv-summary');
 const osvTbody     = document.getElementById('osv-tbody');
 
-osvRunBtn.onclick = async () => {
+async function loadOsv(force = false) {
   if (!currentProjectPath) return;
   osvRunBtn.disabled = true;
-  osvRunBtn.textContent = '照会中...';
-  osvStatus.textContent = '⏳ OSV.dev に問い合わせ中...';
-  osvResult.classList.add('hidden');
+  osvRunBtn.textContent = force ? '照会中...' : '確認中...';
+  if (force) {
+    osvStatus.textContent = '⏳ OSV.dev に問い合わせ中...';
+    osvResult.classList.add('hidden');
+  }
 
   try {
-    const res  = await fetch(`/api/osv/check?path=${encodeURIComponent(currentProjectPath)}`);
+    const forceParam = force ? '&force=1' : '';
+    const res  = await fetch(`/api/osv/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`);
     const data = await res.json();
 
     if (data.error) {
       osvStatus.textContent = `⚠ ${data.error}`;
     } else {
-      osvStatus.textContent = '';
+      const age = data.cached ? ` — キャッシュ: ${agoLabel(data.cachedAt)}` : '';
+      osvStatus.textContent = age;
       renderOsvResult(data);
     }
   } catch (e) {
@@ -2948,7 +2956,9 @@ osvRunBtn.onclick = async () => {
     osvRunBtn.disabled = false;
     osvRunBtn.textContent = 'チェック ▶';
   }
-};
+}
+
+osvRunBtn.onclick = () => loadOsv(true);
 
 function renderOsvResult(data) {
   const { checkedCount = 0, totalVulns = 0, results = [], sourceFile = '' } = data;
@@ -2984,6 +2994,217 @@ function renderOsvResult(data) {
   }
 
   osvResult.classList.remove('hidden');
+}
+
+// =====================================================================
+// S2: 依存ツリービューア
+// =====================================================================
+
+const treeFetchBtn      = document.getElementById('tree-fetch-btn');
+const treeSearch        = document.getElementById('tree-search');
+const treeExpandAll     = document.getElementById('tree-expand-all');
+const treeCollapseAll   = document.getElementById('tree-collapse-all');
+const treeStatus        = document.getElementById('tree-status');
+const treeBody          = document.getElementById('tree-body');
+const treeRoot          = document.getElementById('tree-root');
+const treeReversePanel  = document.getElementById('tree-reverse-panel');
+const treeReverseTitle  = document.getElementById('tree-reverse-title');
+const treeReverseList   = document.getElementById('tree-reverse-list');
+const treeReverseClose  = document.getElementById('tree-reverse-close');
+
+let treeType = 'flutter';
+let treeData = null;   // { root, nodes }
+
+// 経過時間を「X分前」「X時間前」で返す
+function agoLabel(cachedAt) {
+  const mins = Math.round((Date.now() - cachedAt) / 60000);
+  if (mins < 1)   return 'たった今';
+  if (mins < 60)  return `${mins}分前`;
+  const hrs = Math.round(mins / 60);
+  if (hrs  < 24)  return `${hrs}時間前`;
+  return `${Math.round(hrs / 24)}日前`;
+}
+
+function setTreeStatus(data) {
+  const n   = Object.keys(data.nodes).length;
+  const age = data.cached ? ` — キャッシュ: ${agoLabel(data.cachedAt)}` : '';
+  treeStatus.textContent = `${n} パッケージ${age}`;
+}
+
+// キャッシュ確認 or 強制再取得
+async function loadTree(force = false) {
+  if (!currentProjectPath) return;
+  treeFetchBtn.disabled = true;
+  treeFetchBtn.textContent = '取得中...';
+  if (!force) {
+    treeStatus.textContent = '⏳ キャッシュ確認中...';
+  } else {
+    treeStatus.textContent = '⏳ 依存ツリーを取得中...';
+    treeBody.classList.add('hidden');
+    treeReversePanel.classList.add('hidden');
+    treeRoot.innerHTML = '';
+  }
+
+  try {
+    const forceParam = force ? '&force=1' : '';
+    const res  = await fetch(`/api/deps-tree?path=${encodeURIComponent(currentProjectPath)}&type=${treeType}${forceParam}`);
+    const data = await res.json();
+    if (data.error) {
+      treeStatus.textContent = `⚠ ${data.error}`;
+      treeBody.classList.add('hidden');
+    } else {
+      treeData = data;
+      renderTree(data, treeSearch.value.trim());
+      setTreeStatus(data);
+      treeBody.classList.remove('hidden');
+    }
+  } catch (e) {
+    treeStatus.textContent = `⚠ エラー: ${e.message}`;
+  } finally {
+    treeFetchBtn.disabled = false;
+    treeFetchBtn.textContent = '再取得 ↺';
+  }
+}
+
+document.querySelectorAll('.tree-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tree-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    treeType = btn.dataset.treeType;
+    treeData = null;
+    treeRoot.innerHTML = '';
+    treeBody.classList.add('hidden');
+    treeReversePanel.classList.add('hidden');
+    treeStatus.textContent = '';
+    // 切り替え時もキャッシュ確認
+    if (currentProjectPath) loadTree(false);
+  });
+});
+
+// 「取得 ▶ / 再取得 ↺」ボタン → 強制再取得
+treeFetchBtn.onclick = () => loadTree(true);
+
+treeSearch.addEventListener('input', () => {
+  if (!treeData) return;
+  renderTree(treeData, treeSearch.value.trim());
+});
+
+treeExpandAll.onclick    = () => treeRoot.querySelectorAll('details').forEach(d => { d.open = true; });
+treeCollapseAll.onclick  = () => treeRoot.querySelectorAll('details').forEach(d => { d.open = false; });
+treeReverseClose.onclick = () => treeReversePanel.classList.add('hidden');
+
+// 逆引き: 指定 name を deps に含む全ノードを返す
+function findParents(nodes, targetName) {
+  return Object.values(nodes).filter(n =>
+    n.deps.some(d => d === targetName || d.startsWith(targetName + '@'))
+  );
+}
+
+// ツリー描画: DFS で <details>/<summary> を生成
+function renderTree(data, filter) {
+  const { root, nodes } = data;
+  const lf = filter.toLowerCase();
+
+  // バージョン衝突検出: 同 name で複数 version
+  const versionMap = {};
+  Object.values(nodes).forEach(n => {
+    if (!versionMap[n.name]) versionMap[n.name] = new Set();
+    versionMap[n.name].add(n.version);
+  });
+  const conflicts = new Set(
+    Object.entries(versionMap).filter(([, s]) => s.size > 1).map(([k]) => k)
+  );
+
+  // DFS (visited で無限ループ防止)
+  function buildNode(nodeKey, visited = new Set()) {
+    const node = nodes[nodeKey];
+    if (!node) return null;
+
+    const hasChildren = node.deps.length > 0;
+    const isConflict  = conflicts.has(node.name);
+    const matchSearch = lf && node.name.toLowerCase().includes(lf);
+
+    const details = document.createElement('details');
+    if (!hasChildren) details.classList.add('tree-leaf');
+    if (isConflict)   details.classList.add('tree-conflict');
+    if (matchSearch)  { details.classList.add('tree-match'); details.open = true; }
+    if (!lf && node.kind === 'direct') details.open = true;  // 直接依存はデフォルト展開
+
+    const summary = document.createElement('summary');
+
+    // kind バッジ
+    const kindLabel = { root: '[root]', direct: '[direct]', dev: '[dev]', transitive: '' };
+    const kindCls   = { root: 'tree-kind-root', direct: 'tree-kind-direct', dev: 'tree-kind-dev', transitive: 'tree-kind-transitive' };
+
+    // クリックで逆引き
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'tree-node-name';
+    nameSpan.textContent = node.name;
+    nameSpan.title = '逆引き検索';
+    nameSpan.addEventListener('click', e => {
+      e.stopPropagation();
+      showReversePanel(node.name);
+    });
+
+    const verSpan = document.createElement('span');
+    verSpan.className = 'tree-node-ver';
+    verSpan.textContent = node.version ? `@${node.version}` : '';
+
+    if (kindLabel[node.kind]) {
+      const kindSpan = document.createElement('span');
+      kindSpan.className = kindCls[node.kind] || 'tree-kind-transitive';
+      kindSpan.textContent = kindLabel[node.kind];
+      summary.appendChild(kindSpan);
+    }
+    summary.appendChild(nameSpan);
+    summary.appendChild(verSpan);
+    details.appendChild(summary);
+
+    if (hasChildren && !visited.has(nodeKey)) {
+      const next = new Set(visited);
+      next.add(nodeKey);
+      node.deps.forEach(depKey => {
+        const child = buildNode(depKey, next);
+        if (child) details.appendChild(child);
+      });
+    } else if (visited.has(nodeKey) && hasChildren) {
+      const circle = document.createElement('span');
+      circle.style.cssText = 'font-size:.7rem;color:var(--muted);padding-left:1rem;';
+      circle.textContent = '（循環参照）';
+      details.appendChild(circle);
+    }
+
+    // フィルタが有効で、自分も子孫もマッチしない場合は hidden
+    if (lf) {
+      const anyMatch = details.querySelector('.tree-match') || matchSearch;
+      if (!anyMatch) details.classList.add('hidden');
+    }
+
+    return details;
+  }
+
+  treeRoot.innerHTML = '';
+  const rootEl = buildNode(root);
+  if (rootEl) { rootEl.open = true; treeRoot.appendChild(rootEl); }
+}
+
+function showReversePanel(name) {
+  if (!treeData) return;
+  const parents = findParents(treeData.nodes, name);
+  treeReverseTitle.textContent = `"${name}" を参照しているパッケージ`;
+  treeReverseList.innerHTML = '';
+  if (parents.length === 0) {
+    const li = document.createElement('li');
+    li.textContent = '（なし — ルートまたは直接依存）';
+    treeReverseList.appendChild(li);
+  } else {
+    parents.forEach(p => {
+      const li = document.createElement('li');
+      li.textContent = `${p.name}@${p.version}`;
+      treeReverseList.appendChild(li);
+    });
+  }
+  treeReversePanel.classList.remove('hidden');
 }
 
 // =====================================================================

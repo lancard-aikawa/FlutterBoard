@@ -416,6 +416,7 @@
           <button class="deps-tab"        data-deps-tab="npm">package.json</button>
           <button class="deps-tab"        data-deps-tab="cdn">CDN</button>
           <button class="deps-tab"        data-deps-tab="security">セキュリティ</button>
+          <button class="deps-tab"        data-deps-tab="tree">依存ツリー</button>
         </div>
 
         <!-- pubspec サブパネル -->
@@ -535,6 +536,32 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- 依存ツリー サブパネル -->
+        <div id="deps-panel-tree" class="deps-subtab-panel hidden">
+          <div id="tree-toolbar">
+            <div class="tree-type-btns">
+              <button class="tree-type-btn active" data-tree-type="flutter">Flutter</button>
+              <button class="tree-type-btn"        data-tree-type="npm">npm</button>
+            </div>
+            <button id="tree-fetch-btn" class="ctx-fetch-btn">取得 ▶</button>
+            <input type="text" id="tree-search" placeholder="パッケージ名で絞り込み..." class="tree-search-input">
+            <button id="tree-expand-all"   class="btn-ghost">全展開</button>
+            <button id="tree-collapse-all" class="btn-ghost">全折り畳み</button>
+          </div>
+          <div id="tree-status"></div>
+          <div id="tree-body" class="hidden">
+            <div id="tree-root"></div>
+          </div>
+          <!-- 逆引きパネル: 選択パッケージの参照元一覧 -->
+          <div id="tree-reverse-panel" class="hidden">
+            <div id="tree-reverse-header">
+              <span id="tree-reverse-title"></span>
+              <button id="tree-reverse-close" class="btn-ghost">✕</button>
+            </div>
+            <ul id="tree-reverse-list"></ul>
           </div>
         </div>
 

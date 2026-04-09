@@ -1329,6 +1329,117 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   padding: .15rem .5rem;
 }
 
+/* ===== 依存ツリー ===== */
+#tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  padding: .35rem 0 .5rem;
+}
+.tree-type-btns {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.tree-type-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: .2rem .7rem;
+  font-size: .78rem;
+  cursor: pointer;
+}
+.tree-type-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+.tree-search-input {
+  flex: 1;
+  min-width: 8rem;
+  max-width: 18rem;
+  padding: .25rem .5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .8rem;
+}
+#tree-status {
+  font-size: .82rem;
+  color: var(--muted);
+  min-height: 1.2rem;
+  margin-bottom: .25rem;
+}
+/* ツリー本体 */
+#tree-body {
+  overflow-y: auto;
+  max-height: 55vh;
+  padding-bottom: .5rem;
+}
+#tree-root {
+  font-size: .82rem;
+  font-family: 'Cascadia Code', monospace;
+}
+#tree-root details { padding-left: 1.2rem; }
+#tree-root summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .1rem .2rem;
+  border-radius: 3px;
+  user-select: none;
+  line-height: 1.4;
+}
+#tree-root summary:hover { background: var(--panel); }
+#tree-root summary::before { content: '▶'; font-size: .6rem; color: var(--muted); transition: transform .15s; }
+#tree-root details[open] > summary::before { transform: rotate(90deg); }
+/* leaf node (no children) */
+.tree-leaf > summary::before { visibility: hidden; }
+.tree-node-name {
+  color: var(--text);
+  cursor: pointer;
+}
+.tree-node-name:hover { text-decoration: underline; color: var(--accent); }
+.tree-node-ver { color: var(--muted); font-size: .75rem; }
+/* kind badges */
+.tree-kind-root        { color: var(--accent); font-size: .7rem; }
+.tree-kind-direct      { color: var(--ok); font-size: .7rem; }
+.tree-kind-dev         { color: var(--warn); font-size: .7rem; }
+.tree-kind-transitive  { color: var(--muted); font-size: .7rem; }
+/* highlight on search match */
+.tree-match > summary .tree-node-name { background: #2a4a1a; border-radius: 2px; padding: 0 .15rem; }
+/* conflict: version mismatch */
+.tree-conflict > summary .tree-node-name { color: var(--err); }
+/* 逆引きパネル */
+#tree-reverse-panel {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .5rem .75rem;
+  margin-top: .75rem;
+  background: var(--panel);
+}
+#tree-reverse-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: .82rem;
+  margin-bottom: .4rem;
+}
+#tree-reverse-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: .8rem;
+  font-family: 'Cascadia Code', monospace;
+  color: var(--muted);
+}
+#tree-reverse-list li { padding: .1rem 0; }
+
 .deps-threshold-label {
   display: flex;
   align-items: center;
