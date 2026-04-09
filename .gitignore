@@ -8,3 +8,6 @@ config/server.log
 
 # Claude Code ローカル設定
 .claude/
+
+# sandbox
+/sandbox/
