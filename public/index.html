@@ -631,6 +631,16 @@
               <ul id="env-file-list"></ul>
             </div>
 
+            <!-- ファイル比較セクション -->
+            <div class="env-sidebar-section" id="env-diff-section">
+              <div class="env-sidebar-header">ファイル比較</div>
+              <div id="env-diff-controls">
+                <select id="env-diff-a" class="env-diff-select"></select>
+                <select id="env-diff-b" class="env-diff-select"></select>
+                <button id="env-diff-run">比較</button>
+              </div>
+            </div>
+
             <!-- Firebase 環境切り替えパネル -->
             <div class="env-sidebar-section" id="fb-env-section">
               <div class="env-sidebar-header">Firebase 環境</div>
@@ -650,25 +660,53 @@
 
           <!-- 右: 変数テーブル -->
           <div id="env-content">
-            <div id="env-toolbar">
-              <span id="env-file-label">ファイルを選択してください</span>
-              <label id="reveal-label">
-                <input type="checkbox" id="reveal-toggle"> 値を表示
-              </label>
+            <!-- 通常表示 -->
+            <div id="env-normal-view">
+              <div id="env-toolbar">
+                <span id="env-file-label">ファイルを選択してください</span>
+                <label id="reveal-label">
+                  <input type="checkbox" id="reveal-toggle"> 値を表示
+                </label>
+              </div>
+              <div id="env-table-wrap">
+                <table id="env-table">
+                  <thead>
+                    <tr>
+                      <th>キー</th>
+                      <th>値</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="env-tbody">
+                    <tr><td colspan="3" class="deps-empty">← ファイルを選択</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div id="env-table-wrap">
-              <table id="env-table">
-                <thead>
-                  <tr>
-                    <th>キー</th>
-                    <th>値</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody id="env-tbody">
-                  <tr><td colspan="3" class="deps-empty">← ファイルを選択</td></tr>
-                </tbody>
-              </table>
+
+            <!-- 比較表示 -->
+            <div id="env-diff-view" class="hidden">
+              <div id="env-diff-header">
+                <span id="env-diff-title"></span>
+                <button id="env-diff-close" class="btn-ghost">✕ 比較終了</button>
+              </div>
+              <div id="env-diff-legend">
+                <span class="env-diff-badge diff-only-a">左のみ</span>
+                <span class="env-diff-badge diff-only-b">右のみ</span>
+                <span class="env-diff-badge diff-mismatch">値が異なる</span>
+              </div>
+              <div id="env-diff-table-wrap">
+                <table id="env-diff-table">
+                  <thead>
+                    <tr>
+                      <th>キー</th>
+                      <th id="env-diff-th-a">—</th>
+                      <th id="env-diff-th-b">—</th>
+                    </tr>
+                  </thead>
+                  <tbody id="env-diff-tbody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

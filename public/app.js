@@ -2434,15 +2434,30 @@ function renderEnvFileList(files) {
     li.className   = 'env-none';
     li.textContent = '.env ファイルなし';
     envFileList.appendChild(li);
-    return;
+  } else {
+    files.forEach(name => {
+      const li = document.createElement('li');
+      li.textContent = name;
+      li.classList.toggle('active', name === currentEnvFile);
+      li.onclick = () => loadEnvFile(name);
+      envFileList.appendChild(li);
+    });
   }
-  files.forEach(name => {
-    const li = document.createElement('li');
-    li.textContent = name;
-    li.classList.toggle('active', name === currentEnvFile);
-    li.onclick = () => loadEnvFile(name);
-    envFileList.appendChild(li);
+
+  // S3: 比較セレクト更新
+  [envDiffA, envDiffB].forEach(sel => {
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— ファイル選択 —</option>';
+    files.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = f;
+      sel.appendChild(opt);
+    });
+    if (prev && files.includes(prev)) sel.value = prev;
   });
+  if (files.length >= 1 && !envDiffA.value) envDiffA.value = files[0];
+  if (files.length >= 2 && !envDiffB.value) envDiffB.value = files[1];
+  envDiffSection.classList.toggle('hidden', files.length < 2);
 }
 
 async function loadEnvFile(fileName) {
@@ -2493,6 +2508,118 @@ function renderEnvTable() {
 }
 
 revealToggle.addEventListener('change', renderEnvTable);
+
+// =====================================================================
+// S3: 環境変数 diff
+// =====================================================================
+
+const envDiffSection  = document.getElementById('env-diff-section');
+const envDiffA        = document.getElementById('env-diff-a');
+const envDiffB        = document.getElementById('env-diff-b');
+const envDiffRun      = document.getElementById('env-diff-run');
+const envNormalView   = document.getElementById('env-normal-view');
+const envDiffView     = document.getElementById('env-diff-view');
+const envDiffTitle    = document.getElementById('env-diff-title');
+const envDiffClose    = document.getElementById('env-diff-close');
+const envDiffThA      = document.getElementById('env-diff-th-a');
+const envDiffThB      = document.getElementById('env-diff-th-b');
+const envDiffTbody    = document.getElementById('env-diff-tbody');
+
+async function fetchEnvEntries(fileName) {
+  const res  = await fetch(`/api/env/file?path=${encodeURIComponent(currentProjectPath)}&file=${encodeURIComponent(fileName)}`);
+  const data = await res.json();
+  return data.entries || [];
+}
+
+envDiffRun.onclick = async () => {
+  const fa = envDiffA.value;
+  const fb = envDiffB.value;
+  if (!fa || !fb)           { alert('比較するファイルを2つ選択してください'); return; }
+  if (fa === fb)            { alert('異なるファイルを選択してください'); return; }
+  if (!currentProjectPath)  return;
+
+  envDiffRun.disabled = true;
+  envDiffRun.textContent = '比較中...';
+
+  try {
+    const [entriesA, entriesB] = await Promise.all([fetchEnvEntries(fa), fetchEnvEntries(fb)]);
+    renderEnvDiff(fa, fb, entriesA, entriesB);
+  } catch (e) {
+    alert(`比較エラー: ${e.message}`);
+  } finally {
+    envDiffRun.disabled = false;
+    envDiffRun.textContent = '比較';
+  }
+};
+
+envDiffClose.onclick = () => {
+  envDiffView.classList.add('hidden');
+  envNormalView.classList.remove('hidden');
+};
+
+function renderEnvDiff(fa, fb, entriesA, entriesB) {
+  // Map: key → { a, b, sensitiveA, sensitiveB }
+  const mapA = Object.fromEntries(entriesA.map(e => [e.key, e]));
+  const mapB = Object.fromEntries(entriesB.map(e => [e.key, e]));
+  const allKeys = [...new Set([...Object.keys(mapA), ...Object.keys(mapB)])].sort();
+
+  envDiffThA.textContent = fa;
+  envDiffThB.textContent = fb;
+  envDiffTitle.textContent = `${fa}  vs  ${fb}`;
+
+  let onlyA = 0, onlyB = 0, mismatch = 0;
+
+  envDiffTbody.innerHTML = '';
+  allKeys.forEach(key => {
+    const a    = mapA[key];
+    const b    = mapB[key];
+    const tr   = document.createElement('tr');
+    let rowCls = '';
+    let cellA  = '';
+    let cellB  = '';
+
+    if (a && !b) {
+      rowCls = 'diff-row-only-a';
+      cellA  = `<span class="env-value-plain">${escHtml(a.value)}</span>`;
+      cellB  = `<span class="diff-cell-missing">未定義</span>`;
+      onlyA++;
+    } else if (!a && b) {
+      rowCls = 'diff-row-only-b';
+      cellA  = `<span class="diff-cell-missing">未定義</span>`;
+      cellB  = `<span class="env-value-plain">${escHtml(b.value)}</span>`;
+      onlyB++;
+    } else if (a.value !== b.value) {
+      rowCls = 'diff-row-mismatch';
+      cellA  = `<span class="diff-cell-diff">${escHtml(a.value)}</span>`;
+      cellB  = `<span class="diff-cell-diff">${escHtml(b.value)}</span>`;
+      mismatch++;
+    } else {
+      // 一致: 通常表示
+      const sensitive = a.sensitive || b.sensitive;
+      const val = sensitive
+        ? `<span class="env-value-masked">••••••••</span>`
+        : `<span class="env-value-plain">${escHtml(a.value)}</span>`;
+      cellA = val;
+      cellB = val;
+    }
+
+    if (rowCls) tr.className = rowCls;
+    tr.innerHTML = `<td class="env-key">${escHtml(key)}</td><td>${cellA}</td><td>${cellB}</td>`;
+    envDiffTbody.appendChild(tr);
+  });
+
+  // サマリー行
+  const summaryParts = [];
+  if (onlyA)    summaryParts.push(`<span class="env-diff-badge diff-only-a">${fa} のみ: ${onlyA}</span>`);
+  if (onlyB)    summaryParts.push(`<span class="env-diff-badge diff-only-b">${fb} のみ: ${onlyB}</span>`);
+  if (mismatch) summaryParts.push(`<span class="env-diff-badge diff-mismatch">値の差異: ${mismatch}</span>`);
+  if (summaryParts.length === 0) summaryParts.push('<span style="color:var(--ok);font-size:.8rem">差異なし ✓</span>');
+
+  envDiffTitle.innerHTML = `${escHtml(fa)}  vs  ${escHtml(fb)}  &nbsp; ${summaryParts.join(' ')}`;
+
+  envNormalView.classList.add('hidden');
+  envDiffView.classList.remove('hidden');
+}
 
 // =====================================================================
 // Git ステータス（フェーズ7）

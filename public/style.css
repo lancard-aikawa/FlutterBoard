@@ -1833,6 +1833,110 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
 .env-key { color: var(--accent); }
 .env-value-masked { color: var(--muted); letter-spacing: .1em; }
 .env-value-plain  { color: var(--text); }
+.env-sensitive-badge {
+  font-size: .68rem;
+  background: #2a1a1a;
+  color: var(--err);
+  border: 1px solid var(--err);
+  border-radius: 3px;
+  padding: .05rem .3rem;
+}
+
+/* ===== 環境変数 diff ===== */
+#env-diff-section .env-sidebar-header { margin-bottom: .4rem; }
+
+#env-diff-controls {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.env-diff-select {
+  width: 100%;
+  padding: .25rem .4rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .78rem;
+}
+#env-diff-run {
+  align-self: stretch;
+  padding: .25rem;
+  font-size: .78rem;
+}
+
+#env-normal-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+#env-diff-view   { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+#env-diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .45rem .9rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: .5rem;
+}
+#env-diff-title { font-size: .84rem; font-weight: 600; }
+
+#env-diff-legend {
+  display: flex;
+  gap: .5rem;
+  padding: .3rem .9rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.env-diff-badge {
+  font-size: .72rem;
+  padding: .1rem .45rem;
+  border-radius: 3px;
+}
+.diff-only-a    { background: #1a2a3a; color: #6ab0f5; }
+.diff-only-b    { background: #1a2a1a; color: #6fcf6f; }
+.diff-mismatch  { background: #2a2a1a; color: #e0c060; }
+
+#env-diff-table-wrap { flex: 1; overflow-y: auto; }
+
+#env-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+}
+#env-diff-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  padding: .4rem .75rem;
+  text-align: left;
+  font-size: .72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  border-bottom: 1px solid var(--border);
+}
+#env-diff-table td {
+  padding: .35rem .75rem;
+  border-bottom: 1px solid var(--border);
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: .79rem;
+  vertical-align: middle;
+}
+#env-diff-table tr:last-child td { border-bottom: none; }
+
+/* 行の色分け */
+.diff-row-only-a td { background: #14202e; }
+.diff-row-only-b td { background: #142214; }
+.diff-row-mismatch td { background: #221e0e; }
+
+/* セル: 未定義 */
+.diff-cell-missing {
+  color: var(--muted);
+  font-style: italic;
+  font-size: .75rem;
+}
+/* セル: 値が異なる */
+.diff-cell-diff { color: var(--warn); }
+
 /* ===== Git タブ ===== */
 #tab-git {
   height: calc(100vh - var(--header-h) - 90px);
