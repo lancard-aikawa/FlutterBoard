@@ -11,6 +11,14 @@
   <header>
     <h1>FlutterBoard</h1>
     <div id="current-project">プロジェクト未選択</div>
+    <div id="fb-env-header" class="hidden">
+      <button id="fb-header-firebase" class="fb-env-pill" title="Firebase プロジェクト切り替え">
+        Firebase: <span id="fb-header-alias">—</span>
+      </button>
+      <button id="fb-header-env" class="fb-env-pill" title=".env ファイル切り替え">
+        ENV: <span id="fb-header-envname">—</span>
+      </button>
+    </div>
     <button id="change-project-btn" class="btn-ghost">変更</button>
   </header>
 
@@ -449,12 +457,21 @@
       <!-- 環境変数タブ -->
       <div id="tab-env" class="tab-content hidden">
         <div id="env-layout">
-          <!-- 左: ファイル一覧 + Firebase リンク -->
+          <!-- 左: ファイル一覧 + Firebase 環境 + Firebase リンク -->
           <aside id="env-sidebar">
             <div class="env-sidebar-section">
               <div class="env-sidebar-header">.env ファイル</div>
               <ul id="env-file-list"></ul>
             </div>
+
+            <!-- Firebase 環境切り替えパネル -->
+            <div class="env-sidebar-section" id="fb-env-section">
+              <div class="env-sidebar-header">Firebase 環境</div>
+              <div id="fb-env-panel">
+                <div class="fb-env-loading">読み込み中...</div>
+              </div>
+            </div>
+
             <div class="env-sidebar-section">
               <div class="env-sidebar-header">Firebase</div>
               <a id="emulator-link" href="http://localhost:4000" target="_blank" rel="noopener" class="emulator-btn">

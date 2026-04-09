@@ -10,6 +10,7 @@ const { handleGit }         = require('./gitStatus');
 const { handleDevTools }    = require('./devtoolsManager');
 const { handleSequence }    = require('./sequenceRunner');
 const { handleContext }     = require('./contextProvider');
+const { handleFirebaseEnv } = require('./firebaseEnv');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -63,6 +64,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/context')) {
     return handleContext(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/firebaseenv')) {
+    return handleFirebaseEnv(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

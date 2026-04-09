@@ -125,6 +125,7 @@ async function selectProject(projectPath) {
   loadMdList(data.selected);
   loadEnvList(data.selected);
   loadGitStatus();
+  loadFirebaseEnvStatus(data.selected);
 }
 
 openBtn.onclick = () => {
@@ -2217,6 +2218,155 @@ setInterval(() => {
     refreshProcessList(null);
   }
 }, 10000);
+
+// =====================================================================
+// R4: Firebase 環境切り替えパネル
+// =====================================================================
+
+const fbEnvHeader     = document.getElementById('fb-env-header');
+const fbHeaderAlias   = document.getElementById('fb-header-alias');
+const fbHeaderEnvname = document.getElementById('fb-header-envname');
+const fbHeaderFirebase = document.getElementById('fb-header-firebase');
+const fbHeaderEnv     = document.getElementById('fb-header-env');
+const fbEnvPanel      = document.getElementById('fb-env-panel');
+
+// ヘッダーのピルをクリックしたら環境変数タブを開く
+function openEnvTab() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+  const btn = document.querySelector('.tab[data-tab="env"]');
+  if (btn) btn.classList.add('active');
+  const content = document.getElementById('tab-env');
+  if (content) content.classList.remove('hidden');
+}
+fbHeaderFirebase.onclick = openEnvTab;
+fbHeaderEnv.onclick      = openEnvTab;
+
+async function loadFirebaseEnvStatus(projectPath) {
+  fbEnvPanel.innerHTML = '<div class="fb-env-loading">読み込み中...</div>';
+  fbEnvHeader.classList.add('hidden');
+
+  const res  = await fetch(`/api/firebaseenv/status?path=${encodeURIComponent(projectPath)}`);
+  const data = await res.json();
+  if (data.error) {
+    fbEnvPanel.innerHTML = `<div class="fb-env-loading">${escHtml(data.error)}</div>`;
+    return;
+  }
+
+  renderFbEnvPanel(data);
+  updateFbEnvHeader(data);
+}
+
+function updateFbEnvHeader(data) {
+  const hasFirebase = data.currentAlias !== null;
+  const hasEnv      = data.activeEnv !== null || data.envVariants.length > 0;
+
+  if (!hasFirebase && !hasEnv) {
+    fbEnvHeader.classList.add('hidden');
+    return;
+  }
+
+  fbHeaderAlias.textContent   = data.currentAlias || '未設定';
+  fbHeaderEnvname.textContent = data.activeEnv
+    ? data.activeEnv.replace(/^\.env\./, '')
+    : '未設定';
+
+  fbEnvHeader.classList.remove('hidden');
+}
+
+function renderFbEnvPanel(data) {
+  const { aliases, currentAlias, currentProjectId, envVariants, activeEnv } = data;
+  const aliasKeys = Object.keys(aliases);
+
+  let html = '';
+
+  // ---- Firebase プロジェクト切り替え ----
+  if (aliasKeys.length > 0) {
+    html += `<div class="fb-env-group">
+      <div class="fb-env-group-label">firebase use</div>
+      <div class="fb-env-btns">`;
+    aliasKeys.forEach(alias => {
+      const active = alias === currentAlias;
+      html += `<button class="fb-use-btn${active ? ' active' : ''}" data-alias="${escHtml(alias)}">${escHtml(alias)}</button>`;
+    });
+    html += `</div>`;
+    if (currentProjectId) {
+      html += `<div class="fb-env-project-id">${escHtml(currentProjectId)}</div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<div class="fb-env-group">
+      <div class="fb-env-group-label">firebase use</div>
+      <div class="fb-env-none">.firebaserc 未検出</div>
+    </div>`;
+  }
+
+  // ---- .env ファイル切り替え ----
+  if (envVariants.length > 0) {
+    html += `<div class="fb-env-group">
+      <div class="fb-env-group-label">.env 切り替え</div>
+      <div class="fb-env-btns">`;
+    envVariants.forEach(name => {
+      const active  = name === activeEnv;
+      const label   = name.replace(/^\.env\./, '');
+      html += `<button class="fb-env-btn${active ? ' active' : ''}" data-file="${escHtml(name)}">${escHtml(label)}</button>`;
+    });
+    html += `</div>`;
+    if (activeEnv) {
+      html += `<div class="fb-env-project-id">現在: ${escHtml(activeEnv)}</div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<div class="fb-env-group">
+      <div class="fb-env-group-label">.env 切り替え</div>
+      <div class="fb-env-none">.env.* ファイルなし</div>
+    </div>`;
+  }
+
+  fbEnvPanel.innerHTML = html;
+
+  // firebase use ボタン
+  fbEnvPanel.querySelectorAll('.fb-use-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const alias = btn.dataset.alias;
+      const isProd = /prod/i.test(alias);
+      if (isProd && !confirm(`本番環境 "${alias}" に切り替えます。よろしいですか？`)) return;
+
+      btn.disabled = true;
+      const res  = await fetch('/api/firebaseenv/use', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: currentProjectPath, alias }),
+      });
+      const data = await res.json();
+      btn.disabled = false;
+      if (data.error) { alert(`エラー: ${data.error}`); return; }
+      loadFirebaseEnvStatus(currentProjectPath);
+    };
+  });
+
+  // .env 切り替えボタン
+  fbEnvPanel.querySelectorAll('.fb-env-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const file   = btn.dataset.file;
+      const isProd = /prod/i.test(file);
+      if (isProd && !confirm(`本番環境ファイル "${file}" を .env にコピーします。よろしいですか？`)) return;
+
+      btn.disabled = true;
+      const res  = await fetch('/api/firebaseenv/env-switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: currentProjectPath, file }),
+      });
+      const data = await res.json();
+      btn.disabled = false;
+      if (data.error) { alert(`エラー: ${data.error}`); return; }
+      // リロードして状態を反映
+      loadFirebaseEnvStatus(currentProjectPath);
+      loadEnvList(currentProjectPath);
+    };
+  });
+}
 
 // =====================================================================
 // 初期ロード

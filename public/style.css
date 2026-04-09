@@ -1833,6 +1833,89 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
   font-style: italic;
 }
 
+/* ===== R4: Firebase 環境切り替えパネル ===== */
+
+/* ヘッダーのピル */
+#fb-env-header {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-shrink: 0;
+}
+.fb-env-pill {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: .2rem .65rem;
+  font-size: .75rem;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.fb-env-pill:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+.fb-env-pill span { color: var(--text); font-weight: 600; }
+
+/* サイドパネル内の Firebase 環境セクション */
+#fb-env-panel {
+  padding: .4rem .5rem .6rem;
+}
+.fb-env-loading {
+  font-size: .78rem;
+  color: var(--muted);
+  font-style: italic;
+  padding: .35rem .25rem;
+}
+.fb-env-group {
+  margin-bottom: .55rem;
+}
+.fb-env-group:last-child { margin-bottom: 0; }
+.fb-env-group-label {
+  font-size: .68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: .3rem;
+}
+.fb-env-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+}
+.fb-use-btn,
+.fb-env-btn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: .2rem .55rem;
+  font-size: .78rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+.fb-use-btn:hover,
+.fb-env-btn:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+.fb-use-btn.active,
+.fb-env-btn.active {
+  border-color: var(--ok);
+  color: var(--ok);
+  font-weight: 600;
+}
+.fb-env-project-id {
+  font-size: .72rem;
+  color: var(--muted);
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  margin-top: .25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fb-env-none {
+  font-size: .78rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
 .env-sensitive-badge {
   font-size: .68rem;
   color: var(--warn);
