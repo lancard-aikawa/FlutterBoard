@@ -188,6 +188,12 @@ const devtoolsBar       = document.getElementById('devtools-bar');
 const devtoolsLink      = document.getElementById('devtools-link');
 const devtoolsLaunchBtn = document.getElementById('devtools-launch-btn');
 const vmServiceLink     = document.getElementById('vmservice-link');
+const vmBar             = document.getElementById('vm-bar');
+const vmBarUrl          = document.getElementById('vm-bar-url');
+const vmBarDetach       = document.getElementById('vm-bar-detach');
+const logArea           = document.getElementById('log-area');
+const vmUrlInput        = document.getElementById('vm-url-input');
+const vmAttachBtn       = document.getElementById('vm-attach-btn');
 
 // URL detection (mirrors server-side patterns)
 const DEVTOOLS_URL_RE   = /https?:\/\/[\w.:-]+\?uri=\S+/;
@@ -307,7 +313,7 @@ async function _doRefresh(selectId) {
   // selectId=null means "update list UI only" — do NOT re-open SSE via selectProcess
   if (selectId != null) {
     const target = list.find(p => p.id === selectId);
-    if (target) selectProcess(target.id, target.label, target.running, target.devToolsUrl || null, target.vmServiceUrl || null);
+    if (target) selectProcess(target.id, target.label, target.running, target.devToolsUrl || null, target.vmServiceUrl || null, target.vm || false);
   }
 }
 
@@ -319,11 +325,12 @@ function buildProcessItem(p) {
   const dotClass  = p.running ? 'running' : (p.exitCode !== 0 ? 'error' : 'exited');
   const elapsed   = formatElapsed(p.startedAt);
   const ptyBadge  = p.pty ? '<span class="pty-badge">PTY</span>' : '';
+  const vmBadge   = p.vm  ? '<span class="vm-badge">VM</span>'   : '';
 
   li.innerHTML = `
     <div class="proc-top">
       <span class="proc-dot ${dotClass}"></span>
-      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}</span>
+      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}${vmBadge}</span>
       <span class="proc-actions">
         ${p.running
           ? `<button class="btn-stop">■</button>`
@@ -334,7 +341,7 @@ function buildProcessItem(p) {
 
   li.addEventListener('click', e => {
     if (e.target.closest('button')) return;
-    selectProcess(p.id, p.label, p.running, p.devToolsUrl || null, p.vmServiceUrl || null);
+    selectProcess(p.id, p.label, p.running, p.devToolsUrl || null, p.vmServiceUrl || null, p.vm || false);
   });
 
   li.querySelector('.btn-stop, .btn-remove').addEventListener('click', async e => {
@@ -375,7 +382,7 @@ function buildProcessItem(p) {
 }
 
 // ---- プロセス選択 → SSE接続 ----
-function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = null) {
+function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = null, isVm = false) {
   // S4: combined view が開いていたら閉じる
   if (typeof combinedActive !== 'undefined' && combinedActive) exitCombinedView();
 
@@ -398,12 +405,22 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
   activeVmServiceUrl = vmServiceUrl;
   renderDevToolsBar();
 
+  // VM バーと vm-mode クラスの切り替え
+  if (isVm && vmServiceUrl) {
+    vmBarUrl.textContent = vmServiceUrl;
+    vmBar.classList.remove('hidden');
+    logArea.classList.add('vm-mode');
+  } else {
+    vmBar.classList.add('hidden');
+    logArea.classList.remove('vm-mode');
+  }
+
   document.querySelectorAll('.proc-item').forEach(el => {
     el.classList.toggle('active', parseInt(el.dataset.id) === id);
   });
 
-  // stdin バーは実行中のみ表示
-  stdinBar.classList.toggle('hidden', !running);
+  // stdin バーは実行中かつ VM でない場合のみ表示
+  stdinBar.classList.toggle('hidden', !running || isVm);
 
   const sse = new EventSource(`/api/process/stream?id=${id}`);
   activeSSE = sse;
@@ -676,6 +693,49 @@ logSave.onclick = () => {
 
 // ---- ログクリア ----
 logClear.onclick = () => { logOutput.innerHTML = ''; logBuffer = []; };
+
+// ---- VM Service attach ----
+
+vmAttachBtn.addEventListener('click', attachVM);
+vmUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') attachVM(); });
+
+async function attachVM() {
+  const vmUrl = vmUrlInput.value.trim();
+  if (!vmUrl) return;
+  vmAttachBtn.disabled = true;
+  vmAttachBtn.textContent = '接続中...';
+  try {
+    const res  = await fetch('/api/process/attach-vm', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ label: `VM:${vmUrl}`, vmUrl }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      vmUrlInput.value = '';
+      refreshProcessList(data.id);  // 新しいプロセスを選択状態で表示
+    } else {
+      alert(`VM Service 接続エラー: ${data.error}`);
+    }
+  } catch (e) {
+    alert(`接続失敗: ${e.message}`);
+  } finally {
+    vmAttachBtn.disabled = false;
+    vmAttachBtn.textContent = '📡 Attach';
+  }
+}
+
+// VM Service 切断ボタン
+vmBarDetach.addEventListener('click', async () => {
+  if (activeId === null) return;
+  await fetch('/api/process/stop', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ id: activeId }),
+  });
+  stdinBar.classList.add('hidden');
+  [500, 1500].forEach(d => setTimeout(() => refreshProcessList(null), d));
+});
 
 // ---- stdin ----
 

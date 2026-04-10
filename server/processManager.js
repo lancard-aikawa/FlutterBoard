@@ -1,4 +1,5 @@
 const { spawn } = require('child_process');
+const { connectVMService, parseVMEvent } = require('./vmService');
 
 // Try to load node-pty; fall back to child_process.spawn if unavailable
 let pty = null;
@@ -205,6 +206,9 @@ function handleProcess(req, res, url) {
       if (!entry || entry.exitCode !== null) {
         return res.end(JSON.stringify({ ok: false, error: 'Process not running' }));
       }
+      if (entry.isVm) {
+        return res.end(JSON.stringify({ ok: false, error: 'VM attach process has no stdin' }));
+      }
 
       try {
         if (entry.isPty) {
@@ -249,7 +253,11 @@ function handleProcess(req, res, url) {
       const entry  = processes.get(id);
       if (entry && entry.exitCode === null) {
         try {
-          if (entry.isPty) {
+          if (entry.isVm) {
+            // VM Service attach プロセス: WebSocket を閉じて終了
+            if (entry.wsConn) entry.wsConn.close();
+            setTimeout(() => { forceExit(entry); }, 500);
+          } else if (entry.isPty) {
             // 1. Ctrl+C: flutter run など対話プロセスの正常終了を試みる
             entry.handle.write('\x03');
             // Windows: flutter は flutter.bat (バッチファイル) のため Ctrl+C 後に
@@ -322,11 +330,93 @@ function handleProcess(req, res, url) {
       running:      e.exitCode === null,
       exitCode:     e.exitCode,
       pty:          e.isPty,
+      vm:           e.isVm   || false,
       devToolsUrl:  e.devToolsUrl  || null,
       vmServiceUrl: e.vmServiceUrl || null,
     }));
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(list));
+  }
+
+  // POST /api/process/attach-vm  { label, vmUrl }
+  // Dart VM Service WebSocket に接続し、ログをキャプチャするプロセスエントリを作成する
+  if (pathname === '/api/process/attach-vm' && req.method === 'POST') {
+    return readBody(req, body => {
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }));
+      }
+      const { label, vmUrl } = parsed;
+      if (!vmUrl) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'vmUrl required' }));
+      }
+
+      const id      = nextId++;
+      const clients = new Set();
+      const buffer  = [];
+
+      const broadcast = (type, data) => {
+        const item = { type, data, ts: Date.now() };
+        buffer.push(item);
+        if (buffer.length > LOG_BUFFER_MAX) buffer.shift();
+        const msg = `data: ${JSON.stringify(item)}\n\n`;
+        clients.forEach(c => { try { c.write(msg); } catch (_) {} });
+      };
+
+      const entry = {
+        handle: null, isPty: false, isVm: true,
+        wsConn: null,
+        clients, label: label || `VM:${vmUrl}`, cmd: 'vm-attach', args: [], cwd: null,
+        startedAt:    Date.now(),
+        exitCode:     null,
+        buffer,
+        devToolsUrl:  null,
+        vmServiceUrl: vmUrl,
+      };
+
+      let responded = false;
+
+      // 5s 以内に接続できなければタイムアウト
+      const timer = setTimeout(() => {
+        if (responded) return;
+        responded = true;
+        entry._earlyClose?.close();
+        res.writeHead(504, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Connection timeout (5s)' }));
+      }, 5000);
+
+      entry._earlyClose = connectVMService(vmUrl, {
+        onOpen(ws) {
+          entry.wsConn = ws;
+          processes.set(id, entry);
+          clearTimeout(timer);
+          if (responded) return;
+          responded = true;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, id }));
+          broadcast('stdout', `[FlutterBoard] VM Service 接続: ${vmUrl}\n`);
+        },
+        onMessage(json) {
+          const ev = parseVMEvent(json);
+          if (ev) broadcast(ev.type, ev.text);
+        },
+        onClose() {
+          clearTimeout(timer);
+          if (!responded) {
+            responded = true;
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'VM Service connection failed' }));
+            return;
+          }
+          if (entry.exitCode === null) {
+            entry.exitCode = 0;
+            broadcast('exit', '[FlutterBoard] VM Service との接続が切断されました\n');
+          }
+        },
+      });
+    });
   }
 
   // GET /api/process/combined-log — 全プロセスのバッファをタイムスタンプ順で返す

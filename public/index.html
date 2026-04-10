@@ -75,6 +75,10 @@
             <button id="combined-view-btn" class="btn-ghost combined-proc-btn" title="実行中の全プロセスのログをタイムスタンプ順にまとめて表示。横断フィルタ・レベル絞り込みも可能">全プロセス統合</button>
           </div>
           <ul id="process-list"></ul>
+          <div id="vm-attach-form">
+            <input type="text" id="vm-url-input" placeholder="VM Service URL (http://127.0.0.1:PORT/...)" title="flutter run のログに表示される VM Service URL を貼り付け。devtools-bar の「VM Service ↗」リンクをコピーして使用可能">
+            <button id="vm-attach-btn" title="VM Service に WebSocket 接続してログをキャプチャ">📡 Attach</button>
+          </div>
         </aside>
         <div id="log-area">
           <div id="log-toolbar">
@@ -97,6 +101,12 @@
               </label>
               <input type="text" id="log-group-marker" class="log-group-marker-input hidden" placeholder="[FB:SCREEN]" title="セクション区切りマーカー">
             </div>
+          </div>
+          <div id="vm-bar" class="hidden">
+            <span class="vm-bar-icon">📡</span>
+            <span class="vm-bar-label">VM Service キャプチャ中</span>
+            <span id="vm-bar-url" class="vm-bar-url"></span>
+            <button id="vm-bar-detach" class="vm-bar-btn">切断</button>
           </div>
           <div id="devtools-bar" class="hidden">
             <span class="devtools-label">Flutter DevTools 検出</span>

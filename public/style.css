@@ -7,10 +7,11 @@
   --accent:  #7c9ef8;
   --text:    #cdd6f4;
   --muted:   #6c7086;
-  --ok:      #a6e3a1;
-  --err:     #f38ba8;
-  --warn:    #f9e2af;
-  --header-h: 48px;
+  --ok:        #a6e3a1;
+  --err:       #f38ba8;
+  --warn:      #f9e2af;
+  --vm-accent: #2dd4bf;   /* teal — VM Service キャプチャの識別色 */
+  --header-h:  48px;
 }
 
 body {
@@ -277,6 +278,40 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   letter-spacing: .04em;
 }
 .proc-meta { font-size: .72rem; color: var(--muted); padding-left: 1.1rem; }
+
+/* VM バッジ（PTY バッジと同形状、teal 色で区別） */
+.vm-badge {
+  display: inline-block;
+  font-size: .6rem;
+  padding: .05em .35em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--vm-accent) 15%, transparent);
+  color: var(--vm-accent);
+  margin-left: .3rem;
+  vertical-align: middle;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+/* VM attach フォーム */
+#vm-attach-form {
+  display: flex;
+  gap: .35rem;
+  padding: .45rem .5rem .3rem;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+#vm-attach-form input {
+  flex: 1;
+  font-size: .75rem;
+  min-width: 0;
+}
+#vm-attach-btn {
+  font-size: .75rem;
+  padding: .25rem .5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 /* ===== ログエリア（右） ===== */
 #log-area {
@@ -558,6 +593,51 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 .devtools-btn-launch:disabled {
   opacity: .65;
   cursor: default;
+}
+
+/* === VM Service バー === */
+#vm-bar {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .3rem .75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--vm-accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--vm-accent) 7%, var(--surface));
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.vm-bar-icon { font-size: .85rem; }
+.vm-bar-label {
+  font-size: .72rem;
+  color: var(--vm-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.vm-bar-url {
+  font-size: .7rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.vm-bar-btn {
+  font-size: .7rem;
+  padding: .2rem .5rem;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--vm-accent);
+  color: var(--vm-accent);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.vm-bar-btn:hover { background: color-mix(in srgb, var(--vm-accent) 12%, transparent); }
+
+/* VM モード: ログエリア左に teal ボーダーを引いて視覚的に区別 */
+#log-area.vm-mode {
+  border-left: 3px solid var(--vm-accent);
 }
 
 /* === stdin バー === */
