@@ -2953,3 +2953,21 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
   color: var(--muted);
 }
 .snap-del-btn:hover { color: var(--err); }
+
+/* ===== 依存ツリー凡例 ===== */
+#tree-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .3rem .8rem;
+  padding: .35rem .6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  margin-bottom: .4rem;
+  font-size: .75rem;
+}
+.tree-legend-item { white-space: nowrap; }
+.tree-legend-conflict { color: var(--err); }
+.tree-legend-sep     { color: var(--border); }
+.tree-legend-click   { color: var(--muted); font-style: italic; }

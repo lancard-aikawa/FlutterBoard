@@ -616,6 +616,15 @@
             <button id="tree-expand-all"   class="btn-ghost">全展開</button>
             <button id="tree-collapse-all" class="btn-ghost">全折り畳み</button>
           </div>
+          <div id="tree-legend">
+            <span class="tree-legend-item tree-kind-root">■ ルート</span>
+            <span class="tree-legend-item tree-kind-direct">■ 直接依存</span>
+            <span class="tree-legend-item tree-kind-dev">■ dev 依存</span>
+            <span class="tree-legend-item tree-kind-transitive">■ 間接依存</span>
+            <span class="tree-legend-item tree-legend-conflict">■ バージョン競合</span>
+            <span class="tree-legend-sep">｜</span>
+            <span class="tree-legend-item tree-legend-click">クリックで逆引き（どこから依存されているか）</span>
+          </div>
           <div id="tree-status"></div>
           <div id="tree-body" class="hidden">
             <div id="tree-root"></div>
