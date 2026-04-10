@@ -77,12 +77,13 @@ async function handleGit(req, res, url) {
     }
 
     // 並列取得
-    const [branch, porcelain, logRaw, stashRaw, totalRaw] = await Promise.all([
+    const [branch, porcelain, logRaw, stashRaw, totalRaw, aheadBehindRaw] = await Promise.all([
       git(['branch', '--show-current'], cwd),
       git(['status', '--porcelain'], cwd),
       git(['log', `--format=%H|%h|%s|%an|%ar`, `--skip=${logOffset}`, `-${logLimit}`], cwd),
       git(['stash', 'list', '--format=%gd: %s'], cwd),
       git(['rev-list', '--count', 'HEAD'], cwd),
+      git(['rev-list', '--left-right', '--count', 'HEAD...@{u}'], cwd),
     ]);
 
     if (branch === null && porcelain === null) {
@@ -95,6 +96,13 @@ async function handleGit(req, res, url) {
     const stashes      = stashRaw ? stashRaw.split('\n').filter(Boolean) : [];
     const totalCommits = totalRaw ? parseInt(totalRaw, 10) : 0;
 
+    // ahead/behind: "N\tM" → ahead=N, behind=M（リモートなし時は null）
+    let ahead = null, behind = null;
+    if (aheadBehindRaw) {
+      const [a, b] = aheadBehindRaw.trim().split(/\s+/).map(Number);
+      if (!isNaN(a) && !isNaN(b)) { ahead = a; behind = b; }
+    }
+
     const summary = {
       staged:    changes.filter(c => c.staged).length,
       unstaged:  changes.filter(c => !c.staged && c.status !== 'untracked').length,
@@ -105,6 +113,8 @@ async function handleGit(req, res, url) {
     return res.end(JSON.stringify({
       isGit: true,
       branch: branch || '(detached HEAD)',
+      ahead,
+      behind,
       changes,
       summary,
       commits,

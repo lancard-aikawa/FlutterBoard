@@ -2842,8 +2842,12 @@ async function loadGitStatus(logOnly = false) {
   }
   gitBranch.style.color = '';
 
-  // ブランチ
-  gitBranch.textContent = `⎇ ${data.branch}`;
+  // ブランチ + ahead/behind
+  let branchText = `⎇ ${data.branch}`;
+  if (data.ahead !== null && data.behind !== null) {
+    branchText += `  ↑${data.ahead} ↓${data.behind}`;
+  }
+  gitBranch.textContent = branchText;
 
   // サマリー
   gitSummary.innerHTML = `
