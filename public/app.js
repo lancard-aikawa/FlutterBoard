@@ -346,15 +346,29 @@ function buildProcessItem(p) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
-    if (activeId === id) {
-      if (activeSSE) { activeSSE.close(); activeSSE = null; }  // SSE を明示的に閉じる
-      activeId = null; logBuffer = [];
-      logOutput.innerHTML  = '<span class="log-muted">Select a process to view logs</span>';
-      logTitle.textContent = 'Select a process to view logs';
-      logTitle.classList.remove('exited');
-      stdinBar.classList.add('hidden');
+    if (p.running) {
+      if (activeId === id) {
+        // SSE は閉じない — プロセス終了後に exit イベントが届いてから UI を更新する
+        // 停止処理中は stdin 入力だけ無効化しておく
+        stdinBar.classList.add('hidden');
+      }
+      // 終了が遅れた場合のフォールバック: 数回プロセス一覧を再取得
+      // （SSE が既に閉じられているケースや非アクティブプロセス向け）
+      [1500, 3000, 5000].forEach(delay => {
+        setTimeout(() => refreshProcessList(null), delay);
+      });
+    } else {
+      // remove ボタン（停止済みプロセスの削除）: 即座にリスト更新
+      if (activeId === id) {
+        if (activeSSE) { activeSSE.close(); activeSSE = null; }
+        activeId = null; logBuffer = [];
+        logOutput.innerHTML  = '<span class="log-muted">Select a process to view logs</span>';
+        logTitle.textContent = 'Select a process to view logs';
+        logTitle.classList.remove('exited');
+        stdinBar.classList.add('hidden');
+      }
+      refreshProcessList(null);
     }
-    refreshProcessList(null);
   });
 
   return li;

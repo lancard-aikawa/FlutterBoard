@@ -4,6 +4,18 @@ const path = require('path');
 
 const { handleApi } = require('./api');
 
+// node-pty の Windows 実装が PTY 終了後に内部 Promise callback で
+// uncaughtException を投げる既知バグがある。サーバーのクラッシュを防ぐため吸収する。
+process.on('uncaughtException', err => {
+  if (err && err.stack && err.stack.includes('node-pty')) {
+    console.warn('[server] node-pty uncaughtException (suppressed):', err.message);
+    return;
+  }
+  // node-pty 以外の予期しないエラーは再スロー
+  console.error('[server] uncaughtException:', err);
+  process.exit(1);
+});
+
 const PORT = process.argv.includes('--port')
   ? parseInt(process.argv[process.argv.indexOf('--port') + 1])
   : 3210;

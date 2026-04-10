@@ -73,6 +73,21 @@ function spawnProcess(cmd, args, cwd) {
 }
 
 // =====================================================================
+// Force-exit helper — exitCode を強制セットして SSE クライアントへ通知
+// exit イベントが発火しない場合（Windows PTY など）のフォールバック用
+// =====================================================================
+
+function forceExit(entry) {
+  if (entry.exitCode !== null) return;
+  entry.exitCode = -1;
+  const item = { type: 'exit', data: 'Process force-killed (code: -1)', ts: Date.now() };
+  entry.buffer.push(item);
+  if (entry.buffer.length > LOG_BUFFER_MAX) entry.buffer.shift();
+  const msg = `data: ${JSON.stringify(item)}\n\n`;
+  entry.clients.forEach(c => { try { c.write(msg); } catch (_) {} });
+}
+
+// =====================================================================
 // Request handler
 // =====================================================================
 
@@ -235,20 +250,45 @@ function handleProcess(req, res, url) {
       if (entry && entry.exitCode === null) {
         try {
           if (entry.isPty) {
-            // PTY: SIGINT first (Ctrl+C), then force kill after 2s
+            // 1. Ctrl+C: flutter run など対話プロセスの正常終了を試みる
             entry.handle.write('\x03');
+            // Windows: flutter は flutter.bat (バッチファイル) のため Ctrl+C 後に
+            //   "バッチ ジョブを終了しますか (Y/N)?" プロンプトが出て cmd.exe が停止する。
+            //   200ms 後に Y を自動送信してプロンプトを解除する。
+            if (process.platform === 'win32') {
+              setTimeout(() => { try { entry.handle.write('Y\r\n'); } catch (_) {} }, 200);
+            }
+            // 2. 2s 後: PTY プロセスを強制終了
+            //    Windows: handle.kill() は内部の Promise callback で uncaught exception を
+            //    投げる既知バグがあるため使用しない。taskkill /T /F のみで終了する。
+            //    Y で cmd.exe を抜けても dart.exe が残る場合もここで確実に終了。
+            //    非 Windows: handle.kill() で PTY に SIGTERM を送る。
             setTimeout(() => {
-              if (entry.exitCode === null) entry.handle.kill();
+              if (entry.exitCode === null) {
+                if (process.platform === 'win32') {
+                  if (entry.handle.pid) {
+                    const { execFile } = require('child_process');
+                    execFile('taskkill', ['/PID', String(entry.handle.pid), '/T', '/F'], () => {});
+                  }
+                } else {
+                  try { entry.handle.kill(); } catch (_) {}
+                }
+              }
             }, 2000);
+            // 3. 3.5s 後: exit イベントが発火しない場合（node-pty の Windows 既知問題）は
+            //    強制的に exitCode をセットして UI を更新させる
+            setTimeout(() => { forceExit(entry); }, 3500);
           } else {
             if (process.platform === 'win32') {
               // Windows pipe: taskkill でプロセスツリーごと終了
               const { execFile } = require('child_process');
               execFile('taskkill', ['/PID', String(entry.handle.pid), '/T', '/F'], () => {});
+              setTimeout(() => { forceExit(entry); }, 2000);
             } else {
               entry.handle.kill('SIGINT');
               setTimeout(() => {
                 if (entry.exitCode === null) entry.handle.kill('SIGKILL');
+                setTimeout(() => { forceExit(entry); }, 1000);
               }, 2000);
             }
           }

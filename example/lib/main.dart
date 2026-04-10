@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -33,6 +34,9 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
   void _incrementCounter() {
+    debugPrint("[FB:SCREEN]");
+    debugPrint("$_counter clicked");
+    //
     setState(() {
       _counter++;
     });
