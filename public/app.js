@@ -1627,7 +1627,7 @@ let depsSource    = 'pubspec';
 let depsActiveTab = 'pubspec';
 
 document.querySelectorAll('.deps-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     document.querySelectorAll('.deps-tab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     depsActiveTab = btn.dataset.depsTab;

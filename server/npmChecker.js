@@ -284,13 +284,13 @@ async function handleNpm(req, res, url) {
     const dirs = [];
     try {
       if (fs.existsSync(path.join(projectPath, 'package.json'))) {
-        dirs.push({ label: '.', dir: projectPath });
+        dirs.push({ label: './', dir: projectPath });
       }
       for (const entry of fs.readdirSync(projectPath, { withFileTypes: true })) {
         if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
         const sub = path.join(projectPath, entry.name);
         if (fs.existsSync(path.join(sub, 'package.json'))) {
-          dirs.push({ label: entry.name, dir: sub });
+          dirs.push({ label: `${entry.name}/`, dir: sub });
         }
       }
     } catch {}
