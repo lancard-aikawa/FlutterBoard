@@ -615,6 +615,7 @@
               <button class="tree-type-btn active" data-tree-type="flutter">Flutter</button>
               <button class="tree-type-btn"        data-tree-type="npm">npm</button>
             </div>
+            <select id="tree-pkgdir-select" class="hidden"></select>
             <button id="tree-fetch-btn" class="ctx-fetch-btn" title="flutter pub deps --json / npm ls --json を実行して依存ツリーを取得。結果はキャッシュされ次回は即時表示">取得 ▶</button>
             <input type="text" id="tree-search" placeholder="パッケージ名で絞り込み..." class="tree-search-input">
             <button id="tree-expand-all"   class="btn-ghost" title="ツリーの全ノードを展開して間接依存まですべて表示">全展開</button>

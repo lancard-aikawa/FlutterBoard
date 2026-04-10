@@ -1633,7 +1633,16 @@ document.querySelectorAll('.deps-tab').forEach(btn => {
     depsActiveTab = btn.dataset.depsTab;
     if (depsActiveTab !== 'security' && depsActiveTab !== 'tree') depsSource = depsActiveTab;
     applyDepsTabUi(depsActiveTab);
-    if (depsActiveTab === 'tree'     && currentProjectPath) { loadTree(false); return; }
+    if (depsActiveTab === 'tree' && currentProjectPath) {
+      if (treeType === 'npm') {
+        await loadNpmPkgList();
+        treePkgdirSelect.classList.remove('hidden');
+      } else {
+        treePkgdirSelect.classList.add('hidden');
+      }
+      loadTree(false);
+      return;
+    }
     if (depsActiveTab === 'security' && currentProjectPath) { loadOsv(false); return; }
     if (depsActiveTab === 'npm'      && currentProjectPath) { await loadNpmPkgList(); }
     if (currentProjectPath) checkDeps();
@@ -1648,28 +1657,33 @@ npmPkgdirSelect.addEventListener('change', () => {
   checkDeps(false);
 });
 
-async function loadNpmPkgList() {
+async function loadNpmPkgList({ treeSelect = false } = {}) {
   if (!currentProjectPath) return;
   try {
     const res  = await fetch(`/api/npm/list?path=${encodeURIComponent(currentProjectPath)}`);
     const data = await res.json();
     const dirs = data.dirs || [];
-    npmPkgdirSelect.innerHTML = dirs.map(d =>
+    const optHtml = dirs.map(d =>
       `<option value="${escHtml(d.dir)}">${escHtml(d.label)}</option>`
     ).join('');
+
+    // package.json タブのセレクタ
+    npmPkgdirSelect.innerHTML = optHtml;
     if (dirs.length > 1) {
       npmPkgdirRow.classList.remove('hidden');
-      // 現在の選択を維持（プロジェクト変更後は先頭に戻す）
-      if (currentNpmDir && dirs.some(d => d.dir === currentNpmDir)) {
-        npmPkgdirSelect.value = currentNpmDir;
-      } else {
-        currentNpmDir = dirs[0]?.dir || null;
-        npmPkgdirSelect.value = currentNpmDir || '';
-      }
     } else {
       npmPkgdirRow.classList.add('hidden');
+    }
+
+    // 依存ツリータブのセレクタ
+    treePkgdirSelect.innerHTML = optHtml;
+
+    // currentNpmDir を確定（プロジェクト変更後は先頭に戻す）
+    if (!currentNpmDir || !dirs.some(d => d.dir === currentNpmDir)) {
       currentNpmDir = dirs[0]?.dir || null;
     }
+    npmPkgdirSelect.value  = currentNpmDir || '';
+    treePkgdirSelect.value = currentNpmDir || '';
   } catch {}
 }
 
@@ -3169,6 +3183,7 @@ function renderOsvResult(data) {
 // =====================================================================
 
 const treeFetchBtn      = document.getElementById('tree-fetch-btn');
+const treePkgdirSelect  = document.getElementById('tree-pkgdir-select');
 const treeSearch        = document.getElementById('tree-search');
 const treeExpandAll     = document.getElementById('tree-expand-all');
 const treeCollapseAll   = document.getElementById('tree-collapse-all');
@@ -3215,7 +3230,8 @@ async function loadTree(force = false) {
 
   try {
     const forceParam = force ? '&force=1' : '';
-    const res  = await fetch(`/api/deps-tree?path=${encodeURIComponent(currentProjectPath)}&type=${treeType}${forceParam}`);
+    const treePath = (treeType === 'npm') ? (currentNpmDir || currentProjectPath) : currentProjectPath;
+    const res  = await fetch(`/api/deps-tree?path=${encodeURIComponent(treePath)}&type=${treeType}${forceParam}`);
     const data = await res.json();
     if (data.error) {
       treeStatus.textContent = `⚠ ${data.error}`;
@@ -3235,7 +3251,7 @@ async function loadTree(force = false) {
 }
 
 document.querySelectorAll('.tree-type-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     document.querySelectorAll('.tree-type-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     treeType = btn.dataset.treeType;
@@ -3244,9 +3260,19 @@ document.querySelectorAll('.tree-type-btn').forEach(btn => {
     treeBody.classList.add('hidden');
     treeReversePanel.classList.add('hidden');
     treeStatus.textContent = '';
-    // 切り替え時もキャッシュ確認
+    if (treeType === 'npm' && currentProjectPath) await loadNpmPkgList({ treeSelect: true });
+    treePkgdirSelect.classList.toggle('hidden', treeType !== 'npm');
     if (currentProjectPath) loadTree(false);
   });
+});
+
+treePkgdirSelect.addEventListener('change', () => {
+  currentNpmDir = treePkgdirSelect.value || null;
+  // package.json タブのセレクタも同期
+  if (npmPkgdirSelect.querySelector(`option[value="${CSS.escape(currentNpmDir || '')}"]`)) {
+    npmPkgdirSelect.value = currentNpmDir || '';
+  }
+  loadTree(true);
 });
 
 // 「取得 ▶ / 再取得 ↺」ボタン → 強制再取得

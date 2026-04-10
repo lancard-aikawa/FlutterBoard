@@ -1459,6 +1459,7 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   flex-wrap: wrap;
   padding: .35rem 0 .5rem;
 }
+#tree-pkgdir-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: .15rem .4rem; font-size: .82rem; }
 .tree-type-btns {
   display: flex;
   border: 1px solid var(--border);
