@@ -1460,6 +1460,16 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   padding: .35rem 0 .5rem;
 }
 #tree-pkgdir-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: .15rem .4rem; font-size: .82rem; }
+.tree-flat-list { list-style: none; padding: .2rem 0; margin: 0; display: flex; flex-direction: column; gap: .25rem; }
+.tree-flat-item { display: flex; align-items: center; flex-wrap: wrap; gap: .1rem; font-size: .85rem; padding: .2rem .4rem; border-radius: 4px; }
+.tree-flat-item:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tree-flat-sep { color: var(--muted); padding: 0 .15rem; user-select: none; }
+.tree-flat-ancestor { color: var(--muted); cursor: pointer; }
+.tree-flat-ancestor:hover { color: var(--text); text-decoration: underline; }
+.tree-flat-match { color: var(--text); font-weight: 600; cursor: pointer; }
+.tree-flat-match:hover { text-decoration: underline; }
+.tree-flat-conflict { color: var(--err); }
+.tree-flat-empty { color: var(--muted); padding: .5rem; font-size: .85rem; }
 .tree-type-btns {
   display: flex;
   border: 1px solid var(--border);
@@ -2974,6 +2984,11 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
   font-size: .75rem;
 }
 .tree-legend-item { white-space: nowrap; }
+.tree-legend-item[data-tree-filter] { cursor: pointer; border-radius: 3px; padding: 0 .3rem; transition: background .15s; }
+.tree-legend-item[data-tree-filter]::before { content: '[ ] '; font-size: .75rem; color: var(--muted); font-family: monospace; }
+.tree-legend-item[data-tree-filter]:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.tree-legend-item.tree-legend-active { background: color-mix(in srgb, var(--accent) 25%, transparent); outline: 1px solid var(--accent); }
+.tree-legend-item.tree-legend-active::before { content: '[✓] '; color: var(--accent); }
 .tree-legend-conflict { color: var(--err); }
 .tree-legend-sep     { color: var(--border); }
 .tree-legend-click   { color: var(--muted); font-style: italic; }

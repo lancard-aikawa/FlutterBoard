@@ -623,10 +623,10 @@
           </div>
           <div id="tree-legend">
             <span class="tree-legend-item tree-kind-root" title="このプロジェクト自身（pubspec.yaml / package.json のルートパッケージ）">■ ルート</span>
-            <span class="tree-legend-item tree-kind-direct" title="pubspec.yaml / package.json に直接記述された依存パッケージ">■ 直接依存</span>
-            <span class="tree-legend-item tree-kind-dev" title="dev_dependencies / devDependencies に記述された開発専用パッケージ（本番ビルドには含まれない）">■ dev 依存</span>
-            <span class="tree-legend-item tree-kind-transitive" title="直接依存のパッケージが内部で必要としているパッケージ（推移的依存）。自分では pubspec.yaml / package.json に書いていない">■ 間接依存</span>
-            <span class="tree-legend-item tree-legend-conflict" title="複数のパッケージが同じパッケージの異なるバージョンを要求しているため解決できない競合。flutter pub get が失敗する原因になる">■ バージョン競合</span>
+            <span class="tree-legend-item tree-kind-direct"     data-tree-filter="direct"     title="クリックで直接依存のみ表示">■ 直接依存</span>
+            <span class="tree-legend-item tree-kind-dev"        data-tree-filter="dev"        title="クリックで dev 依存のみ表示">■ dev 依存</span>
+            <span class="tree-legend-item tree-kind-transitive" data-tree-filter="transitive" title="クリックで間接依存のみ表示">■ 間接依存</span>
+            <span class="tree-legend-item tree-legend-conflict" data-tree-filter="conflict"   title="クリックでバージョン競合のみ表示">■ バージョン競合</span>
             <span class="tree-legend-sep">｜</span>
             <span class="tree-legend-item tree-legend-click" title="パッケージ名をクリックすると「このパッケージを依存に持っている親パッケージの一覧」を右パネルに表示。競合の原因調査に役立つ">クリックで逆引き（どこから依存されているか）</span>
           </div>

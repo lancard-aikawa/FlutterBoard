@@ -3195,8 +3195,9 @@ const treeReverseTitle  = document.getElementById('tree-reverse-title');
 const treeReverseList   = document.getElementById('tree-reverse-list');
 const treeReverseClose  = document.getElementById('tree-reverse-close');
 
-let treeType = 'flutter';
-let treeData = null;   // { root, nodes }
+let treeType       = 'flutter';
+let treeData       = null;   // { root, nodes }
+let treeKindFilter = null;   // null | 'direct' | 'dev' | 'transitive' | 'conflict'
 
 // 経過時間を「X分前」「X時間前」で返す
 function agoLabel(cachedAt) {
@@ -3256,6 +3257,8 @@ document.querySelectorAll('.tree-type-btn').forEach(btn => {
     btn.classList.add('active');
     treeType = btn.dataset.treeType;
     treeData = null;
+    treeKindFilter = null;
+    document.querySelectorAll('#tree-legend [data-tree-filter]').forEach(e => e.classList.remove('tree-legend-active'));
     treeRoot.innerHTML = '';
     treeBody.classList.add('hidden');
     treeReversePanel.classList.add('hidden');
@@ -3278,6 +3281,19 @@ treePkgdirSelect.addEventListener('change', () => {
 // 「取得 ▶ / 再取得 ↺」ボタン → 強制再取得
 treeFetchBtn.onclick = () => loadTree(true);
 
+// 凡例クリック → kind フィルタ切り替え
+document.querySelectorAll('#tree-legend [data-tree-filter]').forEach(el => {
+  el.style.cursor = 'pointer';
+  el.addEventListener('click', () => {
+    const f = el.dataset.treeFilter;
+    treeKindFilter = (treeKindFilter === f) ? null : f;
+    document.querySelectorAll('#tree-legend [data-tree-filter]').forEach(e =>
+      e.classList.toggle('tree-legend-active', e.dataset.treeFilter === treeKindFilter)
+    );
+    if (treeData) renderTree(treeData, treeSearch.value.trim());
+  });
+});
+
 treeSearch.addEventListener('input', () => {
   if (!treeData) return;
   renderTree(treeData, treeSearch.value.trim());
@@ -3296,6 +3312,85 @@ function findParents(nodes, targetName) {
 
 // ツリー描画: DFS で <details>/<summary> を生成
 function renderTree(data, filter) {
+  if (treeKindFilter) { renderTreeFlat(data, filter); return; }
+  renderTreeHierarchy(data, filter);
+}
+
+function renderTreeFlat(data, filter) {
+  const { root, nodes } = data;
+  const lf = filter.toLowerCase();
+
+  const versionMap = {};
+  Object.values(nodes).forEach(n => {
+    if (!versionMap[n.name]) versionMap[n.name] = new Set();
+    versionMap[n.name].add(n.version);
+  });
+  const conflicts = new Set(
+    Object.entries(versionMap).filter(([, s]) => s.size > 1).map(([k]) => k)
+  );
+
+  function nodeMatches(node) {
+    if (treeKindFilter === 'conflict')   return conflicts.has(node.name);
+    if (treeKindFilter === 'transitive') return node.kind === 'transitive';
+    return node.kind === treeKindFilter;
+  }
+
+  // DFS でマッチノードへの全パスを収集
+  const results = [];
+  function dfs(nodeKey, path, visited) {
+    const node = nodes[nodeKey];
+    if (!node || visited.has(nodeKey)) return;
+    const newPath = [...path, node];
+    if (nodeMatches(node) && (!lf || node.name.toLowerCase().includes(lf))) {
+      results.push(newPath);
+    }
+    // direct/dev はルートの直接の子のみ対象（サブツリーは不要）
+    if ((treeKindFilter === 'direct' || treeKindFilter === 'dev') && node.kind !== 'root') return;
+    const next = new Set(visited); next.add(nodeKey);
+    node.deps.forEach(d => dfs(d, newPath, next));
+  }
+  dfs(root, [], new Set());
+
+  treeRoot.innerHTML = '';
+  if (results.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'tree-flat-empty';
+    p.textContent = '一致するパッケージはありません';
+    treeRoot.appendChild(p);
+    return;
+  }
+
+  const ul = document.createElement('ul');
+  ul.className = 'tree-flat-list';
+
+  results.forEach(pathNodes => {
+    const li = document.createElement('li');
+    li.className = 'tree-flat-item';
+    // ルートノード（kind='root'）はパスから省略
+    const display = pathNodes.filter(n => n.kind !== 'root');
+    display.forEach((n, i) => {
+      if (i > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'tree-flat-sep';
+        sep.textContent = '›';
+        li.appendChild(sep);
+      }
+      const span = document.createElement('span');
+      const isMatch = i === display.length - 1;
+      span.className = isMatch ? 'tree-flat-match' : 'tree-flat-ancestor';
+      if (conflicts.has(n.name)) span.classList.add('tree-flat-conflict');
+      span.textContent = n.name + (n.version ? `@${n.version}` : '');
+      span.title = '逆引き検索';
+      span.addEventListener('click', () => showReversePanel(n.name));
+      li.appendChild(span);
+    });
+    ul.appendChild(li);
+  });
+
+  treeRoot.appendChild(ul);
+}
+
+function renderTreeHierarchy(data, filter) {
   const { root, nodes } = data;
   const lf = filter.toLowerCase();
 
@@ -3310,7 +3405,8 @@ function renderTree(data, filter) {
   );
 
   // DFS (visited で無限ループ防止)
-  function buildNode(nodeKey, visited = new Set()) {
+  // insideMatch: 祖先が kind フィルタにマッチ済み（サブツリーを丸ごと表示）
+  function buildNode(nodeKey, visited = new Set(), insideMatch = false) {
     const node = nodes[nodeKey];
     if (!node) return null;
 
@@ -3318,11 +3414,30 @@ function renderTree(data, filter) {
     const isConflict  = conflicts.has(node.name);
     const matchSearch = lf && node.name.toLowerCase().includes(lf);
 
+    // kind フィルタ: このノード自身が一致するか
+    const nodeMatchesKind = treeKindFilter
+      ? (treeKindFilter === 'conflict'    ? isConflict
+       : treeKindFilter === 'transitive'  ? node.kind === 'transitive'
+       : node.kind === treeKindFilter)
+      : false;
+
+    // direct / dev フィルタ: root 以外で一致しない & 祖先もマッチしていない → DOM から除外
+    const isTopFilter = treeKindFilter === 'direct' || treeKindFilter === 'dev';
+    if (isTopFilter && !insideMatch && node.kind !== 'root' && !nodeMatchesKind) {
+      return null;
+    }
+
+    // このノードがマッチした場合、子孫はすべて表示（top フィルタのみ）
+    const nowInsideMatch = insideMatch || (isTopFilter && nodeMatchesKind);
+
     const details = document.createElement('details');
     if (!hasChildren) details.classList.add('tree-leaf');
     if (isConflict)   details.classList.add('tree-conflict');
     if (matchSearch)  { details.classList.add('tree-match'); details.open = true; }
-    if (!lf && node.kind === 'direct') details.open = true;  // 直接依存はデフォルト展開
+    if (nodeMatchesKind) details.classList.add('tree-kind-match');
+
+    if (!lf && !treeKindFilter && node.kind === 'direct') details.open = true;
+    if (nodeMatchesKind || nowInsideMatch) details.open = true;
 
     const summary = document.createElement('summary');
 
@@ -3358,7 +3473,7 @@ function renderTree(data, filter) {
       const next = new Set(visited);
       next.add(nodeKey);
       node.deps.forEach(depKey => {
-        const child = buildNode(depKey, next);
+        const child = buildNode(depKey, next, nowInsideMatch);
         if (child) details.appendChild(child);
       });
     } else if (visited.has(nodeKey) && hasChildren) {
@@ -3368,10 +3483,15 @@ function renderTree(data, filter) {
       details.appendChild(circle);
     }
 
-    // フィルタが有効で、自分も子孫もマッチしない場合は hidden
-    if (lf) {
-      const anyMatch = details.querySelector('.tree-match') || matchSearch;
-      if (!anyMatch) details.classList.add('hidden');
+    // テキストフィルタ: 自分も子孫もマッチしない場合は hidden
+    if (lf && !matchSearch && !details.querySelector('.tree-match')) {
+      details.classList.add('hidden');
+    }
+
+    // conflict / transitive フィルタ: 自分も子孫もマッチしない場合は hidden
+    if ((treeKindFilter === 'conflict' || treeKindFilter === 'transitive')
+        && !nodeMatchesKind && !details.querySelector('.tree-kind-match')) {
+      details.classList.add('hidden');
     }
 
     return details;
