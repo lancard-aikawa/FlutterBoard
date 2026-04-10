@@ -11,3 +11,6 @@ config/
 
 # app.js 分割編集用（split.js で生成、merge.js で結合）
 src/app/
+
+# logファイル
+*.log
