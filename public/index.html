@@ -494,6 +494,10 @@
 
         <!-- npm サブパネル -->
         <div id="deps-panel-npm" class="deps-subtab-panel hidden">
+          <div id="npm-pkgdir-row" class="hidden">
+            <label class="npm-pkgdir-label">package.json:</label>
+            <select id="npm-pkgdir-select"></select>
+          </div>
           <div id="deps-npm-actions">
             <button id="deps-select-trusted" class="btn-secondary" title="Provenance あり かつ N日以上経過したパッケージを選択">信頼済みのみ選択</button>
             <button id="deps-select-all"     class="btn-secondary">全選択</button>

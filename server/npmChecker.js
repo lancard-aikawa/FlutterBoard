@@ -274,6 +274,30 @@ async function handleNpm(req, res, url) {
     });
   }
 
+  // GET /api/npm/list?path=...  ルート + 1階層下の package.json を列挙
+  if (url.pathname === '/api/npm/list' && req.method === 'GET') {
+    const projectPath = url.searchParams.get('path');
+    if (!projectPath || !path.isAbsolute(projectPath)) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'Invalid path' }));
+    }
+    const dirs = [];
+    try {
+      if (fs.existsSync(path.join(projectPath, 'package.json'))) {
+        dirs.push({ label: '.', dir: projectPath });
+      }
+      for (const entry of fs.readdirSync(projectPath, { withFileTypes: true })) {
+        if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+        const sub = path.join(projectPath, entry.name);
+        if (fs.existsSync(path.join(sub, 'package.json'))) {
+          dirs.push({ label: entry.name, dir: sub });
+        }
+      }
+    } catch {}
+    res.writeHead(200);
+    return res.end(JSON.stringify({ dirs }));
+  }
+
   if (url.pathname === '/api/npm/check' && req.method === 'GET') {
     const projectPath = url.searchParams.get('path');
     const force       = url.searchParams.get('force') === '1';

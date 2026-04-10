@@ -1700,6 +1700,9 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
 .deps-pkg-check  { cursor: pointer; accent-color: var(--accent); width: 14px; height: 14px; }
 
 /* npm install action buttons */
+#npm-pkgdir-row { display: flex; align-items: center; gap: .5rem; padding: .3rem .4rem; background: var(--panel); border: 1px solid var(--border); border-radius: 4px; margin-bottom: .4rem; font-size: .82rem; }
+.npm-pkgdir-label { color: var(--muted); white-space: nowrap; }
+#npm-pkgdir-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: .15rem .4rem; font-size: .82rem; }
 #deps-npm-actions { display: flex; gap: .4rem; align-items: center; padding-left: .3rem; border-left: 1px solid var(--border); margin-left: .2rem; }
 #deps-install-btn { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); border: 1px solid var(--accent); }
 

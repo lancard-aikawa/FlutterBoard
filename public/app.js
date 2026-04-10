@@ -16,6 +16,7 @@ const dashboard        = document.getElementById('dashboard');
 const changeProjectBtn = document.getElementById('change-project-btn');
 
 let currentProjectPath = '';
+let currentNpmDir      = null; // npm check/audit で使うディレクトリ（null = projectPath）
 
 async function browse(dirPath) {
   const url = dirPath
@@ -111,6 +112,7 @@ async function selectProject(projectPath) {
   if (data.error) { alert(data.error); return; }
 
   currentProjectPath = data.selected;
+  currentNpmDir      = null;
   currentLabel.textContent = data.selected;
   projectPanel.classList.add('hidden');
   dashboard.classList.remove('hidden');
@@ -1633,9 +1635,43 @@ document.querySelectorAll('.deps-tab').forEach(btn => {
     applyDepsTabUi(depsActiveTab);
     if (depsActiveTab === 'tree'     && currentProjectPath) { loadTree(false); return; }
     if (depsActiveTab === 'security' && currentProjectPath) { loadOsv(false); return; }
+    if (depsActiveTab === 'npm'      && currentProjectPath) { await loadNpmPkgList(); }
     if (currentProjectPath) checkDeps();
   });
 });
+
+const npmPkgdirRow    = document.getElementById('npm-pkgdir-row');
+const npmPkgdirSelect = document.getElementById('npm-pkgdir-select');
+
+npmPkgdirSelect.addEventListener('change', () => {
+  currentNpmDir = npmPkgdirSelect.value || null;
+  checkDeps(false);
+});
+
+async function loadNpmPkgList() {
+  if (!currentProjectPath) return;
+  try {
+    const res  = await fetch(`/api/npm/list?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    const dirs = data.dirs || [];
+    npmPkgdirSelect.innerHTML = dirs.map(d =>
+      `<option value="${escHtml(d.dir)}">${escHtml(d.label)}</option>`
+    ).join('');
+    if (dirs.length > 1) {
+      npmPkgdirRow.classList.remove('hidden');
+      // 現在の選択を維持（プロジェクト変更後は先頭に戻す）
+      if (currentNpmDir && dirs.some(d => d.dir === currentNpmDir)) {
+        npmPkgdirSelect.value = currentNpmDir;
+      } else {
+        currentNpmDir = dirs[0]?.dir || null;
+        npmPkgdirSelect.value = currentNpmDir || '';
+      }
+    } else {
+      npmPkgdirRow.classList.add('hidden');
+      currentNpmDir = dirs[0]?.dir || null;
+    }
+  } catch {}
+}
 
 const npmAuditBar        = document.getElementById('npm-audit-bar');
 const npmAuditCritical   = document.getElementById('npm-audit-critical');
@@ -1746,8 +1782,9 @@ async function checkDeps(force = false) {
   depsCheckAll.checked = false;
 
   const forceParam = force ? '&force=1' : '';
+  const npmPath    = isNpm ? (currentNpmDir || currentProjectPath) : currentProjectPath;
   const endpoint = isNpm
-    ? `/api/npm/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`
+    ? `/api/npm/check?path=${encodeURIComponent(npmPath)}${forceParam}`
     : isCdn
       ? `/api/cdn/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`
       : `/api/pubspec/check?path=${encodeURIComponent(currentProjectPath)}${forceParam}`;
@@ -1811,7 +1848,7 @@ async function runNpmAudit() {
     el.classList.add('audit-loading');
   });
 
-  const res  = await fetch(`/api/npm/audit?path=${encodeURIComponent(currentProjectPath)}`);
+  const res  = await fetch(`/api/npm/audit?path=${encodeURIComponent(currentNpmDir || currentProjectPath)}`);
   const data = await res.json();
 
   [npmAuditCritical, npmAuditHigh, npmAuditModerate, npmAuditLow].forEach(el => el.classList.remove('audit-loading'));
