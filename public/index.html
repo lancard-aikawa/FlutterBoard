@@ -48,8 +48,8 @@
     <!-- メインダッシュボード -->
     <section id="dashboard" class="hidden">
       <nav id="tab-bar">
-        <button class="tab active" data-tab="logs" title="コマンドを起動・停止し、リアルタイムログを表示。複数プロセスをタブ切り替えで管理">プロセス / ログ</button>
-        <button class="tab" data-tab="commands" title="Flutter / Firebase / npm の定番コマンドをワンクリックで実行。ルーティン（複数コマンドの定型フロー）も管理">コマンド</button>
+        <button class="tab" data-tab="logs" title="コマンドを起動・停止し、リアルタイムログを表示。複数プロセスをタブ切り替えで管理">プロセス / ログ</button>
+        <button class="tab active" data-tab="commands" title="Flutter / Firebase / npm の定番コマンドをワンクリックで実行。ルーティン（複数コマンドの定型フロー）も管理">コマンド</button>
         <button class="tab" data-tab="docs" title="README.md や docs/ 以下の Markdown をレンダリング表示。Mermaid ダイアグラム対応">ドキュメント</button>
         <button class="tab" data-tab="deps" title="pubspec.yaml / package.json / CDN ライブラリのバージョンを pub.dev・npm registry で確認。セキュリティ診断・依存ツリー表示も">依存チェック</button>
         <button class="tab" data-tab="env" title=".env ファイルの内容をマスク表示。2ファイル間のキー差分比較、Firebase 環境（firebase use）の切り替えも">環境変数</button>
@@ -58,7 +58,7 @@
       </nav>
 
       <!-- ログタブ -->
-      <div id="tab-logs" class="tab-content">
+      <div id="tab-logs" class="tab-content hidden">
         <aside id="process-panel">
           <div id="run-form">
             <input type="text" id="cmd-input" placeholder="コマンド（例: flutter run）">
@@ -158,7 +158,7 @@
       </div>
 
       <!-- コマンドタブ -->
-      <div id="tab-commands" class="tab-content hidden">
+      <div id="tab-commands" class="tab-content">
         <div id="cmd-subtab-bar">
           <button class="cmd-tab active" data-cmd-tab="flutter">Flutter</button>
           <button class="cmd-tab" data-cmd-tab="firebase">Firebase</button>
