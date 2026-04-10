@@ -40,3 +40,34 @@ RC.md の機能要望をもとにした実装順序と設計メモ。
 - [x] **S6** FVM 連携 — `.fvm/fvm_config.json` からSDKバージョン読み取り、ヘッダーに表示
 - [x] **S7** ビルドサイズトラッカー — APK/AAB/IPA のサイズを記録・前回比で増減表示
 - [x] **S8** エミュレータ データスナップショット UI — Firebase Emulator の import/export をボタンで管理
+
+---
+
+## 第三弾 — 計画中
+
+### VM Service 連携（外部プロセスへの attach）
+
+**背景・課題**
+`flutter run -d chrome` を PTY 経由で操作する現行方式は Windows の制約（flutter.bat・Ctrl+C プロンプト・node-pty バグ）により不安定。
+VSCode のデバッグコンソール等、外部で起動した flutter run のログを FlutterBoard で取得・操作できれば PTY 依存を排除できる。
+
+**方針**
+Dart VM Service（WebSocket JSON-RPC）を使い、flutter run が既に公開している口に後付けで接続する。
+VM Service URL はすでに自動検出済み（`vmServiceUrl` フィールド）なので基盤はある。
+
+**実装フェーズ**
+
+- [ ] **V1** VM Service 接続 + ログミラーリング
+  - `ws://<vmServiceUrl>` に接続し `streamListen('Stdout')` / `streamListen('Stderr')` でログ受信
+  - 受信ログを既存の SSE ログ配信（`broadcast`）に流し込む
+  - PTY ログと VM Service ログを排他制御（どちらか一方が有効）
+
+- [ ] **V2** Hot Reload / Hot Restart を VM Service 経由に切り替え
+  - `r` ボタン → `reloadSources()` RPC（詰まらない、応答が明確）
+  - `R` ボタン → `callMethod('hotRestart')` RPC
+  - PTY が有効な場合は従来の stdin 送信のまま（フォールバック）
+
+- [ ] **V3** 外部プロセスへの手動 attach UI
+  - 「Attach」ボタン → VM Service URL を入力（またはポートスキャンで自動検出）
+  - VSCode・ターミナルで起動した `flutter run` にも接続可能
+  - 接続中は stdin バーの代わりに「VM Service 接続中」バッジを表示
