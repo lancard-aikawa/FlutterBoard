@@ -68,6 +68,13 @@ button:active { opacity: .7; }
   padding: .2rem .5rem;
   font-size: .75rem;
 }
+/* VM 切断ボタン: 赤ではなく teal で「停止ではなく切断」を表現 */
+.btn-disconnect {
+  color: var(--vm-accent);
+  border-color: var(--vm-accent);
+  font-size: .85rem;   /* ⏏ は少し大きめにするとわかりやすい */
+  padding: .1rem .45rem;
+}
 .btn-remove {
   background: transparent;
   color: var(--muted);

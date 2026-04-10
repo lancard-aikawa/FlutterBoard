@@ -333,8 +333,9 @@ function buildProcessItem(p) {
       <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}${vmBadge}</span>
       <span class="proc-actions">
         ${p.running
-          ? `<button class="btn-stop">■</button>`
-          : `<button class="btn-remove">✕</button>`}
+          ? (p.vm ? `<button class="btn-stop btn-disconnect" title="VM Service から切断（flutter run 本体は停止しない）">⏏</button>`
+                  : `<button class="btn-stop" title="プロセスを停止">■</button>`)
+          : `<button class="btn-remove" title="一覧から削除">✕</button>`}
       </span>
     </div>
     <div class="proc-meta">${elapsed}</div>`;
