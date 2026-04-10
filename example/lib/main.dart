@@ -34,7 +34,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
   void _incrementCounter() {
-    debugPrint("[FB:SCREEN]");
+    debugPrint("[FB:SCREEN] Test click: $_counter");
     debugPrint("$_counter clicked");
     //
     setState(() {
