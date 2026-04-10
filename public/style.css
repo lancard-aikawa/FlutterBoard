@@ -2784,6 +2784,8 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
 .port-num  { font-weight: 700; color: var(--text); }
 .port-pid  { color: var(--muted); }
 .port-name { color: var(--text); }
+.port-cmd  { color: var(--muted); font-family: monospace; font-size: .85em; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.port-cmd-empty { color: var(--muted); opacity: .5; }
 
 /* 状態バッジ */
 .port-status-badge {

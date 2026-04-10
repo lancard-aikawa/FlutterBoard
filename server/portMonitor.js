@@ -29,20 +29,35 @@ function run(cmd, args, timeout = 8000) {
   });
 }
 
-// ── Windows: netstat -ano + tasklist ─────────────────────────────────────────
+// ── Windows: netstat -ano + tasklist + wmic ───────────────────────────────────
 
 async function getListeningWin() {
-  const [netOut, taskOut] = await Promise.all([
+  const [netOut, taskOut, wmicOut] = await Promise.all([
     run('netstat', ['-ano']),
     run('tasklist', ['/FO', 'CSV', '/NH']),
+    run('wmic', ['process', 'get', 'ProcessId,CommandLine', '/FORMAT:LIST'], 15000),
   ]);
 
-  // PID → name map
+  // PID → name map (tasklist: 高速・確実)
   const pidName = {};
   taskOut.split('\n').forEach(line => {
     // "chrome.exe","12345","Console","1","100,000 K"
     const m = line.match(/^"([^"]+)","(\d+)"/);
     if (m) pidName[parseInt(m[2])] = m[1];
+  });
+
+  // PID → cmdline map (wmic LIST形式: CommandLine= → ProcessId= の順で出力)
+  const pidCmdline = {};
+  let curCmd = null;
+  wmicOut.replace(/\0/g, '').split('\n').forEach(rawLine => {
+    const line = rawLine.trimEnd();
+    if (line.startsWith('CommandLine=')) {
+      curCmd = line.slice(12);
+    } else if (line.startsWith('ProcessId=')) {
+      const pid = parseInt(line.slice(10));
+      if (pid && curCmd !== null) pidCmdline[pid] = curCmd;
+      curCmd = null;
+    }
   });
 
   const result = {};
@@ -53,46 +68,58 @@ async function getListeningWin() {
     const port = parseInt(m[2]);
     const pid  = parseInt(m[4]);
     if (!result[port]) {
-      result[port] = { proto: m[1].toUpperCase(), pid, name: pidName[pid] || '' };
+      result[port] = { proto: m[1].toUpperCase(), pid, name: pidName[pid] || '', cmdline: pidCmdline[pid] || '' };
     }
   });
 
-  return result;  // { port: { proto, pid, name } }
+  return result;  // { port: { proto, pid, name, cmdline } }
 }
 
 // ── Unix: ss -tlnp ────────────────────────────────────────────────────────────
 
 async function getListeningUnix() {
-  let out = await run('ss', ['-tlnp']);
+  const [ssOut, psOut] = await Promise.all([
+    run('ss', ['-tlnp']),
+    run('ps', ['-eo', 'pid=,args=']),
+  ]);
+
+  // PID → cmdline map
+  const pidCmdline = {};
+  psOut.split('\n').forEach(line => {
+    const m = line.match(/^\s*(\d+)\s+(.*)/);
+    if (m) pidCmdline[parseInt(m[1])] = m[2].trim();
+  });
 
   // fallback: lsof
-  if (!out.trim()) {
-    out = await run('lsof', ['-i', '-P', '-n', '-s', 'TCP:LISTEN']);
-    return parseLsof(out);
+  if (!ssOut.trim()) {
+    const lsofOut = await run('lsof', ['-i', '-P', '-n', '-s', 'TCP:LISTEN']);
+    return parseLsof(lsofOut, pidCmdline);
   }
-  return parseSs(out);
+  return parseSs(ssOut, pidCmdline);
 }
 
-function parseSs(out) {
+function parseSs(out, pidCmdline = {}) {
   const result = {};
   out.split('\n').forEach(line => {
     // LISTEN 0  128  0.0.0.0:22  0.0.0.0:*  users:(("sshd",pid=1234,fd=3))
     const m = line.match(/LISTEN\s+\d+\s+\d+\s+[\S]+:(\d+)\s+\S+\s+users:\(\("([^"]+)",pid=(\d+)/);
     if (!m) return;
     const port = parseInt(m[1]);
-    if (!result[port]) result[port] = { proto: 'TCP', pid: parseInt(m[3]), name: m[2] };
+    const pid  = parseInt(m[3]);
+    if (!result[port]) result[port] = { proto: 'TCP', pid, name: m[2], cmdline: pidCmdline[pid] || '' };
   });
   return result;
 }
 
-function parseLsof(out) {
+function parseLsof(out, pidCmdline = {}) {
   const result = {};
   out.split('\n').forEach(line => {
     // COMMAND  PID  USER   FD  TYPE ...  TCP *:3210 (LISTEN)
     const m = line.match(/^(\S+)\s+(\d+)\s+\S+\s+\S+\s+\S+\s+\S+\s+TCP\s+\S+:(\d+)\s+\(LISTEN\)/);
     if (!m) return;
     const port = parseInt(m[3]);
-    if (!result[port]) result[port] = { proto: 'TCP', pid: parseInt(m[2]), name: m[1] };
+    const pid  = parseInt(m[2]);
+    if (!result[port]) result[port] = { proto: 'TCP', pid, name: m[1], cmdline: pidCmdline[pid] || '' };
   });
   return result;
 }
@@ -104,8 +131,8 @@ async function checkPorts(ports) {
   return ports.map(port => {
     const info = listening[port];
     return info
-      ? { port, status: 'listening', proto: info.proto, pid: info.pid, name: info.name }
-      : { port, status: 'free',      proto: '',          pid: null,    name: '' };
+      ? { port, status: 'listening', proto: info.proto, pid: info.pid, name: info.name, cmdline: info.cmdline || '' }
+      : { port, status: 'free',      proto: '',          pid: null,    name: '',         cmdline: '' };
   });
 }
 

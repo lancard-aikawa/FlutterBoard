@@ -3741,17 +3741,24 @@ async function fetchPortStatus() {
     renderPortTable(data.ports || []);
     portLastUpdated.textContent = `最終更新: ${new Date().toLocaleTimeString('ja-JP')}`;
   } catch (e) {
-    portTbody.innerHTML = `<tr><td colspan="6" class="deps-empty">⚠ ${escHtml(e.message)}</td></tr>`;
+    portTbody.innerHTML = `<tr><td colspan="7" class="deps-empty">⚠ ${escHtml(e.message)}</td></tr>`;
   }
+}
+
+function extractArgs(cmdline) {
+  if (!cmdline) return '';
+  // 実行ファイル部分（クォートあり・なし）を除いた引数部分を返す
+  const m = cmdline.match(/^(?:"[^"]*"|[^\s]+)\s+([\s\S]*)/);
+  return m ? m[1].trim() : '';
 }
 
 function renderPortTable(ports) {
   if (ports.length === 0) {
-    portTbody.innerHTML = `<tr><td colspan="6" class="deps-empty">監視ポートがありません。ポートを追加してください。</td></tr>`;
+    portTbody.innerHTML = `<tr><td colspan="7" class="deps-empty">監視ポートがありません。ポートを追加してください。</td></tr>`;
     return;
   }
   portTbody.innerHTML = '';
-  ports.forEach(({ port, status, proto, pid, name }) => {
+  ports.forEach(({ port, status, proto, pid, name, cmdline }) => {
     const tr   = document.createElement('tr');
     const isUp = status === 'listening';
 
@@ -3763,12 +3770,16 @@ function renderPortTable(ports) {
       : '';
     const removeBtn = `<button class="port-remove-btn" data-port="${port}" title="監視から除外">✕</button>`;
 
+    const args = extractArgs(cmdline);
+    const argsShort = args.length > 50 ? args.slice(0, 50) + '…' : args;
+
     tr.innerHTML = `
       <td class="port-num">${port}</td>
       <td><span class="port-status-badge ${badgeCls}">${badgeTxt}</span></td>
       <td>${escHtml(proto)}</td>
       <td class="port-pid">${pid != null ? pid : '—'}</td>
       <td class="port-name">${escHtml(name || '—')}</td>
+      <td class="port-cmd" title="${escHtml(cmdline || '')}">${args ? escHtml(argsShort) : '<span class="port-cmd-empty">—</span>'}</td>
       <td style="display:flex;gap:.4rem;align-items:center">${killCell}${removeBtn}</td>`;
     portTbody.appendChild(tr);
   });
