@@ -1,0 +1,16 @@
+{
+  "name": "flutterboard-example",
+  "description": "Firebase emulator scripts for flutterboard_example",
+  "scripts": {
+    "emulator": "firebase emulators:start",
+    "emulator:auth": "firebase emulators:start --only auth",
+    "emulator:firestore": "firebase emulators:start --only firestore",
+    "emulator:functions": "firebase emulators:start --only functions",
+    "emulator:hosting": "firebase emulators:start --only hosting",
+    "emulator:all": "firebase emulators:start --only auth,firestore,functions,hosting,storage"
+  },
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  },
+  "private": true
+}
