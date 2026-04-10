@@ -40,10 +40,12 @@ config/                — プロジェクト別設定の JSON 保存先（gitig
 
 ### 読み取り制約（厳守）
 
-- `public/app.js` / `public/index.html` / `public/style.css` の**全体 Read は禁止**
-- 必ず `Grep` → `Read(offset, limit)` で部分読み込みすること
-- 同一ファイルの再読は避けること（Edit/Write 成功 = 変更反映済み）
+- **300 行 / 15 KB 以下のファイルは全体 Read 可**
+  （行数は Read の行番号で確認、サイズは ls 等で確認）
+- それを超えるファイルの全体 Read は禁止。必ず `Grep` → `Read(offset, limit)` で部分読み込み
+- 現時点で制約対象: `public/app.js`（4100行）/ `public/index.html`（935行）/ `public/style.css`（2975行）
 - **Edit 前に必ず対象行を Read すること**（未読ファイルへの Edit はエラーになる）
+- 同一ファイルの再読は避けること（Edit/Write 成功 = 変更反映済み）
 
 ### app.js の部分読み込み
 
