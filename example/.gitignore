@@ -9,6 +9,7 @@ pubspec.lock
 # npm
 node_modules/
 functions/node_modules/
+package-lock.json
 
 # Firebase
 .firebase/
