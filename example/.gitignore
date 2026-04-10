@@ -2,6 +2,10 @@
 android/
 ios/
 android/local.properties
+web/
+.idea/
+.metadata
+*.iml
 
 # Flutter
 .dart_tool/
