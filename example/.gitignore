@@ -1,7 +1,5 @@
 # Flutter 自動生成プラットフォームファイル
-android/
 ios/
-android/local.properties
 web/
 .idea/
 .metadata
