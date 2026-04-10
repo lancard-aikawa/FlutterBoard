@@ -20,7 +20,7 @@
       </button>
     </div>
     <span id="fvm-header" class="hidden">
-      <span id="fvm-version-pill" class="fb-env-pill fvm-pill" title="FVM Flutter SDK バージョン">
+      <span id="fvm-version-pill" class="fb-env-pill fvm-pill" title="FVM（Flutter Version Manager）で管理されている Flutter SDK バージョン。.fvm/fvm_config.json から読み取り。グローバルの flutter バージョンと異なる場合は黄色で警告表示">
         FVM: <span id="fvm-version-text">—</span>
       </span>
     </span>
@@ -48,13 +48,13 @@
     <!-- メインダッシュボード -->
     <section id="dashboard" class="hidden">
       <nav id="tab-bar">
-        <button class="tab active" data-tab="logs">プロセス / ログ</button>
-        <button class="tab" data-tab="commands">コマンド</button>
-        <button class="tab" data-tab="docs">ドキュメント</button>
-        <button class="tab" data-tab="deps">依存チェック</button>
-        <button class="tab" data-tab="env">環境変数</button>
-        <button class="tab" data-tab="git">Git</button>
-        <button class="tab" data-tab="ports">ポート</button>
+        <button class="tab active" data-tab="logs" title="コマンドを起動・停止し、リアルタイムログを表示。複数プロセスをタブ切り替えで管理">プロセス / ログ</button>
+        <button class="tab" data-tab="commands" title="Flutter / Firebase / npm の定番コマンドをワンクリックで実行。ルーティン（複数コマンドの定型フロー）も管理">コマンド</button>
+        <button class="tab" data-tab="docs" title="README.md や docs/ 以下の Markdown をレンダリング表示。Mermaid ダイアグラム対応">ドキュメント</button>
+        <button class="tab" data-tab="deps" title="pubspec.yaml / package.json / CDN ライブラリのバージョンを pub.dev・npm registry で確認。セキュリティ診断・依存ツリー表示も">依存チェック</button>
+        <button class="tab" data-tab="env" title=".env ファイルの内容をマスク表示。2ファイル間のキー差分比較、Firebase 環境（firebase use）の切り替えも">環境変数</button>
+        <button class="tab" data-tab="git" title="ブランチ・変更ファイル・コミット履歴を表示。ステージ / コミット / push / pull もここから">Git</button>
+        <button class="tab" data-tab="ports" title="指定ポートの使用状況をリアルタイム監視。競合プロセスをワンクリックで kill できる">ポート</button>
       </nav>
 
       <!-- ログタブ -->
@@ -68,11 +68,11 @@
           <div id="process-list-header">
             <span>実行中 / 履歴</span>
             <label id="autoreload-label">
-              <input type="checkbox" id="autoreload" checked> 自動更新
+              <input type="checkbox" id="autoreload" checked title="10 秒ごとにプロセス一覧を自動更新。チェックを外すと手動更新のみ"> 自動更新
             </label>
           </div>
           <div id="combined-proc-item">
-            <button id="combined-view-btn" class="btn-ghost combined-proc-btn">全プロセス統合</button>
+            <button id="combined-view-btn" class="btn-ghost combined-proc-btn" title="実行中の全プロセスのログをタイムスタンプ順にまとめて表示。横断フィルタ・レベル絞り込みも可能">全プロセス統合</button>
           </div>
           <ul id="process-list"></ul>
         </aside>
@@ -80,19 +80,19 @@
           <div id="log-toolbar">
             <span id="log-title">Select a process to view logs</span>
             <div id="log-actions">
-              <input type="text" id="log-filter" placeholder="Filter..." title="Keyword filter">
-              <button id="log-regex-btn" class="btn-ghost log-regex-btn" title="正規表現モード">.*</button>
+              <input type="text" id="log-filter" placeholder="Filter..." title="ログをキーワードで絞り込み。隣の「.*」ボタンで正規表現モードに切り替え可能">
+              <button id="log-regex-btn" class="btn-ghost log-regex-btn" title="正規表現モード ON/OFF。ON にするとフィルター欄の入力を正規表現として解釈（例: ERROR|WARN）">.*</button>
               <div id="log-level-filters" title="レベルフィルター">
-                <button class="log-level-btn" data-level="error">E</button>
-                <button class="log-level-btn" data-level="warn">W</button>
-                <button class="log-level-btn" data-level="info">I</button>
+                <button class="log-level-btn" data-level="error" title="ERROR レベルのログを表示 / 非表示。「ERROR」「error」「Exception」「FATAL」などを含む行が対象">E</button>
+                <button class="log-level-btn" data-level="warn" title="WARNING レベルのログを表示 / 非表示。「WARN」「warn」「Warning」などを含む行が対象">W</button>
+                <button class="log-level-btn" data-level="info" title="INFO レベルのログを表示 / 非表示。ERROR / WARN に該当しない通常の行が対象">I</button>
               </div>
-              <button id="log-save">Save</button>
-              <button id="log-clear">Clear</button>
+              <button id="log-save" title="現在表示中のプロセスのログを .log ファイルとしてダウンロード">Save</button>
+              <button id="log-clear" title="ログ表示をクリア（プロセス本体は停止しない）">Clear</button>
               <label id="autoscroll-label">
-                <input type="checkbox" id="autoscroll" checked> Auto scroll
+                <input type="checkbox" id="autoscroll" checked title="新しいログ行が来るたびに自動で末尾にスクロール。手動スクロールで一時停止"> Auto scroll
               </label>
-              <label id="log-group-label" title="[FB:SCREEN] マーカーでセクション分割">
+              <label id="log-group-label" title="flutter run のログを画面遷移単位で折り畳む。アプリ側で debugPrint('[FB:SCREEN] ScreenName') を出力すると区切りになる">
                 <input type="checkbox" id="log-group-toggle"> グループ化
               </label>
               <input type="text" id="log-group-marker" class="log-group-marker-input hidden" placeholder="[FB:SCREEN]" title="セクション区切りマーカー">
@@ -100,9 +100,9 @@
           </div>
           <div id="devtools-bar" class="hidden">
             <span class="devtools-label">Flutter DevTools 検出</span>
-            <a id="devtools-link" href="#" target="_blank" rel="noopener" class="devtools-btn hidden">DevTools を開く ↗</a>
-            <button id="devtools-launch-btn" class="devtools-btn devtools-btn-launch hidden">DevTools を起動</button>
-            <a id="vmservice-link" href="#" target="_blank" rel="noopener" class="devtools-btn devtools-btn-vm hidden">VM Service ↗</a>
+            <a id="devtools-link" href="#" target="_blank" rel="noopener" class="devtools-btn hidden" title="flutter run のログから自動検出した DevTools URL をブラウザで開く">DevTools を開く ↗</a>
+            <button id="devtools-launch-btn" class="devtools-btn devtools-btn-launch hidden" title="VM Service URL のみ検出された場合に dart devtools を起動し、自動で接続する">DevTools を起動</button>
+            <a id="vmservice-link" href="#" target="_blank" rel="noopener" class="devtools-btn devtools-btn-vm hidden" title="flutter run が公開している VM Service URL。dart devtools の --vm-service-uri に使用">VM Service ↗</a>
           </div>
           <div id="log-output"><span class="log-muted">Select a process to view logs</span></div>
 
@@ -144,11 +144,11 @@
             </div>
             <!-- Flutter / 汎用クイックキー -->
             <div id="stdin-quickkeys">
-              <button class="stdin-key" data-key="r">r</button>
-              <button class="stdin-key" data-key="R">R</button>
-              <button class="stdin-key" data-key="q">q</button>
-              <button class="stdin-key" data-key="d">d</button>
-              <button class="stdin-key" data-key="s">s</button>
+              <button class="stdin-key" data-key="r" title="r — Hot Reload：コードの変更を再コンパイルせず即時反映。状態は保持される">r</button>
+              <button class="stdin-key" data-key="R" title="R — Hot Restart：アプリを再起動。状態はリセットされる">R</button>
+              <button class="stdin-key" data-key="q" title="q — flutter run を終了してアプリを停止">q</button>
+              <button class="stdin-key" data-key="d" title="d — 接続デバイス一覧を再表示（flutter run 中に接続が変わった場合に使用）">d</button>
+              <button class="stdin-key" data-key="s" title="s — スクリーンショットを撮影して保存（flutter run 中のみ有効）">s</button>
             </div>
             <!-- 自由入力 -->
             <input type="text" id="stdin-input" placeholder="stdin...">
@@ -173,9 +173,9 @@
           <section class="cmd-section build-size-section">
             <div class="build-size-header">
               <span class="ctx-builder-title">ビルドサイズ</span>
-              <button id="buildsize-scan-btn" class="ctx-fetch-btn">スキャン ▶</button>
-              <button id="buildsize-record-btn" class="btn-ghost hidden">記録 💾</button>
-              <button id="buildsize-history-toggle" class="btn-ghost">履歴 ▼</button>
+              <button id="buildsize-scan-btn" class="ctx-fetch-btn" title="build/ ディレクトリを走査して APK / AAB / IPA / Web のビルド成果物を検出し、ファイルサイズを表示">スキャン ▶</button>
+              <button id="buildsize-record-btn" class="btn-ghost hidden" title="現在のスキャン結果をラベル付きで履歴に保存。次回ビルド後に前回比のサイズ増減が確認できる">記録 💾</button>
+              <button id="buildsize-history-toggle" class="btn-ghost" title="過去に記録したビルドサイズの履歴を表示 / 非表示。前回比のサイズ差分（増減）を色付きで確認できる">履歴 ▼</button>
             </div>
             <div id="buildsize-artifacts" class="hidden">
               <div id="buildsize-artifact-list"></div>
@@ -337,13 +337,13 @@
           <section class="cmd-section emu-snapshot-section">
             <div class="ctx-builder-header">
               <span class="ctx-builder-title">エミュレータ スナップショット</span>
-              <button id="snapshot-refresh-btn" class="ctx-fetch-btn">一覧更新 ↺</button>
+              <button id="snapshot-refresh-btn" class="ctx-fetch-btn" title="emu-snapshots/ ディレクトリを再読み込みしてスナップショット一覧を更新">一覧更新 ↺</button>
             </div>
             <div id="snapshot-body">
               <div class="ctx-row" style="gap:.5rem;align-items:center">
                 <span class="ctx-label">スナップショット名</span>
                 <input type="text" id="snapshot-name-input" placeholder="例: before-test" class="ctx-select snapshot-name-field">
-                <button id="snapshot-new-btn" class="cmd-btn">新規で起動</button>
+                <button id="snapshot-new-btn" class="cmd-btn" title="入力した名前で新規スナップショットを作成しながらエミュレータを起動。コマンド: firebase emulators:start --export-on-exit=./emu-snapshots/名前 エミュレータ停止時に自動でデータが保存される">新規で起動</button>
               </div>
               <div id="snapshot-list" class="snapshot-list"></div>
             </div>
@@ -470,25 +470,25 @@
               <input type="number" id="deps-threshold" value="7" min="1" max="365">
               日
             </label>
-            <button id="deps-refresh-btn">更新チェック</button>
-            <button id="deps-compare-btn" class="btn-ghost">比較 ⇄</button>
+            <button id="deps-refresh-btn" title="現在のサブタブ（pubspec / npm / CDN）のパッケージを pub.dev・npm registry・CDN に問い合わせて最新バージョン情報を取得">更新チェック</button>
+            <button id="deps-compare-btn" class="btn-ghost" title="別のブランチまたは別プロジェクトの pubspec.yaml / package.json と現在のバージョンを横断比較する">比較 ⇄</button>
           </div>
         </div>
 
         <!-- サブタブバー -->
         <div id="deps-subtab-bar">
-          <button class="deps-tab active" data-deps-tab="pubspec">pubspec.yaml</button>
-          <button class="deps-tab"        data-deps-tab="npm">package.json</button>
-          <button class="deps-tab"        data-deps-tab="cdn">CDN</button>
-          <button class="deps-tab"        data-deps-tab="security">セキュリティ</button>
-          <button class="deps-tab"        data-deps-tab="tree">依存ツリー</button>
+          <button class="deps-tab active" data-deps-tab="pubspec" title="pubspec.yaml に記載された Dart / Flutter パッケージの現在バージョンと最新バージョンを pub.dev で確認">pubspec.yaml</button>
+          <button class="deps-tab" data-deps-tab="npm" title="package.json の npm パッケージを npm registry で確認。Provenance（改ざん検知）情報も表示">package.json</button>
+          <button class="deps-tab" data-deps-tab="cdn" title="index.html 等に記述された CDN ライブラリ（cdnjs / jsDelivr / unpkg）の URL に含まれるバージョンを最新と比較">CDN</button>
+          <button class="deps-tab" data-deps-tab="security" title="npm audit（既知の脆弱性）と OSV.dev による pubspec.yaml の CVE 診断を表示">セキュリティ</button>
+          <button class="deps-tab" data-deps-tab="tree" title="flutter pub deps / npm ls の依存関係をツリー形式で表示。パッケージをクリックすると「どのパッケージから依存されているか」を逆引きできる">依存ツリー</button>
         </div>
 
         <!-- pubspec サブパネル -->
         <div id="deps-panel-pubspec" class="deps-subtab-panel">
           <div id="deps-pubspec-actions">
-            <button id="deps-pubget-btn"  class="btn-secondary">flutter pub get</button>
-            <button id="deps-upgrade-btn" class="btn-secondary">flutter pub upgrade</button>
+            <button id="deps-pubget-btn"  class="btn-secondary" title="flutter pub get を実行してロックファイルに基づいたパッケージを取得">flutter pub get</button>
+            <button id="deps-upgrade-btn" class="btn-secondary" title="flutter pub upgrade を実行して pubspec.yaml の制約範囲内で最新バージョンに更新">flutter pub upgrade</button>
           </div>
         </div>
 
@@ -572,7 +572,7 @@
                 <button id="npm-audit-detail-btn" class="btn-ghost npm-audit-detail-toggle hidden">詳細 ▼</button>
                 <button id="npm-audit-fix-btn"    class="btn-secondary" title="npm audit fix を実行">audit fix</button>
                 <button id="npm-audit-force-btn"  class="btn-secondary" title="npm audit fix --force を実行（破壊的変更を含む）">fix --force</button>
-                <button id="npm-audit-recheck-btn" class="btn-ghost">再チェック ↺</button>
+                <button id="npm-audit-recheck-btn" class="btn-ghost" title="npm audit を再実行して最新の脆弱性情報を取得">再チェック ↺</button>
               </div>
             </div>
             <div id="npm-audit-detail" class="hidden"></div>
@@ -581,7 +581,7 @@
           <div class="security-section">
             <div class="security-section-header">
               pubspec.yaml（OSV.dev）
-              <button id="osv-run-btn" class="ctx-fetch-btn">チェック ▶</button>
+              <button id="osv-run-btn" class="ctx-fetch-btn" title="pubspec.lock の全パッケージを OSV.dev API に問い合わせ、既知の CVE・セキュリティ脆弱性を照会する">チェック ▶</button>
             </div>
             <div id="osv-status" class="security-placeholder"></div>
             <div id="osv-result" class="hidden">
@@ -611,19 +611,19 @@
               <button class="tree-type-btn active" data-tree-type="flutter">Flutter</button>
               <button class="tree-type-btn"        data-tree-type="npm">npm</button>
             </div>
-            <button id="tree-fetch-btn" class="ctx-fetch-btn">取得 ▶</button>
+            <button id="tree-fetch-btn" class="ctx-fetch-btn" title="flutter pub deps --json / npm ls --json を実行して依存ツリーを取得。結果はキャッシュされ次回は即時表示">取得 ▶</button>
             <input type="text" id="tree-search" placeholder="パッケージ名で絞り込み..." class="tree-search-input">
-            <button id="tree-expand-all"   class="btn-ghost">全展開</button>
-            <button id="tree-collapse-all" class="btn-ghost">全折り畳み</button>
+            <button id="tree-expand-all"   class="btn-ghost" title="ツリーの全ノードを展開して間接依存まですべて表示">全展開</button>
+            <button id="tree-collapse-all" class="btn-ghost" title="ツリーを第1階層（直接依存）のみ表示に折り畳む">全折り畳み</button>
           </div>
           <div id="tree-legend">
-            <span class="tree-legend-item tree-kind-root">■ ルート</span>
-            <span class="tree-legend-item tree-kind-direct">■ 直接依存</span>
-            <span class="tree-legend-item tree-kind-dev">■ dev 依存</span>
-            <span class="tree-legend-item tree-kind-transitive">■ 間接依存</span>
-            <span class="tree-legend-item tree-legend-conflict">■ バージョン競合</span>
+            <span class="tree-legend-item tree-kind-root" title="このプロジェクト自身（pubspec.yaml / package.json のルートパッケージ）">■ ルート</span>
+            <span class="tree-legend-item tree-kind-direct" title="pubspec.yaml / package.json に直接記述された依存パッケージ">■ 直接依存</span>
+            <span class="tree-legend-item tree-kind-dev" title="dev_dependencies / devDependencies に記述された開発専用パッケージ（本番ビルドには含まれない）">■ dev 依存</span>
+            <span class="tree-legend-item tree-kind-transitive" title="直接依存のパッケージが内部で必要としているパッケージ（推移的依存）。自分では pubspec.yaml / package.json に書いていない">■ 間接依存</span>
+            <span class="tree-legend-item tree-legend-conflict" title="複数のパッケージが同じパッケージの異なるバージョンを要求しているため解決できない競合。flutter pub get が失敗する原因になる">■ バージョン競合</span>
             <span class="tree-legend-sep">｜</span>
-            <span class="tree-legend-item tree-legend-click">クリックで逆引き（どこから依存されているか）</span>
+            <span class="tree-legend-item tree-legend-click" title="パッケージ名をクリックすると「このパッケージを依存に持っている親パッケージの一覧」を右パネルに表示。競合の原因調査に役立つ">クリックで逆引き（どこから依存されているか）</span>
           </div>
           <div id="tree-status"></div>
           <div id="tree-body" class="hidden">
@@ -643,13 +643,13 @@
         <div id="deps-compare-panel" class="hidden">
           <div id="cmp-config">
             <div class="cmp-mode-btns">
-              <button class="cmp-mode-btn active" data-cmp-mode="branch">ブランチ</button>
-              <button class="cmp-mode-btn"        data-cmp-mode="project">別プロジェクト</button>
+              <button class="cmp-mode-btn active" data-cmp-mode="branch" title="git show <ブランチ>:pubspec.yaml / package.json の内容と現在を比較。マージ前の依存確認に使う">ブランチ</button>
+              <button class="cmp-mode-btn" data-cmp-mode="project" title="過去に開いた別プロジェクトの依存と現在を比較。モノレポや類似プロジェクト間のバージョン統一確認に使う">別プロジェクト</button>
             </div>
             <select id="cmp-branch-select"  class="ctx-select cmp-select"></select>
             <select id="cmp-project-select" class="ctx-select cmp-select hidden"></select>
             <button id="cmp-fetch-btn"  class="ctx-fetch-btn">↺</button>
-            <button id="cmp-run-btn">比較実行</button>
+            <button id="cmp-run-btn" title="選択したブランチ / プロジェクトと現在のパッケージバージョンを横断比較。差分のみ表示と全件表示を切り替えられる">比較実行</button>
             <label class="cmp-diff-label">
               <input type="checkbox" id="cmp-diff-only" checked> 差分のみ
             </label>
@@ -679,8 +679,8 @@
                 <th id="deps-th-check" class="hidden"><input type="checkbox" id="deps-check-all" title="全選択 / 全解除"></th>
                 <th>パッケージ</th>
                 <th>現在</th>
-                <th class="deps-th-minor">↑ minor</th>
-                <th class="deps-th-major">⚠ MAJOR</th>
+                <th class="deps-th-minor" title="マイナー / パッチ更新が存在するバージョン（後方互換あり・破壊的変更なしの見込み）">↑ minor</th>
+                <th class="deps-th-major" title="メジャーバージョンアップが存在するバージョン（API 変更・破壊的変更を含む可能性があるため要注意）">⚠ MAJOR</th>
                 <th>状態</th>
                 <th>公開日（現在版）</th>
                 <th>経過日数</th>
@@ -711,7 +711,7 @@
               <div id="env-diff-controls">
                 <select id="env-diff-a" class="env-diff-select"></select>
                 <select id="env-diff-b" class="env-diff-select"></select>
-                <button id="env-diff-run">比較</button>
+                <button id="env-diff-run" title="選択した 2 つの .env ファイルのキー一覧を横並びで比較。片方にしかないキーを色付きで警告表示">比較</button>
               </div>
             </div>
 
@@ -739,7 +739,7 @@
               <div id="env-toolbar">
                 <span id="env-file-label">ファイルを選択してください</span>
                 <label id="reveal-label">
-                  <input type="checkbox" id="reveal-toggle"> 値を表示
+                  <input type="checkbox" id="reveal-toggle" title="マスク（•••）表示された機密値（パスワード・APIキー等）を平文で表示 / 非表示"> 値を表示
                 </label>
               </div>
               <div id="env-table-wrap">
@@ -814,8 +814,8 @@
                 <select id="ctx-git-branch" class="ctx-select ctx-select-sm"></select>
               </div>
               <div class="ctx-actions ctx-actions-sm">
-                <button id="ctx-git-checkout" class="cmd-btn">checkout</button>
-                <button id="ctx-git-merge"    class="cmd-btn">merge</button>
+                <button id="ctx-git-checkout" class="cmd-btn" title="選択したブランチに git checkout で切り替え（未コミットの変更がある場合は先に stash を）">checkout</button>
+                <button id="ctx-git-merge"    class="cmd-btn" title="選択したブランチを現在のブランチに git merge でマージ">merge</button>
               </div>
               <div id="ctx-git-stash-row" class="hidden">
                 <div class="ctx-row" style="margin-top:.4rem">
@@ -823,8 +823,8 @@
                   <select id="ctx-git-stash" class="ctx-select ctx-select-sm"></select>
                 </div>
                 <div class="ctx-actions ctx-actions-sm">
-                  <button id="ctx-git-stash-pop"   class="cmd-btn">pop</button>
-                  <button id="ctx-git-stash-apply" class="cmd-btn">apply</button>
+                  <button id="ctx-git-stash-pop"   class="cmd-btn" title="git stash pop — 選択したスタッシュを取り出してワーキングツリーに適用し、スタッシュから削除">pop</button>
+                  <button id="ctx-git-stash-apply" class="cmd-btn" title="git stash apply — 選択したスタッシュをワーキングツリーに適用（スタッシュは残す）">apply</button>
                 </div>
               </div>
             </div>
@@ -846,13 +846,13 @@
             <div class="git-card" id="git-remote-card">
               <div class="git-card-label">リモート</div>
               <div class="git-remote-btns">
-                <button id="git-pull-btn" class="cmd-btn">↓ pull</button>
-                <button id="git-push-btn" class="cmd-btn">↑ push</button>
+                <button id="git-pull-btn" class="cmd-btn" title="git pull を実行してリモートの最新コミットをローカルに取り込む">↓ pull</button>
+                <button id="git-push-btn" class="cmd-btn" title="git push を実行してローカルのコミットをリモートに送信">↑ push</button>
               </div>
               <div id="git-remote-result" class="git-op-result"></div>
             </div>
 
-            <button id="git-refresh-btn">更新</button>
+            <button id="git-refresh-btn" title="git status / git log / git stash list を再実行して最新の状態を取得">更新</button>
           </aside>
 
           <!-- 右: 変更ファイル + コミット履歴 -->
@@ -894,9 +894,9 @@
           <div id="port-toolbar">
             <input type="number" id="port-add-input" placeholder="ポート番号" min="1" max="65535" class="port-add-input">
             <button id="port-add-btn">追加</button>
-            <button id="port-refresh-btn" class="btn-ghost">↺ 更新</button>
+            <button id="port-refresh-btn" class="btn-ghost" title="netstat / ss を再実行して最新のポート使用状況を取得">↺ 更新</button>
             <label class="port-auto-label">
-              <input type="checkbox" id="port-auto-refresh" checked> 自動更新（3s）
+              <input type="checkbox" id="port-auto-refresh" checked title="3 秒ごとにポート状態を自動更新。チェックを外すと手動更新のみ"> 自動更新（3s）
             </label>
             <span id="port-last-updated" class="port-muted"></span>
           </div>
