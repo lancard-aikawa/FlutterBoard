@@ -163,7 +163,7 @@
           <button class="cmd-tab active" data-cmd-tab="flutter">Flutter</button>
           <button class="cmd-tab" data-cmd-tab="firebase">Firebase</button>
           <button class="cmd-tab" data-cmd-tab="npm">npm</button>
-          <button class="cmd-tab" data-cmd-tab="seq">シーケンス</button>
+          <button class="cmd-tab" data-cmd-tab="routine">ルーティン</button>
         </div>
 
         <!-- Flutter パネル -->
@@ -398,32 +398,32 @@
           </section>
         </div>
 
-        <!-- シーケンス パネル -->
-        <div id="cmd-panel-seq" class="cmd-tab-content hidden">
-          <section class="cmd-section" id="seq-section">
+        <!-- ルーティン パネル -->
+        <div id="cmd-panel-routine" class="cmd-tab-content hidden">
+          <section class="cmd-section" id="routine-section">
             <h3 class="cmd-section-title">
-              シーケンス
-              <button id="seq-add-btn" class="seq-add-btn">+ 追加</button>
+              ルーティン
+              <button id="routine-add-btn" class="routine-add-btn">+ 追加</button>
             </h3>
-            <div id="seq-list">
-              <div class="seq-empty">シーケンスはまだありません — 「+ 追加」で作成</div>
+            <div id="routine-list">
+              <div class="routine-empty">ルーティンはまだありません — 「+ 追加」で作成</div>
             </div>
-            <div id="seq-editor" class="hidden">
-              <div class="seq-editor-inner">
-                <input type="text" id="seq-name-input" class="seq-name-input" placeholder="シーケンス名（例: clean &amp; run dev）">
-                <div id="seq-steps-list" class="seq-steps-list"></div>
-                <div class="seq-step-add-row">
-                  <input type="text" id="seq-step-cmd"   placeholder="コマンド（例: flutter run --flavor dev）">
-                  <input type="text" id="seq-step-label" class="seq-step-label-input" placeholder="ラベル（省略可）">
-                  <button id="seq-step-add-btn" class="cmd-btn">+ ステップ追加</button>
+            <div id="routine-editor" class="hidden">
+              <div class="routine-editor-inner">
+                <input type="text" id="routine-name-input" class="routine-name-input" placeholder="ルーティン名（例: clean &amp; run dev）">
+                <div id="routine-steps-list" class="routine-steps-list"></div>
+                <div class="routine-step-add-row">
+                  <input type="text" id="routine-step-cmd"   placeholder="コマンド（例: flutter run --flavor dev）">
+                  <input type="text" id="routine-step-label" class="routine-step-label-input" placeholder="ラベル（省略可）">
+                  <button id="routine-step-add-btn" class="cmd-btn">+ ステップ追加</button>
                 </div>
-                <div class="seq-editor-footer">
-                  <label class="seq-stoponerror-label">
-                    <input type="checkbox" id="seq-stop-on-error" checked> エラー時停止
+                <div class="routine-editor-footer">
+                  <label class="routine-stoponerror-label">
+                    <input type="checkbox" id="routine-stop-on-error" checked> エラー時停止
                   </label>
-                  <div class="seq-editor-btns">
-                    <button id="seq-save-btn"   class="cmd-btn seq-save-btn">保存</button>
-                    <button id="seq-cancel-btn" class="btn-ghost">キャンセル</button>
+                  <div class="routine-editor-btns">
+                    <button id="routine-save-btn"   class="cmd-btn routine-save-btn">保存</button>
+                    <button id="routine-cancel-btn" class="btn-ghost">キャンセル</button>
                   </div>
                 </div>
               </div>

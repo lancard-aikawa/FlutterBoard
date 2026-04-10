@@ -4,7 +4,7 @@ const path = require('path');
 
 function getSeqFile(projectPath) {
   const safe = projectPath.replace(/[:\\/]/g, '_');
-  return path.join(__dirname, '..', 'config', `seq_${safe}.json`);
+  return path.join(__dirname, '..', 'config', `routine_${safe}.json`);
 }
 
 function loadSeqs(projectPath) {
@@ -18,20 +18,20 @@ function saveSeqs(projectPath, seqs) {
   fs.writeFileSync(file, JSON.stringify(seqs, null, 2), 'utf-8');
 }
 
-function handleSequence(req, res, url) {
+function handleRoutine(req, res, url) {
   res.setHeader('Content-Type', 'application/json');
   const { pathname } = url;
 
-  // GET /api/sequence/list?path=...
-  if (pathname === '/api/sequence/list' && req.method === 'GET') {
+  // GET /api/routine/list?path=...
+  if (pathname === '/api/routine/list' && req.method === 'GET') {
     const p = url.searchParams.get('path');
     if (!p) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
     res.writeHead(200);
     return res.end(JSON.stringify(loadSeqs(p)));
   }
 
-  // POST /api/sequence/save  { path, sequences }
-  if (pathname === '/api/sequence/save' && req.method === 'POST') {
+  // POST /api/routine/save  { path, sequences }
+  if (pathname === '/api/routine/save' && req.method === 'POST') {
     return readBody(req, body => {
       let parsed;
       try { parsed = JSON.parse(body); } catch {
@@ -61,4 +61,4 @@ function readBody(req, cb) {
   req.on('end', () => cb(body));
 }
 
-module.exports = { handleSequence };
+module.exports = { handleRoutine };

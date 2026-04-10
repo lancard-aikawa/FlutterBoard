@@ -121,7 +121,7 @@ async function selectProject(projectPath) {
   depsProjectName.textContent = '';
 
   loadProjectInfo(data.selected);
-  loadSequences(data.selected);
+  loadRoutines(data.selected);
   loadMdList(data.selected);
   loadEnvList(data.selected);
   loadGitStatus();
@@ -865,208 +865,208 @@ function runCommand(cmd, label) {
 }
 
 // =====================================================================
-// シーケンスランナー
+// ルーティンランナー
 // =====================================================================
 
-const seqAddBtn     = document.getElementById('seq-add-btn');
-const seqList       = document.getElementById('seq-list');
-const seqEditor     = document.getElementById('seq-editor');
-const seqNameInput  = document.getElementById('seq-name-input');
-const seqStepsList  = document.getElementById('seq-steps-list');
-const seqStepCmd    = document.getElementById('seq-step-cmd');
-const seqStepLabel  = document.getElementById('seq-step-label');
-const seqStepAddBtn = document.getElementById('seq-step-add-btn');
-const seqSaveBtn    = document.getElementById('seq-save-btn');
-const seqCancelBtn  = document.getElementById('seq-cancel-btn');
-const seqStopErr    = document.getElementById('seq-stop-on-error');
+const routineAddBtn     = document.getElementById('routine-add-btn');
+const routineList       = document.getElementById('routine-list');
+const routineEditor     = document.getElementById('routine-editor');
+const routineNameInput  = document.getElementById('routine-name-input');
+const routineStepsList  = document.getElementById('routine-steps-list');
+const routineStepCmd    = document.getElementById('routine-step-cmd');
+const routineStepLabel  = document.getElementById('routine-step-label');
+const routineStepAddBtn = document.getElementById('routine-step-add-btn');
+const routineSaveBtn    = document.getElementById('routine-save-btn');
+const routineCancelBtn  = document.getElementById('routine-cancel-btn');
+const routineStopErr    = document.getElementById('routine-stop-on-error');
 
-let sequences     = [];       // 現在のプロジェクトのシーケンス一覧
-let seqEditingId  = null;     // 編集中の ID（null = 新規）
-let seqEditSteps  = [];       // エディタ上のステップ
-let seqRunState   = null;     // { seq, stepIdx } — 実行中状態
-let seqMonitorSSE = null;     // ステップ完了監視用 SSE
+let routines     = [];       // 現在のプロジェクトのルーティン一覧
+let routineEditingId  = null;     // 編集中の ID（null = 新規）
+let routineEditSteps  = [];       // エディタ上のステップ
+let routineRunState   = null;     // { seq, stepIdx } — 実行中状態
+let routineMonitorSSE = null;     // ステップ完了監視用 SSE
 
 // ---- ロード / セーブ ----
 
-async function loadSequences(projectPath) {
+async function loadRoutines(projectPath) {
   try {
-    const res = await fetch(`/api/sequence/list?path=${encodeURIComponent(projectPath)}`);
-    sequences = await res.json();
+    const res = await fetch(`/api/routine/list?path=${encodeURIComponent(projectPath)}`);
+    routines = await res.json();
   } catch (_) {
-    sequences = [];
+    routines = [];
   }
-  renderSeqList();
+  renderRoutineList();
 }
 
-async function saveSequences() {
-  await fetch('/api/sequence/save', {
+async function saveRoutines() {
+  await fetch('/api/routine/save', {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ path: currentProjectPath, sequences }),
+    body:    JSON.stringify({ path: currentProjectPath, routines }),
   });
 }
 
 // ---- リスト描画 ----
 
-function renderSeqList() {
-  if (!sequences.length) {
-    seqList.innerHTML = '<div class="seq-empty">シーケンスはまだありません — 「+ 追加」で作成</div>';
+function renderRoutineList() {
+  if (!routines.length) {
+    routineList.innerHTML = '<div class="routine-empty">ルーティンはまだありません — 「+ 追加」で作成</div>';
     return;
   }
-  seqList.innerHTML = '';
-  sequences.forEach(seq => {
-    const isRunning = !!(seqRunState && seqRunState.seq.id === seq.id);
-    const stepIdx   = isRunning ? seqRunState.stepIdx : 0;
+  routineList.innerHTML = '';
+  routines.forEach(seq => {
+    const isRunning = !!(routineRunState && routineRunState.seq.id === seq.id);
+    const stepIdx   = isRunning ? routineRunState.stepIdx : 0;
     const card      = document.createElement('div');
-    card.className  = 'seq-item' + (isRunning ? ' seq-running' : '');
+    card.className  = 'routine-item' + (isRunning ? ' seq-running' : '');
     card.dataset.id = seq.id;
 
     const preview = seq.steps.map(s => escHtml(s.label || s.cmd)).join(' → ');
     const progressHtml = isRunning
-      ? `<div class="seq-progress">
-           <span class="seq-progress-dot"></span>
+      ? `<div class="routine-progress">
+           <span class="routine-progress-dot"></span>
            ステップ ${stepIdx + 1}/${seq.steps.length}: ${escHtml(seq.steps[stepIdx].label || seq.steps[stepIdx].cmd)}
          </div>`
       : '';
 
-    const otherRunning = !!(seqRunState && seqRunState.seq.id !== seq.id);
+    const otherRunning = !!(routineRunState && routineRunState.seq.id !== seq.id);
 
     card.innerHTML = `
-      <div class="seq-item-header">
-        <span class="seq-item-name">${escHtml(seq.name)}</span>
-        <span class="seq-item-count">${seq.steps.length}ステップ</span>
-        <div class="seq-item-actions">
+      <div class="routine-item-header">
+        <span class="routine-item-name">${escHtml(seq.name)}</span>
+        <span class="routine-item-count">${seq.steps.length}ステップ</span>
+        <div class="routine-item-actions">
           <button class="cmd-btn seq-run-btn" ${isRunning || otherRunning ? 'disabled' : ''}>▶ 実行</button>
           <button class="btn-ghost seq-edit-btn" ${isRunning ? 'disabled' : ''}>編集</button>
           <button class="btn-ghost seq-del-btn"  ${isRunning ? 'disabled' : ''}>✕</button>
         </div>
       </div>
-      <div class="seq-item-preview">${preview}</div>
+      <div class="routine-item-preview">${preview}</div>
       ${progressHtml}`;
 
-    card.querySelector('.seq-run-btn').addEventListener('click', () => runSequence(seq));
-    card.querySelector('.seq-edit-btn').addEventListener('click', () => openSeqEditor(seq.id));
-    card.querySelector('.seq-del-btn').addEventListener('click', async () => {
+    card.querySelector('.routine-run-btn').addEventListener('click', () => runRoutine(seq));
+    card.querySelector('.routine-edit-btn').addEventListener('click', () => openRoutineEditor(seq.id));
+    card.querySelector('.routine-del-btn').addEventListener('click', async () => {
       if (!confirm(`「${seq.name}」を削除しますか？`)) return;
-      sequences = sequences.filter(s => s.id !== seq.id);
-      await saveSequences();
-      renderSeqList();
+      routines = routines.filter(s => s.id !== seq.id);
+      await saveRoutines();
+      renderRoutineList();
     });
 
-    seqList.appendChild(card);
+    routineList.appendChild(card);
   });
 }
 
 // ---- エディタ ----
 
-seqAddBtn.addEventListener('click', () => openSeqEditor(null));
+routineAddBtn.addEventListener('click', () => openRoutineEditor(null));
 
-function openSeqEditor(id) {
-  seqEditingId = id;
-  seqAddBtn.disabled = true;
-  seqEditor.classList.remove('hidden');
+function openRoutineEditor(id) {
+  routineEditingId = id;
+  routineAddBtn.disabled = true;
+  routineEditor.classList.remove('hidden');
 
   if (id) {
-    const seq = sequences.find(s => s.id === id);
-    seqNameInput.value = seq.name;
-    seqEditSteps       = seq.steps.map(s => ({ ...s }));
-    seqStopErr.checked = seq.stopOnError !== false;
+    const seq = routines.find(s => s.id === id);
+    routineNameInput.value = seq.name;
+    routineEditSteps       = seq.steps.map(s => ({ ...s }));
+    routineStopErr.checked = seq.stopOnError !== false;
   } else {
-    seqNameInput.value = '';
-    seqEditSteps       = [];
-    seqStopErr.checked = true;
+    routineNameInput.value = '';
+    routineEditSteps       = [];
+    routineStopErr.checked = true;
   }
   renderSeqEditorSteps();
-  seqNameInput.focus();
+  routineNameInput.focus();
 }
 
 function closeSeqEditor() {
-  seqEditor.classList.add('hidden');
-  seqAddBtn.disabled = false;
-  seqEditingId = null;
-  seqEditSteps = [];
+  routineEditor.classList.add('hidden');
+  routineAddBtn.disabled = false;
+  routineEditingId = null;
+  routineEditSteps = [];
 }
 
 function renderSeqEditorSteps() {
-  if (!seqEditSteps.length) {
-    seqStepsList.innerHTML = '<div class="seq-steps-empty">↑ ステップを追加してください</div>';
+  if (!routineEditSteps.length) {
+    routineStepsList.innerHTML = '<div class="routine-steps-empty">↑ ステップを追加してください</div>';
     return;
   }
-  seqStepsList.innerHTML = '';
-  const total = seqEditSteps.length;
-  seqEditSteps.forEach((step, i) => {
+  routineStepsList.innerHTML = '';
+  const total = routineEditSteps.length;
+  routineEditSteps.forEach((step, i) => {
     const row = document.createElement('div');
-    row.className = 'seq-editor-step-row';
+    row.className = 'routine-editor-step-row';
     row.innerHTML = `
-      <span class="seq-step-num">${i + 1}</span>
-      <span class="seq-step-cmd-txt" title="${escHtml(step.cmd)}">${escHtml(step.label || step.cmd)}</span>
-      <div class="seq-step-row-acts">
-        <button class="seq-stp-up  btn-icon" data-i="${i}" ${i === 0          ? 'disabled' : ''}>↑</button>
-        <button class="seq-stp-dn  btn-icon" data-i="${i}" ${i === total - 1  ? 'disabled' : ''}>↓</button>
-        <button class="seq-stp-del btn-icon" data-i="${i}">✕</button>
+      <span class="routine-step-num">${i + 1}</span>
+      <span class="routine-step-cmd-txt" title="${escHtml(step.cmd)}">${escHtml(step.label || step.cmd)}</span>
+      <div class="routine-step-row-acts">
+        <button class="routine-stp-up  btn-icon" data-i="${i}" ${i === 0          ? 'disabled' : ''}>↑</button>
+        <button class="routine-stp-dn  btn-icon" data-i="${i}" ${i === total - 1  ? 'disabled' : ''}>↓</button>
+        <button class="routine-stp-del btn-icon" data-i="${i}">✕</button>
       </div>`;
-    seqStepsList.appendChild(row);
+    routineStepsList.appendChild(row);
   });
 
-  seqStepsList.querySelectorAll('.seq-stp-up').forEach(b => b.addEventListener('click', () => {
+  routineStepsList.querySelectorAll('.routine-stp-up').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.i;
-    [seqEditSteps[i - 1], seqEditSteps[i]] = [seqEditSteps[i], seqEditSteps[i - 1]];
+    [routineEditSteps[i - 1], routineEditSteps[i]] = [routineEditSteps[i], routineEditSteps[i - 1]];
     renderSeqEditorSteps();
   }));
-  seqStepsList.querySelectorAll('.seq-stp-dn').forEach(b => b.addEventListener('click', () => {
+  routineStepsList.querySelectorAll('.routine-stp-dn').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.i;
-    [seqEditSteps[i], seqEditSteps[i + 1]] = [seqEditSteps[i + 1], seqEditSteps[i]];
+    [routineEditSteps[i], routineEditSteps[i + 1]] = [routineEditSteps[i + 1], routineEditSteps[i]];
     renderSeqEditorSteps();
   }));
-  seqStepsList.querySelectorAll('.seq-stp-del').forEach(b => b.addEventListener('click', () => {
-    seqEditSteps.splice(+b.dataset.i, 1);
+  routineStepsList.querySelectorAll('.routine-stp-del').forEach(b => b.addEventListener('click', () => {
+    routineEditSteps.splice(+b.dataset.i, 1);
     renderSeqEditorSteps();
   }));
 }
 
 function addSeqStep() {
-  const cmd = seqStepCmd.value.trim();
-  if (!cmd) { seqStepCmd.focus(); return; }
-  seqEditSteps.push({ cmd, label: seqStepLabel.value.trim() });
-  seqStepCmd.value   = '';
-  seqStepLabel.value = '';
+  const cmd = routineStepCmd.value.trim();
+  if (!cmd) { routineStepCmd.focus(); return; }
+  routineEditSteps.push({ cmd, label: routineStepLabel.value.trim() });
+  routineStepCmd.value   = '';
+  routineStepLabel.value = '';
   renderSeqEditorSteps();
-  seqStepCmd.focus();
+  routineStepCmd.focus();
 }
 
-seqStepAddBtn.addEventListener('click', addSeqStep);
-seqStepCmd.addEventListener('keydown',   e => { if (e.key === 'Enter') addSeqStep(); });
-seqStepLabel.addEventListener('keydown', e => { if (e.key === 'Enter') addSeqStep(); });
+routineStepAddBtn.addEventListener('click', addSeqStep);
+routineStepCmd.addEventListener('keydown',   e => { if (e.key === 'Enter') addSeqStep(); });
+routineStepLabel.addEventListener('keydown', e => { if (e.key === 'Enter') addSeqStep(); });
 
-seqSaveBtn.addEventListener('click', async () => {
-  const name = seqNameInput.value.trim();
-  if (!name) { seqNameInput.focus(); return; }
-  if (!seqEditSteps.length) { alert('ステップを1つ以上追加してください'); return; }
+routineSaveBtn.addEventListener('click', async () => {
+  const name = routineNameInput.value.trim();
+  if (!name) { routineNameInput.focus(); return; }
+  if (!routineEditSteps.length) { alert('ステップを1つ以上追加してください'); return; }
 
-  if (seqEditingId) {
-    const idx = sequences.findIndex(s => s.id === seqEditingId);
-    if (idx >= 0) sequences[idx] = { id: seqEditingId, name, steps: [...seqEditSteps], stopOnError: seqStopErr.checked };
+  if (routineEditingId) {
+    const idx = routines.findIndex(s => s.id === routineEditingId);
+    if (idx >= 0) routines[idx] = { id: routineEditingId, name, steps: [...routineEditSteps], stopOnError: routineStopErr.checked };
   } else {
-    sequences.push({ id: `seq_${Date.now()}`, name, steps: [...seqEditSteps], stopOnError: seqStopErr.checked });
+    routines.push({ id: `seq_${Date.now()}`, name, steps: [...routineEditSteps], stopOnError: routineStopErr.checked });
   }
-  await saveSequences();
+  await saveRoutines();
   closeSeqEditor();
-  renderSeqList();
+  renderRoutineList();
 });
 
-seqCancelBtn.addEventListener('click', closeSeqEditor);
+routineCancelBtn.addEventListener('click', closeSeqEditor);
 
-// ---- シーケンス実行 ----
+// ---- ルーティン実行 ----
 
-async function runSequence(seq) {
-  if (seqRunState) return;
-  seqRunState = { seq, stepIdx: 0 };
-  renderSeqList();
-  await startSeqStep();
+async function runRoutine(seq) {
+  if (routineRunState) return;
+  routineRunState = { seq, stepIdx: 0 };
+  renderRoutineList();
+  await startRoutineStep();
 }
 
-async function startSeqStep() {
-  const { seq, stepIdx } = seqRunState;
+async function startRoutineStep() {
+  const { seq, stepIdx } = routineRunState;
   const step  = seq.steps[stepIdx];
   const total = seq.steps.length;
   const label = `[${stepIdx + 1}/${total}] ${step.label || step.cmd}`;
@@ -1082,8 +1082,8 @@ async function startSeqStep() {
     const data = await res.json();
     procId = data.id;
   } catch {
-    seqRunState = null;
-    renderSeqList();
+    routineRunState = null;
+    renderRoutineList();
     return;
   }
 
@@ -1092,37 +1092,37 @@ async function startSeqStep() {
   refreshProcessList(procId);
 
   // ステップ完了を監視する専用 SSE
-  if (seqMonitorSSE) { seqMonitorSSE.close(); seqMonitorSSE = null; }
+  if (routineMonitorSSE) { routineMonitorSSE.close(); routineMonitorSSE = null; }
   const sse = new EventSource(`/api/process/stream?id=${procId}`);
-  seqMonitorSSE = sse;
+  routineMonitorSSE = sse;
 
   sse.onmessage = e => {
     const { type, data } = JSON.parse(e.data);
     if (type !== 'exit') return;
     sse.close();
-    seqMonitorSSE = null;
+    routineMonitorSSE = null;
 
     const m    = data.match(/code:\s*(-?\d+)/);
     const code = m ? parseInt(m[1]) : 1;
 
     if (code !== 0 && seq.stopOnError !== false) {
-      seqRunState = null;
-      renderSeqList();
+      routineRunState = null;
+      renderRoutineList();
       return;
     }
 
-    seqRunState.stepIdx++;
-    if (seqRunState.stepIdx >= seq.steps.length) {
-      seqRunState = null;
+    routineRunState.stepIdx++;
+    if (routineRunState.stepIdx >= seq.steps.length) {
+      routineRunState = null;
     }
-    renderSeqList();
-    if (seqRunState) startSeqStep();
+    renderRoutineList();
+    if (routineRunState) startRoutineStep();
   };
 
   sse.onerror = () => {
     sse.close();
-    seqMonitorSSE = null;
-    if (seqRunState) { seqRunState = null; renderSeqList(); }
+    routineMonitorSSE = null;
+    if (routineRunState) { routineRunState = null; renderRoutineList(); }
   };
 }
 

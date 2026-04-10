@@ -8,7 +8,7 @@ const { handleCdn }         = require('./cdnChecker');
 const { handleEnv }         = require('./envManager');
 const { handleGit }         = require('./gitStatus');
 const { handleDevTools }    = require('./devtoolsManager');
-const { handleSequence }    = require('./sequenceRunner');
+const { handleRoutine }    = require('./routineRunner');
 const { handleContext }     = require('./contextProvider');
 const { handleFirebaseEnv } = require('./firebaseEnv');
 const { handleDepCompare }      = require('./depCompare');
@@ -66,8 +66,8 @@ function handleApi(req, res, url) {
     return handleDevTools(req, res, url);
   }
 
-  if (pathname.startsWith('/api/sequence')) {
-    return handleSequence(req, res, url);
+  if (pathname.startsWith('/api/routine')) {
+    return handleRoutine(req, res, url);
   }
 
   if (pathname.startsWith('/api/context')) {
