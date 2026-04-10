@@ -1,10 +1,7 @@
 node_modules/
 
 # ユーザー固有の設定・実行時ファイル（コミット不要）
-config/history.json
-config/pins_*.json
-config/flutterboard.pid
-config/server.log
+config/
 
 # Claude Code ローカル設定
 .claude/
