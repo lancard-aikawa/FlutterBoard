@@ -190,8 +190,6 @@ const devtoolsLaunchBtn = document.getElementById('devtools-launch-btn');
 const vmServiceLink     = document.getElementById('vmservice-link');
 const vmBar             = document.getElementById('vm-bar');
 const vmBarUrl          = document.getElementById('vm-bar-url');
-const vmBarReload       = document.getElementById('vm-bar-reload');
-const vmBarRestart      = document.getElementById('vm-bar-restart');
 const vmBarDetach       = document.getElementById('vm-bar-detach');
 const logArea           = document.getElementById('log-area');
 const vmUrlInput        = document.getElementById('vm-url-input');
@@ -416,9 +414,6 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
     vmBarUrl.textContent = vmServiceUrl;
     vmBar.classList.remove('hidden');
     logArea.classList.add('vm-mode');
-    // プロセス切り替え時にボタン状態をリセット
-    vmBarRestart.disabled = false;
-    vmBarRestart.title = 'Hot Restart — hotRestart RPC';
   } else {
     vmBar.classList.add('hidden');
     logArea.classList.remove('vm-mode');
@@ -439,12 +434,6 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
     const { type, data, ts } = JSON.parse(e.data);
     logBuffer.push({ type, data, ts });
     appendLogEntry(type, data, ts);
-
-    // V2: web ターゲットで hotRestart 非対応と判明したら R ボタンを無効化
-    if (type === 'stderr' && data && data.includes('web ターゲットは VM Service 経由で非対応')) {
-      vmBarRestart.disabled = true;
-      vmBarRestart.title = 'Hot Restart は web ターゲットでは VM Service 経由で利用できません（PTY 起動 → R キーを使用）';
-    }
 
     // DevTools / VM Service URL をリアルタイム検出
     if (data && (type === 'stdout' || type === 'stderr')) {
@@ -737,25 +726,6 @@ async function attachVM() {
   } finally {
     vmAttachBtn.disabled = false;
     vmAttachBtn.textContent = '📡 Attach';
-  }
-}
-
-// V2: VM Service Hot Reload / Hot Restart ボタン
-vmBarReload.addEventListener('click',  () => vmAction('reload'));
-vmBarRestart.addEventListener('click', () => vmAction('restart'));
-
-async function vmAction(action) {
-  if (activeId === null) return;
-  try {
-    const res  = await fetch('/api/process/vm-action', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ id: activeId, action }),
-    });
-    const data = await res.json();
-    if (!data.ok) appendLogEntry('stderr', `[FlutterBoard] ${action} 失敗: ${data.error}\n`, Date.now());
-  } catch (e) {
-    appendLogEntry('stderr', `[FlutterBoard] ${action} エラー: ${e.message}\n`, Date.now());
   }
 }
 

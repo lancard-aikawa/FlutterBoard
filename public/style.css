@@ -641,12 +641,6 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   flex-shrink: 0;
 }
 .vm-bar-btn:hover { background: color-mix(in srgb, var(--vm-accent) 12%, transparent); }
-/* V2: r / R アクションボタンは少し小さめ・固定幅 */
-.vm-bar-action {
-  font-weight: bold;
-  min-width: 1.8rem;
-  text-align: center;
-}
 
 /* V3: スキャン候補セレクト */
 #vm-scan-results {
