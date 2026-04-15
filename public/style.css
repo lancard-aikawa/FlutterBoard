@@ -2385,7 +2385,7 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
   padding: .3rem .5rem;
   box-sizing: border-box;
 }
-.gh-textarea { resize: vertical; font-family: inherit; }
+.gh-textarea { resize: vertical; font-family: inherit; min-height: 7em; }
 .gh-input:focus, .gh-select:focus, .gh-textarea:focus {
   outline: none;
   border-color: var(--accent);
@@ -2419,7 +2419,16 @@ tr.trust-none    td:first-child { padding-left: calc(.9rem - 3px); }
   display: flex;
   align-items: center;
   gap: .5rem;
-  font-size: .85rem;
+  font-size: .82rem;
+  padding: .25rem .1rem;
+  border-bottom: 1px solid var(--border);
+}
+.gh-pr-row:last-child { border-bottom: none; }
+.gh-pr-current { color: var(--accent); }
+.gh-pr-branch {
+  font-size: .72rem;
+  color: var(--muted);
+  flex-shrink: 0;
 }
 .gh-ci-badge {
   font-size: .72rem;

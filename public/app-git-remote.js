@@ -122,33 +122,44 @@ async function loadRemoteTab() {
 // PR セクション
 // =====================================================================
 async function loadPrStatus() {
-  ghprStatusArea.textContent = '取得中…';
+  ghprStatusArea.innerHTML = '<span style="color:var(--muted)">取得中…</span>';
   ghprMeta.textContent = '';
   try {
     const res  = await fetch(`/api/github/pr/status?path=${encodeURIComponent(currentProjectPath)}`);
     const data = await res.json();
     if (!data.ok) { ghprStatusArea.textContent = data.error || 'エラー'; return; }
 
-    const pr = data.data;
-    const cur = pr.currentBranch && pr.currentBranch.pr;
-    if (!cur) {
-      ghprStatusArea.innerHTML = '<span style="color:var(--muted)">現在のブランチに PR はありません</span>';
+    const prs = Array.isArray(data.data) ? data.data : [];
+    const cur = data.currentBranch || '';
+
+    if (prs.length === 0) {
+      ghprStatusArea.innerHTML = '<span style="color:var(--muted)">Open PR はありません</span>';
       ghprMeta.textContent = '';
     } else {
-      const ciStatus = getCiBadge(cur.statusCheckRollup);
-      ghprStatusArea.innerHTML =
-        `<div class="gh-pr-row">
-          <span>#${cur.number}</span>
-          <span class="gh-title">${escHtml(cur.title)}</span>
-          <span class="gh-ci-badge ${ciStatus.cls}">${ciStatus.label}</span>
-          <a class="gh-link" href="${escHtml(cur.url)}" target="_blank">↗</a>
+      ghprStatusArea.innerHTML = prs.map(pr => {
+        const isCurrent = pr.headRefName === cur;
+        const ciStatus  = getCiBadge(pr.statusCheckRollup);
+        return `<div class="gh-pr-row${isCurrent ? ' gh-pr-current' : ''}">
+          <span class="gh-num">#${pr.number}</span>
+          <span class="gh-title">${escHtml(pr.title)}</span>
+          <span class="gh-pr-branch">${escHtml(pr.headRefName)} → ${escHtml(pr.baseRefName)}</span>
+          ${ciStatus.label ? `<span class="gh-ci-badge ${ciStatus.cls}">${ciStatus.label}</span>` : ''}
+          <a class="gh-link" href="${escHtml(pr.url)}" target="_blank">↗</a>
         </div>`;
-      ghprMeta.textContent = `#${cur.number}`;
+      }).join('');
+      const curPr = prs.find(p => p.headRefName === cur);
+      ghprMeta.textContent = curPr ? `#${curPr.number}` : `${prs.length} open`;
     }
 
-    // base ブランチ選択肢を更新
+    // PR タイトルが未入力ならブランチ名をデフォルトセット
+    if (!ghprTitle.value && cur) {
+      ghprTitle.value = cur;
+    }
+
+    // base ブランチ選択肢を更新（現在ブランチ以外、main/master を優先）
     if (data.branches && data.branches.length) {
-      ghprBase.innerHTML = data.branches.map(b =>
+      const bases = data.branches.filter(b => b !== cur);
+      ghprBase.innerHTML = bases.map(b =>
         `<option value="${escHtml(b)}"${b === 'main' || b === 'master' ? ' selected' : ''}>${escHtml(b)}</option>`
       ).join('');
     }
