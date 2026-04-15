@@ -103,22 +103,37 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ---
 
-### [G1] GitHub Issues 連携
+### [G1] GitHub Issues 連携（gh CLI 経由）
 
-- Open Issues の一覧をサイドパネルに表示（タイトル・ラベル・担当者）
-- `flutter analyze` / テスト結果の警告から **直接 Issue 起票**（タイトル・本文を自動生成）
-- Git コミット入力欄で `#` を入力すると Open Issues を補完 → 番号付け忘れを防止
-- 認証: `GITHUB_TOKEN` 環境変数 or 設定画面で入力（config/ に保存）
+**認証方式**: `gh` コマンド（GitHub CLI）を経由 → API トークン登録不要。`gh auth login` 済みであれば即動作。`gh` が未インストールの場合はパネル非表示（graceful fallback）。
+
+使用コマンド:
+```
+gh issue list --json number,title,labels,assignees,state,url
+gh issue create --title "..." --body "..." --label "bug"
+```
+
+- Git タブの下部に Open Issues 一覧を表示（番号・タイトル・ラベル）
+- `flutter analyze` ビューアの警告行に「Issue 起票」ボタンを追加 → タイトル・本文を自動生成して `gh issue create` を実行
+- Git コミット入力欄で `#` を入力すると Open Issues の番号・タイトルを補完 → `gh issue list` で取得
 - 解決する困りごと: **analyze 結果 → ブラウザ → GitHub → FlutterBoard という往復 / コミット時の Issue 番号確認**
 - VSCode との差: GitHub Pull Requests 拡張は Issue 起票に analyze 連携がない
 
 ---
 
-### [G2] PR ステータス + CI 状態表示
+### [G2] PR ステータス + CI 状態表示（gh CLI 経由）
 
-- 現在ブランチの Open PR とその CI ステータス（✓ / ✗ / ⏳）をヘッダーまたはGitタブに常時表示
-- `gh` コマンド（GitHub CLI）が入っていれば優先使用、なければ GitHub REST API 直接呼び出し
+**認証方式**: G1 と同様、`gh` コマンドのみ。API トークン不要。
+
+使用コマンド:
+```
+gh pr status --json number,title,state,url,statusCheckRollup
+gh run list --branch <current> --limit 3 --json status,conclusion,name,workflowName,url
+```
+
+- Git タブのヘッダー行に現在ブランチの PR タイトルと CI ステータス（✓ / ✗ / ⏳）を表示
 - CI 失敗時はクリックでログ URL を開く
+- 定期ポーリング（30秒）または手動更新ボタン
 - 解決する困りごと: **「CI 通ったかな」のためだけにブラウザを開くコンテキストスイッチ**
 - VSCode との差: GitLens 等でも確認できるが、FlutterBoard の他情報と同一画面で見られない
 
