@@ -56,6 +56,14 @@ const server = http.createServer((req, res) => {
       return res.end('Not Found');
     }
     const ext = path.extname(filePath);
+    // index.html のみ: JS/CSS にタイムスタンプクエリを付けてキャッシュを無効化
+    if (ext === '.html') {
+      const ts = Date.now();
+      const html = data.toString('utf-8')
+        .replace(/(href|src)="((?!https?:\/\/)[^"]+\.(?:css|js))"/g, `$1="$2?v=${ts}"`);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(html);
+    }
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
     res.end(data);
   });

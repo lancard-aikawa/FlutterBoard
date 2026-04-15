@@ -127,6 +127,7 @@ async function selectProject(projectPath) {
   loadGitStatus();
   loadFirebaseEnvStatus(data.selected);
   loadFvmInfo(data.selected);
+  if (typeof window.ghCheckAfterProjectLoad === 'function') window.ghCheckAfterProjectLoad();
 }
 
 openBtn.onclick = () => {

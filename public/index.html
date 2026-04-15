@@ -876,35 +876,126 @@
             <button id="git-refresh-btn" title="git status / git log / git stash list を再実行して最新の状態を取得">更新</button>
           </aside>
 
-          <!-- 右: 変更ファイル + コミット履歴 -->
-          <div id="git-main">
-            <div class="git-section">
-              <div class="git-section-title">変更ファイル <span id="git-changes-count"></span></div>
-              <ul id="git-changes-list"></ul>
-              <div id="git-diff-panel" class="hidden">
-                <div class="git-diff-toolbar">
-                  <span id="git-diff-filename"></span>
-                  <button id="git-diff-close" class="btn-secondary">✕</button>
+          <!-- 右: サブタブ + コンテンツ -->
+          <div id="git-content">
+            <!-- サブタブバー -->
+            <div id="git-subtab-bar">
+              <button class="git-subtab active" data-subtab="local">ローカル</button>
+              <button class="git-subtab" data-subtab="remote" id="git-subtab-remote-btn">リモート</button>
+            </div>
+
+            <!-- ローカルサブタブ（既存コンテンツ） -->
+            <div id="git-main" class="git-subtab-pane">
+              <div class="git-section">
+                <div class="git-section-title">変更ファイル <span id="git-changes-count"></span></div>
+                <ul id="git-changes-list"></ul>
+                <div id="git-diff-panel" class="hidden">
+                  <div class="git-diff-toolbar">
+                    <span id="git-diff-filename"></span>
+                    <button id="git-diff-close" class="btn-secondary">✕</button>
+                  </div>
+                  <pre id="git-diff-body"></pre>
                 </div>
-                <pre id="git-diff-body"></pre>
+              </div>
+              <div class="git-section">
+                <div class="git-section-title">
+                  コミット履歴
+                  <span id="git-log-count" class="git-log-count"></span>
+                </div>
+                <ul id="git-log-list"></ul>
+                <!-- 詳細パネル -->
+                <div id="git-commit-detail" class="hidden"></div>
+                <!-- ページネーション -->
+                <div id="git-log-pager" class="hidden">
+                  <button id="git-log-prev" class="btn-secondary">◀ 前</button>
+                  <span id="git-log-page-info"></span>
+                  <button id="git-log-next" class="btn-secondary">次 ▶</button>
+                </div>
               </div>
             </div>
-            <div class="git-section">
-              <div class="git-section-title">
-                コミット履歴
-                <span id="git-log-count" class="git-log-count"></span>
-              </div>
-              <ul id="git-log-list"></ul>
-              <!-- 詳細パネル -->
-              <div id="git-commit-detail" class="hidden"></div>
-              <!-- ページネーション -->
-              <div id="git-log-pager" class="hidden">
-                <button id="git-log-prev" class="btn-secondary">◀ 前</button>
-                <span id="git-log-page-info"></span>
-                <button id="git-log-next" class="btn-secondary">次 ▶</button>
-              </div>
-            </div>
-          </div>
+
+            <!-- リモートサブタブ（GitHub 連携） -->
+            <div id="git-remote-pane" class="git-subtab-pane hidden">
+
+              <!-- gh 未検出 / 非 GitHub リモート時のメッセージ -->
+              <div id="gh-unavailable-msg" class="gh-notice hidden"></div>
+
+              <!-- GitHub 機能エリア -->
+              <div id="gh-features">
+
+                <!-- PR セクション -->
+                <div class="git-remote-section">
+                  <button class="gh-section-header" data-target="ghpr-section-body">
+                    <span class="gh-section-arrow">▶</span>
+                    <span class="gh-section-name">Pull Request</span>
+                    <span class="gh-section-meta" id="ghpr-meta"></span>
+                  </button>
+                  <div id="ghpr-section-body" class="gh-section-body">
+                    <div class="gh-body-toolbar">
+                      <button id="ghpr-refresh-btn" class="ctx-fetch-btn" title="更新">↺ 更新</button>
+                    </div>
+                    <div id="ghpr-status-area" class="gh-status-area">—</div>
+                    <details class="gh-create-details">
+                      <summary class="gh-create-summary">PR を作成</summary>
+                      <div class="gh-create-form">
+                        <label class="gh-label">タイトル</label>
+                        <input type="text" id="ghpr-title" class="gh-input" placeholder="PR タイトル">
+                        <label class="gh-label">base ブランチ</label>
+                        <select id="ghpr-base" class="gh-select"></select>
+                        <label class="gh-label">本文</label>
+                        <textarea id="ghpr-body" class="gh-textarea" rows="5" placeholder="直前のコミットが自動挿入されます"></textarea>
+                        <button id="ghpr-create-btn" class="cmd-btn">作成する</button>
+                        <div id="ghpr-create-result" class="git-op-result"></div>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+
+                <!-- Issues セクション -->
+                <div class="git-remote-section">
+                  <button class="gh-section-header" data-target="ghissue-section-body">
+                    <span class="gh-section-arrow">▶</span>
+                    <span class="gh-section-name">Issues</span>
+                    <span class="gh-section-meta" id="ghissue-meta"></span>
+                  </button>
+                  <div id="ghissue-section-body" class="gh-section-body">
+                    <div class="gh-body-toolbar">
+                      <button id="ghissue-refresh-btn" class="ctx-fetch-btn" title="更新">↺ 更新</button>
+                    </div>
+                    <details class="gh-create-details">
+                      <summary class="gh-create-summary">Issue を作成</summary>
+                      <div class="gh-create-form">
+                        <label class="gh-label">タイトル</label>
+                        <input type="text" id="ghissue-title" class="gh-input" placeholder="Issue タイトル">
+                        <label class="gh-label">本文</label>
+                        <textarea id="ghissue-body" class="gh-textarea" rows="3"></textarea>
+                        <button id="ghissue-create-btn" class="cmd-btn">作成する</button>
+                        <div id="ghissue-create-result" class="git-op-result"></div>
+                      </div>
+                    </details>
+                    <ul id="ghissue-list" class="gh-list"></ul>
+                  </div>
+                </div>
+
+                <!-- CI / Actions セクション -->
+                <div class="git-remote-section">
+                  <button class="gh-section-header" data-target="ghactions-section-body">
+                    <span class="gh-section-arrow">▶</span>
+                    <span class="gh-section-name">CI / Actions</span>
+                    <span class="gh-section-meta" id="ghactions-meta"></span>
+                  </button>
+                  <div id="ghactions-section-body" class="gh-section-body">
+                    <div class="gh-body-toolbar">
+                      <button id="ghactions-refresh-btn" class="ctx-fetch-btn" title="更新">↺ 更新</button>
+                    </div>
+                    <ul id="ghactions-list" class="gh-list"></ul>
+                  </div>
+                </div>
+
+              </div><!-- /#gh-features -->
+            </div><!-- /#git-remote-pane -->
+
+          </div><!-- /#git-content -->
 
         </div>
       </div>
@@ -954,5 +1045,6 @@
   </script>
   <script src="app-core.js"></script>
   <script src="app.js"></script>
+  <script src="app-git-remote.js"></script>
 </body>
 </html>
