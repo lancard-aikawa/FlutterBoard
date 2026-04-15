@@ -13,6 +13,15 @@ function git(args, cwd) {
   });
 }
 
+function gitDetail(args, cwd) {
+  return new Promise(resolve => {
+    execFile('git', args, { cwd, encoding: 'utf-8', timeout: 15000 }, (err, stdout, stderr) => {
+      if (err) resolve({ ok: false, stderr: (stderr || err.message || '').trim() });
+      else     resolve({ ok: true,  stdout: stdout.trim() });
+    });
+  });
+}
+
 // =====================================================================
 // git status パーサー（--porcelain 形式）
 // =====================================================================
@@ -240,6 +249,48 @@ async function handleGit(req, res, url) {
     const out = await git(['pull'], cwd);
     res.writeHead(out === null ? 500 : 200);
     return res.end(JSON.stringify(out === null ? { error: 'git pull failed' } : { ok: true, output: out }));
+  }
+
+  // POST /api/git/checkout  { path, branch }
+  if (pathname === '/api/git/checkout' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd, branch } = body;
+    if (!cwd || !branch) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path and branch required' })); }
+    const r = await gitDetail(['checkout', branch], cwd);
+    res.writeHead(r.ok ? 200 : 500);
+    return res.end(JSON.stringify(r.ok ? { ok: true } : { error: r.stderr }));
+  }
+
+  // POST /api/git/merge  { path, branch }
+  if (pathname === '/api/git/merge' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd, branch } = body;
+    if (!cwd || !branch) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path and branch required' })); }
+    const r = await gitDetail(['merge', branch], cwd);
+    res.writeHead(r.ok ? 200 : 500);
+    return res.end(JSON.stringify(r.ok ? { ok: true } : { error: r.stderr }));
+  }
+
+  // POST /api/git/stash-pop  { path, ref }
+  if (pathname === '/api/git/stash-pop' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd, ref } = body;
+    if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const args = ref ? ['stash', 'pop', ref] : ['stash', 'pop'];
+    const r = await gitDetail(args, cwd);
+    res.writeHead(r.ok ? 200 : 500);
+    return res.end(JSON.stringify(r.ok ? { ok: true } : { error: r.stderr }));
+  }
+
+  // POST /api/git/stash-apply  { path, ref }
+  if (pathname === '/api/git/stash-apply' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { path: cwd, ref } = body;
+    if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const args = ref ? ['stash', 'apply', ref] : ['stash', 'apply'];
+    const r = await gitDetail(args, cwd);
+    res.writeHead(r.ok ? 200 : 500);
+    return res.end(JSON.stringify(r.ok ? { ok: true } : { error: r.stderr }));
   }
 
   res.writeHead(404);

@@ -1410,6 +1410,7 @@ const ctxGitStashRow   = document.getElementById('ctx-git-stash-row');
 const ctxGitStash      = document.getElementById('ctx-git-stash');
 const ctxGitStashPop   = document.getElementById('ctx-git-stash-pop');
 const ctxGitStashApply = document.getElementById('ctx-git-stash-apply');
+const gitQaResult      = document.getElementById('git-qa-result');
 
 async function loadGitContext() {
   if (!currentProjectPath) return;
@@ -1448,21 +1449,39 @@ async function loadGitContext() {
 }
 
 gitQaFetch.addEventListener('click', loadGitContext);
-ctxGitCheckout.addEventListener('click', () => {
+ctxGitCheckout.addEventListener('click', async () => {
   const b = ctxGitBranch.value;
-  if (b) runCommand(`git checkout ${b}`, `checkout ${b}`);
+  if (!b) return;
+  ctxGitCheckout.disabled = true;
+  const r = await gitOp('/api/git/checkout', { path: currentProjectPath, branch: b });
+  ctxGitCheckout.disabled = false;
+  showGitResult(gitQaResult, r.ok, r.ok ? `checkout: ${b}` : (r.error || 'checkout 失敗'));
+  if (r.ok) { loadGitContext(); loadGitStatus(); }
 });
-ctxGitMerge.addEventListener('click', () => {
+ctxGitMerge.addEventListener('click', async () => {
   const b = ctxGitBranch.value;
-  if (b) runCommand(`git merge ${b}`, `merge ${b}`);
+  if (!b) return;
+  ctxGitMerge.disabled = true;
+  const r = await gitOp('/api/git/merge', { path: currentProjectPath, branch: b });
+  ctxGitMerge.disabled = false;
+  showGitResult(gitQaResult, r.ok, r.ok ? `merge: ${b}` : (r.error || 'merge 失敗'));
+  if (r.ok) { loadGitContext(); loadGitStatus(); }
 });
-ctxGitStashPop.addEventListener('click', () => {
+ctxGitStashPop.addEventListener('click', async () => {
   const s = ctxGitStash.value;
-  if (s) runCommand(`git stash pop ${s}`, 'stash pop');
+  ctxGitStashPop.disabled = true;
+  const r = await gitOp('/api/git/stash-pop', { path: currentProjectPath, ref: s });
+  ctxGitStashPop.disabled = false;
+  showGitResult(gitQaResult, r.ok, r.ok ? 'stash pop 完了' : (r.error || 'stash pop 失敗'));
+  if (r.ok) { loadGitContext(); loadGitStatus(); }
 });
-ctxGitStashApply.addEventListener('click', () => {
+ctxGitStashApply.addEventListener('click', async () => {
   const s = ctxGitStash.value;
-  if (s) runCommand(`git stash apply ${s}`, 'stash apply');
+  ctxGitStashApply.disabled = true;
+  const r = await gitOp('/api/git/stash-apply', { path: currentProjectPath, ref: s });
+  ctxGitStashApply.disabled = false;
+  showGitResult(gitQaResult, r.ok, r.ok ? 'stash apply 完了' : (r.error || 'stash apply 失敗'));
+  if (r.ok) { loadGitContext(); loadGitStatus(); }
 });
 
 // =====================================================================
@@ -2848,35 +2867,35 @@ gitCommitBtn.onclick = async () => {
   const msg = gitCommitMsg.value.trim();
   if (!msg) { showGitResult(gitCommitResult, false, 'メッセージを入力してください'); return; }
   gitCommitBtn.disabled = true;
-  const ok = await gitOp('/api/git/do-commit', { path: currentProjectPath, message: msg });
+  const r = await gitOp('/api/git/do-commit', { path: currentProjectPath, message: msg });
   gitCommitBtn.disabled = false;
-  if (ok) { gitCommitMsg.value = ''; showGitResult(gitCommitResult, true, 'コミット完了'); loadGitStatus(); }
-  else     { showGitResult(gitCommitResult, false, 'コミット失敗'); }
+  if (r.ok) { gitCommitMsg.value = ''; showGitResult(gitCommitResult, true, 'コミット完了'); loadGitStatus(); }
+  else       { showGitResult(gitCommitResult, false, 'コミット失敗'); }
 };
 
 // ---- プル / プッシュ ----
 gitPullBtn.onclick = async () => {
   if (!currentProjectPath) return;
   gitPullBtn.disabled = true;
-  const ok = await gitOp('/api/git/pull', { path: currentProjectPath });
+  const r = await gitOp('/api/git/pull', { path: currentProjectPath });
   gitPullBtn.disabled = false;
-  showGitResult(gitRemoteResult, ok, ok ? 'pull 完了' : 'pull 失敗');
-  if (ok) loadGitStatus();
+  showGitResult(gitRemoteResult, r.ok, r.ok ? 'pull 完了' : (r.error || 'pull 失敗'));
+  if (r.ok) loadGitStatus();
 };
 gitPushBtn.onclick = async () => {
   if (!currentProjectPath) return;
   gitPushBtn.disabled = true;
-  const ok = await gitOp('/api/git/push', { path: currentProjectPath });
+  const r = await gitOp('/api/git/push', { path: currentProjectPath });
   gitPushBtn.disabled = false;
-  showGitResult(gitRemoteResult, ok, ok ? 'push 完了' : 'push 失敗');
+  showGitResult(gitRemoteResult, r.ok, r.ok ? 'push 完了' : (r.error || 'push 失敗'));
 };
 
 async function gitOp(url, body) {
   try {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json();
-    return !!data.ok;
-  } catch { return false; }
+    return data.ok ? { ok: true } : { ok: false, error: data.error || 'エラー' };
+  } catch (e) { return { ok: false, error: e.message }; }
 }
 
 function showGitResult(el, ok, msg) {
