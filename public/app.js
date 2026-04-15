@@ -1,5 +1,6 @@
 'use strict';
 /* global marked, hljs */ // CDN globals (marked.js, highlight.js)
+// currentProjectPath, currentNpmDir, escHtml, formatElapsed → app-core.js
 
 // =====================================================================
 // フォルダブラウザ
@@ -14,9 +15,6 @@ const currentLabel     = document.getElementById('current-project');
 const projectPanel     = document.getElementById('project-panel');
 const dashboard        = document.getElementById('dashboard');
 const changeProjectBtn = document.getElementById('change-project-btn');
-
-let currentProjectPath = '';
-let currentNpmDir      = null; // npm check/audit で使うディレクトリ（null = projectPath）
 
 async function browse(dirPath) {
   const url = dirPath
@@ -3102,25 +3100,6 @@ async function toggleCommitDetail(hash, li) {
     ${d.body ? `<pre class="git-detail-body">${escHtml(d.body)}</pre>` : ''}
     ${d.statSummary ? `<div class="git-detail-stat">${escHtml(d.statSummary)}</div>` : ''}
     ${filesHtml ? `<ul class="git-detail-files">${filesHtml}</ul>` : ''}`;
-}
-
-// =====================================================================
-// ユーティリティ
-// =====================================================================
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function formatElapsed(startedAt) {
-  const sec = Math.floor((Date.now() - startedAt) / 1000);
-  if (sec < 60)   return `${sec}秒前に起動`;
-  if (sec < 3600) return `${Math.floor(sec / 60)}分前に起動`;
-  return `${Math.floor(sec / 3600)}時間前に起動`;
 }
 
 // プロセス一覧を定期更新（自動更新チェック時のみ）

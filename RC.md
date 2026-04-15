@@ -103,39 +103,16 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ---
 
-### [G1] GitHub Issues 連携（gh CLI 経由）
-
-**認証方式**: `gh` コマンド（GitHub CLI）を経由 → API トークン登録不要。`gh auth login` 済みであれば即動作。`gh` が未インストールの場合はパネル非表示（graceful fallback）。
-
-使用コマンド:
-```
-gh issue list --json number,title,labels,assignees,state,url
-gh issue create --title "..." --body "..." --label "bug"
-```
-
-- Git タブの下部に Open Issues 一覧を表示（番号・タイトル・ラベル）
-- `flutter analyze` ビューアの警告行に「Issue 起票」ボタンを追加 → タイトル・本文を自動生成して `gh issue create` を実行
-- Git コミット入力欄で `#` を入力すると Open Issues の番号・タイトルを補完 → `gh issue list` で取得
-- 解決する困りごと: **analyze 結果 → ブラウザ → GitHub → FlutterBoard という往復 / コミット時の Issue 番号確認**
-- VSCode との差: GitHub Pull Requests 拡張は Issue 起票に analyze 連携がない
-
----
-
+### [G1] コミット後の Issue / PR 作成（gh CLI 経由）
 ### [G2] PR ステータス + CI 状態表示（gh CLI 経由）
 
-**認証方式**: G1 と同様、`gh` コマンドのみ。API トークン不要。
+UI 設計 → [docs/RC_UI_git.md](docs/RC_UI_git.md)  
+アーキテクチャ設計 → [docs/RC_arch_github.md](docs/RC_arch_github.md)
 
-使用コマンド:
-```
-gh pr status --json number,title,state,url,statusCheckRollup
-gh run list --branch <current> --limit 3 --json status,conclusion,name,workflowName,url
-```
-
-- Git タブのヘッダー行に現在ブランチの PR タイトルと CI ステータス（✓ / ✗ / ⏳）を表示
-- CI 失敗時はクリックでログ URL を開く
-- 定期ポーリング（30秒）または手動更新ボタン
-- 解決する困りごと: **「CI 通ったかな」のためだけにブラウザを開くコンテキストスイッチ**
-- VSCode との差: GitLens 等でも確認できるが、FlutterBoard の他情報と同一画面で見られない
+- `gh` コマンド経由（API トークン不要、`gh auth login` 済みで即動作）
+- Git タブに **[ローカル] / [リモート]** サブタブを追加
+- リモートタブに 同期・PR・Issues・CI の各セクションを配置
+- `gh` 未検出またはリモートが GitHub でない場合はタブ非表示
 
 ---
 
@@ -186,6 +163,31 @@ gh run list --branch <current> --limit 3 --json status,conclusion,name,workflowN
 - 問題なければそのまま `firebase deploy --only firestore` ボタン
 - 解決する困りごと: **rules を編集 → エミュレータ再起動 → 確認 → deploy という断続的な作業**
 - VSCode との差: Firebase 拡張の rules エディタはあるが、エミュレータ連携・デプロイまで一貫した UI がない
+
+---
+
+## ナビゲーション設計方針
+
+### トップタブ構成（確定）
+
+```
+[プロセス/ログ][ツール][ドキュメント][依存チェック][Git][ポート]
+```
+
+「コマンド」→「**ツール**」に改名。Firebase サブタブが設定閲覧・モニタリングを含むようになるため、「コマンドを打つ場所」という印象の名称から変更する。「DevTool」は Flutter DevTools と混同するため不採用。
+
+### 各タブの配置方針（確定）
+
+| 機能 | 配置 |
+|---|---|
+| Firebase Remote Config / App Distribution / Crashlytics | ツールタブ内 Firebase サブタブに統合 |
+| npm workspace 情報表示 | 依存チェックタブ内 |
+| npm workspace コマンド実行 | R9 コンテキストビルダー（ツールタブ）|
+| Node コマンド（まれな例外） | 自由入力のまま。専用タブ・サブタブは作らない |
+| GitHub Issues / PR / CI | Git タブ内に `[ローカル][リモート]` サブタブを追加 |
+| トップタブの増減 | 6 タブのまま維持 |
+
+詳細設計 → [docs/RC_UI_git.md](docs/RC_UI_git.md) / [docs/RC_arch_github.md](docs/RC_arch_github.md)
 
 ---
 

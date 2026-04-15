@@ -49,7 +49,7 @@
     <section id="dashboard" class="hidden">
       <nav id="tab-bar">
         <button class="tab" data-tab="logs" title="コマンドを起動・停止し、リアルタイムログを表示。複数プロセスをタブ切り替えで管理">プロセス / ログ</button>
-        <button class="tab active" data-tab="commands" title="Flutter / Firebase / npm の定番コマンドをワンクリックで実行。ルーティン（複数コマンドの定型フロー）も管理">コマンド</button>
+        <button class="tab active" data-tab="commands" title="Flutter / Firebase / npm の定番コマンドをワンクリックで実行。ルーティン（複数コマンドの定型フロー）も管理">ツール</button>
         <button class="tab" data-tab="docs" title="README.md や docs/ 以下の Markdown をレンダリング表示。Mermaid ダイアグラム対応">ドキュメント</button>
         <button class="tab" data-tab="deps" title="pubspec.yaml / package.json / CDN ライブラリのバージョンを pub.dev・npm registry で確認。セキュリティ診断・依存ツリー表示も">依存チェック</button>
         <button class="tab" data-tab="env" title=".env ファイルの内容をマスク表示。2ファイル間のキー差分比較、Firebase 環境（firebase use）の切り替えも">環境変数</button>
@@ -952,6 +952,7 @@
     mermaid.initialize({ startOnLoad: false, theme: 'dark' });
     window.__mermaid = mermaid;
   </script>
+  <script src="app-core.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
