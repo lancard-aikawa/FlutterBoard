@@ -416,6 +416,9 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
     vmBarUrl.textContent = vmServiceUrl;
     vmBar.classList.remove('hidden');
     logArea.classList.add('vm-mode');
+    // プロセス切り替え時にボタン状態をリセット
+    vmBarRestart.disabled = false;
+    vmBarRestart.title = 'Hot Restart — hotRestart RPC';
   } else {
     vmBar.classList.add('hidden');
     logArea.classList.remove('vm-mode');
@@ -436,6 +439,12 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
     const { type, data, ts } = JSON.parse(e.data);
     logBuffer.push({ type, data, ts });
     appendLogEntry(type, data, ts);
+
+    // V2: web ターゲットで hotRestart 非対応と判明したら R ボタンを無効化
+    if (type === 'stderr' && data && data.includes('web ターゲットは VM Service 経由で非対応')) {
+      vmBarRestart.disabled = true;
+      vmBarRestart.title = 'Hot Restart は web ターゲットでは VM Service 経由で利用できません（PTY 起動 → R キーを使用）';
+    }
 
     // DevTools / VM Service URL をリアルタイム検出
     if (data && (type === 'stdout' || type === 'stderr')) {

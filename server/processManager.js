@@ -374,8 +374,9 @@ function handleProcess(req, res, url) {
         buffer,
         devToolsUrl:  null,
         vmServiceUrl: vmUrl,
-        isolateId:    null,   // V2: populated by getVM response
-        rpcId:        10,     // V2: RPC ID counter (1-2 used by streamListen, 3 by getVM)
+        isolateId:      null,  // V2: populated by getVM response
+        rpcId:          10,    // V2: RPC ID counter (1-2 used by streamListen, 3 by getVM)
+        pendingActions: {},    // V2: rpcId -> 'reload'|'restart' で応答を識別
       };
 
       let responded = false;
@@ -408,17 +409,40 @@ function handleProcess(req, res, url) {
           // V2: RPC レスポンスを処理
           let msg;
           try { msg = JSON.parse(json); } catch { return; }
+
           if (msg.id === 3 && msg.result?.isolates) {
             // getVM レスポンス — 最初のアイソレート ID を保存
             entry.isolateId = msg.result.isolates[0]?.id || null;
-          } else if (msg.result?.type === 'ReloadReport') {
-            const ok = msg.result.success;
-            broadcast('stdout', `[FlutterBoard] Hot Reload: ${ok ? '成功 ✓' : '失敗 ✗'}\n`);
-          } else if (msg.result?.type === '@Instance' || msg.result?.type === 'Success') {
-            // Hot Restart (callServiceExtension) 成功
-            broadcast('stdout', '[FlutterBoard] Hot Restart: 完了 ✓\n');
-          } else if (msg.error) {
-            broadcast('stderr', `[FlutterBoard] VM RPC エラー: ${msg.error.message}\n`);
+            return;
+          }
+
+          // reload / restart の応答を ID で識別
+          const action = entry.pendingActions[msg.id];
+          if (action) {
+            delete entry.pendingActions[msg.id];
+            if (msg.error) {
+              const label = action === 'reload' ? 'Hot Reload' : 'Hot Restart';
+              const isUnknown = msg.error.message?.includes('Unknown method');
+              if (action === 'restart' && isUnknown) {
+                broadcast('stderr', `[FlutterBoard] Hot Restart: web ターゲットは VM Service 経由で非対応です。PTY 起動 → R キーを使用してください。\n`);
+              } else {
+                broadcast('stderr', `[FlutterBoard] ${label} エラー: ${msg.error.message}\n`);
+              }
+              return;
+            }
+            if (action === 'reload') {
+              const ok = msg.result?.success;
+              if (ok) {
+                broadcast('stdout', '[FlutterBoard] Hot Reload: 成功 ✓\n');
+              } else {
+                // notices に失敗理由が入っている
+                const details = (msg.result?.notices || []).map(n => n.message).filter(Boolean).join('\n');
+                broadcast('stderr', `[FlutterBoard] Hot Reload: 失敗 ✗${details ? '\n' + details : ''}\n`);
+              }
+            } else {
+              // ext.flutter.reassemble はエラーがなければ成功
+              broadcast('stdout', '[FlutterBoard] Hot Restart: 完了 ✓\n');
+            }
           }
         },
         onClose() {
@@ -458,14 +482,17 @@ function handleProcess(req, res, url) {
       }
       const rpcId = entry.rpcId++;
       if (action === 'reload') {
+        entry.pendingActions[rpcId] = 'reload';
         entry.wsConn.send({
           jsonrpc: '2.0', id: rpcId, method: 'reloadSources',
           params: { isolateId: entry.isolateId, pause: false },
         });
       } else if (action === 'restart') {
+        entry.pendingActions[rpcId] = 'restart';
+        // flutter tools / DWDS が registerService で登録する hotRestart を直接呼ぶ
+        // isolateId 不要（VM レベルのサービス）
         entry.wsConn.send({
-          jsonrpc: '2.0', id: rpcId, method: 'callServiceExtension',
-          params: { isolateId: entry.isolateId, method: 'ext.flutter.reassemble' },
+          jsonrpc: '2.0', id: rpcId, method: 'hotRestart', params: {},
         });
       } else {
         return res.end(JSON.stringify({ ok: false, error: 'Unknown action' }));
