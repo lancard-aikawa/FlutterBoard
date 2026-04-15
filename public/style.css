@@ -641,6 +641,26 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   flex-shrink: 0;
 }
 .vm-bar-btn:hover { background: color-mix(in srgb, var(--vm-accent) 12%, transparent); }
+/* V2: r / R アクションボタンは少し小さめ・固定幅 */
+.vm-bar-action {
+  font-weight: bold;
+  min-width: 1.8rem;
+  text-align: center;
+}
+
+/* V3: スキャン候補セレクト */
+#vm-scan-results {
+  padding: .25rem .5rem;
+}
+#vm-scan-results select {
+  width: 100%;
+  font-size: .75rem;
+  padding: .2rem .35rem;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
 
 /* VM モード: ログエリア左に teal ボーダーを引いて視覚的に区別 */
 #log-area.vm-mode {

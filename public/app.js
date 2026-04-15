@@ -190,10 +190,15 @@ const devtoolsLaunchBtn = document.getElementById('devtools-launch-btn');
 const vmServiceLink     = document.getElementById('vmservice-link');
 const vmBar             = document.getElementById('vm-bar');
 const vmBarUrl          = document.getElementById('vm-bar-url');
+const vmBarReload       = document.getElementById('vm-bar-reload');
+const vmBarRestart      = document.getElementById('vm-bar-restart');
 const vmBarDetach       = document.getElementById('vm-bar-detach');
 const logArea           = document.getElementById('log-area');
 const vmUrlInput        = document.getElementById('vm-url-input');
 const vmAttachBtn       = document.getElementById('vm-attach-btn');
+const vmScanBtn         = document.getElementById('vm-scan-btn');
+const vmScanResults     = document.getElementById('vm-scan-results');
+const vmScanSelect      = document.getElementById('vm-scan-select');
 
 // URL detection (mirrors server-side patterns)
 const DEVTOOLS_URL_RE   = /https?:\/\/[\w.:-]+\?uri=\S+/;
@@ -726,6 +731,25 @@ async function attachVM() {
   }
 }
 
+// V2: VM Service Hot Reload / Hot Restart ボタン
+vmBarReload.addEventListener('click',  () => vmAction('reload'));
+vmBarRestart.addEventListener('click', () => vmAction('restart'));
+
+async function vmAction(action) {
+  if (activeId === null) return;
+  try {
+    const res  = await fetch('/api/process/vm-action', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id: activeId, action }),
+    });
+    const data = await res.json();
+    if (!data.ok) appendLogEntry('stderr', `[FlutterBoard] ${action} 失敗: ${data.error}\n`, Date.now());
+  } catch (e) {
+    appendLogEntry('stderr', `[FlutterBoard] ${action} エラー: ${e.message}\n`, Date.now());
+  }
+}
+
 // VM Service 切断ボタン
 vmBarDetach.addEventListener('click', async () => {
   if (activeId === null) return;
@@ -736,6 +760,44 @@ vmBarDetach.addEventListener('click', async () => {
   });
   stdinBar.classList.add('hidden');
   [500, 1500].forEach(d => setTimeout(() => refreshProcessList(null), d));
+});
+
+// V3: VM Service スキャンボタン
+vmScanBtn.addEventListener('click', async () => {
+  vmScanBtn.disabled = true;
+  vmScanBtn.textContent = '⏳';
+  vmScanResults.classList.add('hidden');
+  try {
+    const res  = await fetch('/api/process/scan-vm');
+    const data = await res.json();
+    if (data.length === 0) {
+      alert('実行中の Dart VM Service が見つかりませんでした');
+    } else if (data.length === 1) {
+      vmUrlInput.value = data[0].uri;
+    } else {
+      vmScanSelect.innerHTML = '<option value="" disabled selected>検出された VM Service を選択...</option>';
+      data.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value       = d.uri;
+        opt.textContent = `${d.name} — ${d.uri}`;
+        vmScanSelect.appendChild(opt);
+      });
+      vmScanResults.classList.remove('hidden');
+    }
+  } catch (e) {
+    alert(`スキャンエラー: ${e.message}`);
+  } finally {
+    vmScanBtn.disabled = false;
+    vmScanBtn.textContent = '🔍';
+  }
+});
+
+vmScanSelect.addEventListener('change', () => {
+  if (vmScanSelect.value) {
+    vmUrlInput.value = vmScanSelect.value;
+    vmScanResults.classList.add('hidden');
+    vmScanSelect.selectedIndex = 0;
+  }
 });
 
 // ---- stdin ----

@@ -374,6 +374,8 @@ function handleProcess(req, res, url) {
         buffer,
         devToolsUrl:  null,
         vmServiceUrl: vmUrl,
+        isolateId:    null,   // V2: populated by getVM response
+        rpcId:        10,     // V2: RPC ID counter (1-2 used by streamListen, 3 by getVM)
       };
 
       let responded = false;
@@ -391,6 +393,8 @@ function handleProcess(req, res, url) {
         onOpen(ws) {
           entry.wsConn = ws;
           processes.set(id, entry);
+          // V2: アイソレート ID を取得（Hot Reload/Restart RPC に使用）
+          ws.send({ jsonrpc: '2.0', id: 3, method: 'getVM', params: {} });
           clearTimeout(timer);
           if (responded) return;
           responded = true;
@@ -400,7 +404,22 @@ function handleProcess(req, res, url) {
         },
         onMessage(json) {
           const ev = parseVMEvent(json);
-          if (ev) broadcast(ev.type, ev.text);
+          if (ev) { broadcast(ev.type, ev.text); return; }
+          // V2: RPC レスポンスを処理
+          let msg;
+          try { msg = JSON.parse(json); } catch { return; }
+          if (msg.id === 3 && msg.result?.isolates) {
+            // getVM レスポンス — 最初のアイソレート ID を保存
+            entry.isolateId = msg.result.isolates[0]?.id || null;
+          } else if (msg.result?.type === 'ReloadReport') {
+            const ok = msg.result.success;
+            broadcast('stdout', `[FlutterBoard] Hot Reload: ${ok ? '成功 ✓' : '失敗 ✗'}\n`);
+          } else if (msg.result?.type === '@Instance' || msg.result?.type === 'Success') {
+            // Hot Restart (callServiceExtension) 成功
+            broadcast('stdout', '[FlutterBoard] Hot Restart: 完了 ✓\n');
+          } else if (msg.error) {
+            broadcast('stderr', `[FlutterBoard] VM RPC エラー: ${msg.error.message}\n`);
+          }
         },
         onClose() {
           clearTimeout(timer);
@@ -417,6 +436,63 @@ function handleProcess(req, res, url) {
         },
       });
     });
+  }
+
+  // POST /api/process/vm-action  { id, action: 'reload'|'restart' }
+  // V2: VM Service 経由で Hot Reload / Hot Restart を実行する
+  if (pathname === '/api/process/vm-action' && req.method === 'POST') {
+    return readBody(req, body => {
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }));
+      }
+      const { id, action } = parsed;
+      const entry = processes.get(id);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (!entry || !entry.isVm || !entry.wsConn || entry.exitCode !== null) {
+        return res.end(JSON.stringify({ ok: false, error: 'No active VM connection' }));
+      }
+      if (!entry.isolateId) {
+        return res.end(JSON.stringify({ ok: false, error: 'Isolate ID not yet available — retry' }));
+      }
+      const rpcId = entry.rpcId++;
+      if (action === 'reload') {
+        entry.wsConn.send({
+          jsonrpc: '2.0', id: rpcId, method: 'reloadSources',
+          params: { isolateId: entry.isolateId, pause: false },
+        });
+      } else if (action === 'restart') {
+        entry.wsConn.send({
+          jsonrpc: '2.0', id: rpcId, method: 'callServiceExtension',
+          params: { isolateId: entry.isolateId, method: 'ext.flutter.reassemble' },
+        });
+      } else {
+        return res.end(JSON.stringify({ ok: false, error: 'Unknown action' }));
+      }
+      return res.end(JSON.stringify({ ok: true }));
+    });
+  }
+
+  // GET /api/process/scan-vm
+  // V3: Dart が書き込むサービスファイルを走査して実行中の VM Service URL を返す
+  if (pathname === '/api/process/scan-vm' && req.method === 'GET') {
+    const os   = require('os');
+    const fs   = require('fs');
+    const path = require('path');
+    const results = [];
+    try {
+      const tmpDir = os.tmpdir();
+      const files  = fs.readdirSync(tmpDir).filter(f => /^dart[-_]vm[-_]service.*\.json$/i.test(f) || /^dart-service.*\.json$/i.test(f));
+      for (const file of files) {
+        try {
+          const content = JSON.parse(fs.readFileSync(path.join(tmpDir, file), 'utf8'));
+          if (content.uri) results.push({ uri: content.uri, name: content.name || file });
+        } catch { /* skip unreadable / invalid files */ }
+      }
+    } catch { /* tmpdir 読み取り失敗は無視 */ }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(results));
   }
 
   // GET /api/process/combined-log — 全プロセスのバッファをタイムスタンプ順で返す
