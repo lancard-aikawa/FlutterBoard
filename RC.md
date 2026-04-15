@@ -96,18 +96,94 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ---
 
+## 第三弾 — 連携フロー改善候補
+
+> **単体で困る**（ツール自体が使いにくい）= T1〜T6  
+> **連携で困る**（ツール間を往復する手間）= G*/FC*/W* ← FlutterBoard の強みが出る領域
+
+---
+
+### [G1] GitHub Issues 連携
+
+- Open Issues の一覧をサイドパネルに表示（タイトル・ラベル・担当者）
+- `flutter analyze` / テスト結果の警告から **直接 Issue 起票**（タイトル・本文を自動生成）
+- Git コミット入力欄で `#` を入力すると Open Issues を補完 → 番号付け忘れを防止
+- 認証: `GITHUB_TOKEN` 環境変数 or 設定画面で入力（config/ に保存）
+- 解決する困りごと: **analyze 結果 → ブラウザ → GitHub → FlutterBoard という往復 / コミット時の Issue 番号確認**
+- VSCode との差: GitHub Pull Requests 拡張は Issue 起票に analyze 連携がない
+
+---
+
+### [G2] PR ステータス + CI 状態表示
+
+- 現在ブランチの Open PR とその CI ステータス（✓ / ✗ / ⏳）をヘッダーまたはGitタブに常時表示
+- `gh` コマンド（GitHub CLI）が入っていれば優先使用、なければ GitHub REST API 直接呼び出し
+- CI 失敗時はクリックでログ URL を開く
+- 解決する困りごと: **「CI 通ったかな」のためだけにブラウザを開くコンテキストスイッチ**
+- VSCode との差: GitLens 等でも確認できるが、FlutterBoard の他情報と同一画面で見られない
+
+---
+
+### [FC1] Firebase Remote Config 値確認
+
+- `firebase remoteconfig:get` で現在の本番 Remote Config をパネルに表示
+- ローカルの `.env.*` やコード内のデフォルト値と突き合わせて乖離を可視化
+- 個別キーの値を確認するためだけにコンソールを開く必要をなくす
+- 解決する困りごと: **本番値とローカル値がズレているか確認するたびに Firebase コンソールへ移動**
+- VSCode との差: 標準機能なし
+
+---
+
+### [FC2] App Distribution ワンクリック配布
+
+- ビルドサイズトラッカー（S7）のビルド成果物一覧から `firebase appdistribution:distribute` を実行
+- 配布先グループ・リリースノートをフォームで入力してワンクリック
+- 配布後のダウンロード URL をログに表示
+- 解決する困りごと: **ビルド → ファイルパス確認 → コマンド組み立て → 実行 という複数ステップの連続操作**
+- VSCode との差: 標準機能なし
+
+---
+
+### [FC3] Crashlytics 直近クラッシュ表示
+
+- Firebase REST API で直近 24h のクラッシュ件数・上位 issue をヘッダーバッジに表示
+- クリックで Firebase コンソールの該当ページを開く
+- 0件 → 緑、1件以上 → 件数バッジ（赤）
+- 解決する困りごと: **開発中「本番クラッシュ増えてないか」の確認のためにコンソールを開く習慣的コンテキストスイッチ**
+- VSCode との差: 標準機能なし。Crashlytics 拡張も現状ない
+
+---
+
+### [W1] npm workspaces 対応コマンドビルダー
+
+- `package.json` の `workspaces` フィールドを検出してパッケージ一覧を表示
+- 特定ワークスペースを選択して `npm run <script> --workspace=<pkg>` をコマンド欄にセット
+- `npm link` で繋がっているローカルパッケージの一覧表示・解除ボタン
+- 解決する困りごと: **モノレポでパッケージを個別操作するたびにターミナルで cd しながらコマンドを打つ**
+- VSCode との差: ワークスペース横断のスクリプト実行 UI がない
+
+---
+
+### [W2] Firestore Rules 編集 → 検証 → デプロイサイクル
+
+- `firestore.rules` のライブプレビュー（変更を検知して自動バリデーション）
+- `firebase emulators:exec --only firestore "echo ok"` で構文チェック結果を表示
+- 問題なければそのまま `firebase deploy --only firestore` ボタン
+- 解決する困りごと: **rules を編集 → エミュレータ再起動 → 確認 → deploy という断続的な作業**
+- VSCode との差: Firebase 拡張の rules エディタはあるが、エミュレータ連携・デプロイまで一貫した UI がない
+
+---
+
 ## 優先度の考え方
 
 ```
-高優先（毎日使う・ミス防止）
-  T1 build_runner 管理 UI     — freezed/riverpod プロジェクトでの必須操作を省力化
-  T2 pubspec.lock 変更サマリー — pub upgrade 後の破壊的変更の見落とし防止
-  T3 テストランナー UI         — テスト実行 → 結果確認のコンテキストスイッチを削減
+単体で困る（ツール単体の使いにくさ）
+  高: T1 build_runner 管理 UI / T2 pubspec.lock 変更サマリー / T3 テストランナー UI
+  中: T4 証明書有効期限 / T5 コマンド実行履歴
+  低: T6 サイズ分析
 
-中優先（あると便利）
-  T4 証明書有効期限チェック    — リリース前の安心感
-  T5 コマンド実行履歴          — 小さいが体験改善
-
-低優先
-  T6 サイズ分析                — たまに使う程度
+連携で困る（ツール間往復・コンテキストスイッチ）← FlutterBoard の差別点
+  高: G1 GitHub Issues 連携（analyze → Issue 起票）/ G2 PR+CI 状態表示
+  中: FC1 Remote Config 確認 / FC2 App Distribution 配布 / W2 Firestore Rules サイクル
+  低: FC3 Crashlytics 表示 / W1 workspaces 対応
 ```
