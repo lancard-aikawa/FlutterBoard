@@ -19,6 +19,7 @@ const { handlePortMonitor }     = require('./portMonitor');
 const { handleFvmInfo }         = require('./fvmInfo');
 const { handleBuildSize }       = require('./buildSize');
 const { handleEmuSnapshot }     = require('./emuSnapshot');
+const { handleGithub }          = require('./github');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -56,6 +57,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/env')) {
     return handleEnv(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/github')) {
+    return handleGithub(req, res, url);
   }
 
   if (pathname.startsWith('/api/git')) {
