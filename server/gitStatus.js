@@ -212,10 +212,10 @@ async function handleGit(req, res, url) {
     const body = await readBody(req);
     const { path: cwd, file } = body;
     if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
-    const args = file ? ['restore', '--staged', '--', file] : ['restore', '--staged', '.'];
+    const args = file ? ['reset', 'HEAD', '--', file] : ['reset', 'HEAD', '--', '.'];
     const out  = await git(args, cwd);
     res.writeHead(out === null ? 500 : 200);
-    return res.end(JSON.stringify(out === null ? { error: 'git restore failed' } : { ok: true }));
+    return res.end(JSON.stringify(out === null ? { error: 'git reset failed' } : { ok: true }));
   }
 
   // POST /api/git/do-commit  { path, message }

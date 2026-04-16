@@ -141,10 +141,9 @@ async function loadPrStatus() {
         const ciStatus  = getCiBadge(pr.statusCheckRollup);
         return `<div class="gh-pr-row${isCurrent ? ' gh-pr-current' : ''}">
           <span class="gh-num">#${pr.number}</span>
-          <span class="gh-title">${escHtml(pr.title)}</span>
+          <a class="gh-title gh-title-link" href="${escHtml(pr.url)}" target="_blank">${escHtml(pr.title)}</a>
           <span class="gh-pr-branch">${escHtml(pr.headRefName)} → ${escHtml(pr.baseRefName)}</span>
           ${ciStatus.label ? `<span class="gh-ci-badge ${ciStatus.cls}">${ciStatus.label}</span>` : ''}
-          <a class="gh-link" href="${escHtml(pr.url)}" target="_blank">↗</a>
         </div>`;
       }).join('');
       const curPr = prs.find(p => p.headRefName === cur);
@@ -228,20 +227,24 @@ async function loadIssues() {
   try {
     const res  = await fetch(`/api/github/issues/list?path=${encodeURIComponent(currentProjectPath)}`);
     const data = await res.json();
-    if (!data.ok || !Array.isArray(data.data) || data.data.length === 0) {
+    cachedIssues = data.ok && Array.isArray(data.data) ? data.data : [];
+    cachedIssuesPath = currentProjectPath;
+
+    if (!data.ok || cachedIssues.length === 0) {
       ghissueList.innerHTML = '<li class="gh-list-item" style="color:var(--muted)">Open Issues はありません</li>';
       ghissueMeta.textContent = '';
       return;
     }
-    ghissueList.innerHTML = data.data.map(issue =>
+    ghissueList.innerHTML = cachedIssues.map(issue =>
       `<li class="gh-list-item">
         <span class="gh-num">#${issue.number}</span>
-        <span class="gh-title">${escHtml(issue.title)}</span>
-        <a class="gh-link" href="${escHtml(issue.url)}" target="_blank">↗</a>
+        <a class="gh-title gh-title-link" href="${escHtml(issue.url)}" target="_blank">${escHtml(issue.title)}</a>
       </li>`
     ).join('');
-    ghissueMeta.textContent = `${data.data.length} open`;
+    ghissueMeta.textContent = `${cachedIssues.length} open`;
   } catch (e) {
+    cachedIssues = [];
+    cachedIssuesPath = currentProjectPath;
     ghissueList.innerHTML = `<li class="gh-list-item" style="color:var(--err)">エラー: ${escHtml(e.message)}</li>`;
   }
 }
@@ -296,10 +299,9 @@ async function loadActions() {
       const when = run.createdAt ? new Date(run.createdAt).toLocaleString('ja-JP') : '';
       return `<li class="gh-list-item">
         <span style="flex-shrink:0">${icon}</span>
-        <span class="gh-title">${escHtml(run.workflowName || run.name)}</span>
+        <a class="gh-title gh-title-link" href="${escHtml(run.url)}" target="_blank">${escHtml(run.workflowName || run.name)}</a>
         <span class="gh-num">${escHtml(run.headBranch || '')}</span>
         <span class="gh-num">${when}</span>
-        <a class="gh-link" href="${escHtml(run.url)}" target="_blank">↗</a>
       </li>`;
     }).join('');
     // 最新 run の状態をヘッダーメタに表示
@@ -325,3 +327,122 @@ ghactionsRefreshBtn.addEventListener('click', loadActions);
 
 // タブは常に有効（disabled しない）
 // 内容の確認はタブを開いたとき（loadRemoteTab）に行う
+
+// =====================================================================
+// コミット入力欄 — #Issue 補完
+// =====================================================================
+let cachedIssues = [];   // 現在のプロジェクトに対する issue キャッシュ
+let cachedIssuesPath = '';
+let cachedIssuesPromise = null;
+
+const commitMsg      = document.getElementById('git-commit-msg');
+const issueSuggest   = document.getElementById('git-issue-suggest');
+
+async function refreshIssueCache() {
+  if (!currentProjectPath) {
+    cachedIssues = [];
+    cachedIssuesPath = '';
+    return cachedIssues;
+  }
+
+  if (cachedIssuesPath === currentProjectPath && Array.isArray(cachedIssues)) {
+    return cachedIssues;
+  }
+
+  if (cachedIssuesPromise) return cachedIssuesPromise;
+
+  cachedIssuesPromise = (async () => {
+    const res = await fetch(`/api/github/issues/list?path=${encodeURIComponent(currentProjectPath)}`).catch(() => null);
+    if (res && res.ok) {
+      const data = await res.json();
+      cachedIssues = Array.isArray(data.data) ? data.data : [];
+    } else {
+      cachedIssues = [];
+    }
+    cachedIssuesPath = currentProjectPath;
+    cachedIssuesPromise = null;
+    return cachedIssues;
+  })();
+
+  return cachedIssuesPromise;
+}
+
+function closeSuggest() {
+  issueSuggest.classList.add('hidden');
+  issueSuggest.innerHTML = '';
+}
+
+function renderIssueSuggest() {
+  if (!cachedIssues.length) {
+    closeSuggest();
+    return;
+  }
+
+  // カーソル位置までのテキストで最後の # トークンを探す
+  const pos  = commitMsg.selectionStart;
+  const text = commitMsg.value.slice(0, pos);
+  const match = text.match(/#(\w*)$/);
+  if (!match) {
+    closeSuggest();
+    return;
+  }
+
+  const query   = match[1].toLowerCase();
+  const filtered = cachedIssues.filter(i =>
+    String(i.number).startsWith(query) ||
+    i.title.toLowerCase().includes(query)
+  ).slice(0, 8);
+
+  if (!filtered.length) {
+    closeSuggest();
+    return;
+  }
+
+  issueSuggest.innerHTML = filtered.map(i =>
+    `<div class="git-issue-suggest-item" data-number="${i.number}" data-title="${escHtml(i.title)}">
+      <span class="gh-num">#${i.number}</span>
+      <span class="git-issue-suggest-title">${escHtml(i.title)}</span>
+    </div>`
+  ).join('');
+  issueSuggest.classList.remove('hidden');
+}
+
+commitMsg.addEventListener('input', async () => {
+  if (!cachedIssues.length) await refreshIssueCache();
+  renderIssueSuggest();
+});
+
+issueSuggest.addEventListener('click', e => {
+  const item = e.target.closest('.git-issue-suggest-item');
+  if (!item) return;
+  const num = item.dataset.number;
+
+  // カーソル前の # トークンを #<number> に置換
+  const pos    = commitMsg.selectionStart;
+  const before = commitMsg.value.slice(0, pos);
+  const after  = commitMsg.value.slice(pos);
+  const replaced = before.replace(/#(\w*)$/, `#${num}`);
+  commitMsg.value = replaced + after;
+  commitMsg.selectionStart = commitMsg.selectionEnd = replaced.length;
+  commitMsg.focus();
+  closeSuggest();
+});
+
+// テキストエリア外クリックで閉じる
+document.addEventListener('click', e => {
+  if (!commitMsg.contains(e.target) && !issueSuggest.contains(e.target)) closeSuggest();
+});
+
+// Escape で閉じる
+commitMsg.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSuggest();
+});
+
+// プロジェクト切り替え時は issue キャッシュも破棄
+const _origGhCheckAfterProjectLoad = window.ghCheckAfterProjectLoad;
+window.ghCheckAfterProjectLoad = function() {
+  cachedIssues = [];
+  cachedIssuesPath = '';
+  cachedIssuesPromise = null;
+  if (typeof _origGhCheckAfterProjectLoad === 'function') _origGhCheckAfterProjectLoad();
+};

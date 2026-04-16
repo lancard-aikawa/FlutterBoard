@@ -2849,15 +2849,17 @@ gitLogNext.onclick    = () => { gitLogOffset = gitLogOffset + GIT_LOG_LIMIT; loa
 gitStageAllBtn.onclick = async () => {
   if (!currentProjectPath) return;
   gitStageAllBtn.disabled = true;
-  await gitOp('/api/git/stage', { path: currentProjectPath });
+  const r = await gitOp('/api/git/stage', { path: currentProjectPath });
   gitStageAllBtn.disabled = false;
+  showGitResult(gitCommitResult, r.ok, r.ok ? '全 add 完了' : (r.error || '全 add 失敗'));
   loadGitStatus();
 };
 gitUnstageAllBtn.onclick = async () => {
   if (!currentProjectPath) return;
   gitUnstageAllBtn.disabled = true;
-  await gitOp('/api/git/unstage', { path: currentProjectPath });
+  const r = await gitOp('/api/git/unstage', { path: currentProjectPath });
   gitUnstageAllBtn.disabled = false;
+  showGitResult(gitCommitResult, r.ok, r.ok ? '全 unstage 完了' : (r.error || '全 unstage 失敗'));
   loadGitStatus();
 };
 
@@ -2888,6 +2890,7 @@ gitPushBtn.onclick = async () => {
   const r = await gitOp('/api/git/push', { path: currentProjectPath });
   gitPushBtn.disabled = false;
   showGitResult(gitRemoteResult, r.ok, r.ok ? 'push 完了' : (r.error || 'push 失敗'));
+  if (r.ok && typeof loadRemoteTab === 'function') loadRemoteTab();
 };
 
 async function gitOp(url, body) {
@@ -3031,18 +3034,21 @@ async function loadGitStatus(logOnly = false) {
         <span class="git-status-badge ${cssCls}">${label}</span>
         <span class="git-change-file">${escHtml(c.file)}</span>
         <span class="git-file-actions">
-          ${c.staged
-            ? `<button class="git-file-btn git-unstage-btn" title="アンステージ">−</button>`
-            : `<button class="git-file-btn git-stage-btn"   title="ステージ">＋</button>`}
+          ${c.staged   ? `<button class="git-file-btn git-unstage-btn" title="アンステージ">−</button>` : ''}
+          ${c.unstaged ? `<button class="git-file-btn git-stage-btn"   title="ステージ">＋</button>`   : ''}
         </span>`;
       li.addEventListener('click', e => {
         if (e.target.closest('.git-file-actions')) return;
         showDiff(c.file, c.staged);
       });
-      li.querySelector('.git-file-btn').addEventListener('click', async e => {
+      li.querySelector('.git-unstage-btn')?.addEventListener('click', async e => {
         e.stopPropagation();
-        const url = c.staged ? '/api/git/unstage' : '/api/git/stage';
-        await gitOp(url, { path: currentProjectPath, file: c.file });
+        await gitOp('/api/git/unstage', { path: currentProjectPath, file: c.file });
+        loadGitStatus();
+      });
+      li.querySelector('.git-stage-btn')?.addEventListener('click', async e => {
+        e.stopPropagation();
+        await gitOp('/api/git/stage', { path: currentProjectPath, file: c.file });
         loadGitStatus();
       });
       gitChangesList.appendChild(li);
