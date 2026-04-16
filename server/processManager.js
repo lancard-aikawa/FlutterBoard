@@ -376,7 +376,7 @@ function handleProcess(req, res, url) {
   if (pathname === '/api/process/list' && req.method === 'GET') {
     const requestedPath = url.searchParams.get('path');
     const list = [...processes.entries()]
-      .filter(([, e]) => !requestedPath || samePath(e.cwd, requestedPath))
+      .filter(([, e]) => !requestedPath || e.isLogFile || samePath(e.cwd, requestedPath))
       .map(([id, e]) => ({
         id, label: e.label, cmd: e.cmd,
         cwd:          e.cwd || null,
@@ -384,7 +384,8 @@ function handleProcess(req, res, url) {
         running:      e.exitCode === null,
         exitCode:     e.exitCode,
         pty:          e.isPty,
-        vm:           e.isVm   || false,
+        vm:           e.isVm      || false,
+        logFile:      e.isLogFile || false,
         devToolsUrl:  e.devToolsUrl  || null,
         vmServiceUrl: e.vmServiceUrl || null,
       }));
@@ -581,6 +582,44 @@ function handleProcess(req, res, url) {
         return res.end(JSON.stringify({ ok: false, error: 'Unknown action' }));
       }
       return res.end(JSON.stringify({ ok: true }));
+    });
+  }
+
+  // POST /api/process/open-log  { filename, content }
+  // クライアントが読んだログファイルの内容を受け取って仮想プロセスエントリを作成する
+  if (pathname === '/api/process/open-log' && req.method === 'POST') {
+    return readBody(req, body => {
+      let parsed;
+      try { parsed = JSON.parse(body); } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+      const { filename, content } = parsed;
+      if (!filename || content == null) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'filename and content required' }));
+      }
+
+      const lines  = content.split('\n');
+      const baseTs = Date.now();
+      const buffer = lines
+        .filter(l => l.length > 0)
+        .map((l, i) => ({ type: 'stdout', data: l + '\n', ts: baseTs + i }));
+
+      const id    = nextId++;
+      const entry = {
+        handle: null, isPty: false, isVm: false, isLogFile: true,
+        clients: new Set(),
+        label: filename, cmd: filename, args: [], cwd: null,
+        startedAt: baseTs,
+        exitCode:  0,
+        buffer,
+        devToolsUrl: null, vmServiceUrl: null,
+      };
+      processes.set(id, entry);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ id, lines: buffer.length }));
     });
   }
 

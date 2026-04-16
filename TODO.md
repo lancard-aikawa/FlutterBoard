@@ -47,6 +47,7 @@ RC.md の優先度に従い、以下の順で検討。
 | ✅ | T5 | コマンド実行履歴 |
 | 中 | FC1 | Firebase Remote Config 値確認 |
 | 中 | FC2 | App Distribution ワンクリック配布 |
+| 高 | T7 | ログファイルビューア |
 | 低 | T6 | node_modules / pub cache サイズ分析 |
 | 低 | FC3 | Crashlytics 直近クラッシュ表示 |
 | 低 | W1 | npm workspaces 対応コマンドビルダー |

@@ -204,6 +204,8 @@ const vmAttachBtn       = document.getElementById('vm-attach-btn');
 const vmScanBtn         = document.getElementById('vm-scan-btn');
 const vmScanResults     = document.getElementById('vm-scan-results');
 const vmScanSelect      = document.getElementById('vm-scan-select');
+const logfileInput      = document.getElementById('logfile-input');
+const logfileOpenBtn    = document.getElementById('logfile-open-btn');
 
 // URL detection (mirrors server-side patterns)
 const DEVTOOLS_URL_RE   = /https?:\/\/[\w.:-]+\?uri=\S+/;
@@ -374,13 +376,15 @@ function buildProcessItem(p) {
   const elapsed    = formatElapsed(p.startedAt);
   const ptyBadge   = p.pty   ? '<span class="pty-badge">PTY</span>'   : '';
   const vmBadge    = p.vm    ? '<span class="vm-badge">VM</span>'     : '';
-  const ghostBadge = p.ghost ? '<span class="ghost-badge">再起動前</span>' : '';
-  if (p.ghost) li.classList.add('proc-ghost');
+  const ghostBadge   = p.ghost     ? '<span class="ghost-badge">再起動前</span>' : '';
+  const logfileBadge = p.logFile   ? '<span class="logfile-badge">LOG</span>'   : '';
+  if (p.ghost)   li.classList.add('proc-ghost');
+  if (p.logFile) li.classList.add('proc-logfile');
 
   li.innerHTML = `
     <div class="proc-top">
       <span class="proc-dot ${dotClass}"></span>
-      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}${vmBadge}${ghostBadge}</span>
+      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}${vmBadge}${ghostBadge}${logfileBadge}</span>
       <span class="proc-actions">
         ${p.running
           ? (p.vm ? `<button class="btn-stop btn-disconnect" title="VM Service から切断（flutter run 本体は停止しない）">⏏</button>`
@@ -582,9 +586,11 @@ function appendLogEntryGrouped(type, text, ts) {
   const marker = getMarker();
   if (text.includes(marker)) {
     // マーカー行 → 新しいセクションを開始（行自体はコンテンツに含めない）
-    const idx  = text.indexOf(marker);
-    const rest = text.slice(idx + marker.length).replace(/\n[\s\S]*/, '').trim();
-    createLogSection(rest || '—', ts);
+    const idx      = text.indexOf(marker);
+    const rest     = text.slice(idx + marker.length).replace(/\n[\s\S]*/, '').trim();
+    // rest が空（マーカーが行末にある場合）はマーカーを含む行全体をタイトルに使う
+    const fullLine = text.slice(0, text.includes('\n') ? text.indexOf('\n') : undefined).trim();
+    createLogSection(rest || fullLine || '—', ts);
     return;
   }
   // セクションがなければ「起動」セクションを自動生成
@@ -825,6 +831,41 @@ vmScanSelect.addEventListener('change', () => {
     vmScanResults.classList.add('hidden');
     vmScanSelect.selectedIndex = 0;
   }
+});
+
+// ---- ログファイルビューア ----
+
+logfileInput.addEventListener('change', () => {
+  const file = logfileInput.files[0];
+  if (!file) return;
+  logfileOpenBtn.classList.add('loading');
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const raw   = e.target.result;
+      const lines = raw.split('\n');
+      // 末尾 2000 行に制限してから送信
+      const tail  = lines.slice(-2000).join('\n');
+      const res   = await fetch('/api/process/open-log', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ filename: file.name, content: tail }),
+      });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      refreshProcessList(data.id);
+    } finally {
+      logfileOpenBtn.classList.remove('loading');
+      logfileInput.value = ''; // 同じファイルを再選択できるようにリセット
+    }
+  };
+  reader.onerror = () => {
+    alert('ファイルの読み込みに失敗しました');
+    logfileOpenBtn.classList.remove('loading');
+    logfileInput.value = '';
+  };
+  reader.readAsText(file);
 });
 
 // ---- stdin ----
