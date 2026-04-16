@@ -103,8 +103,8 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ---
 
-### [G1] コミット後の Issue / PR 作成（gh CLI 経由）
-### [G2] PR ステータス + CI 状態表示（gh CLI 経由）
+### [G1] コミット後の Issue / PR 作成（gh CLI 経由）✅
+### [G2] PR ステータス + CI 状態表示（gh CLI 経由）✅
 
 UI 設計 → [docs/RC_UI_git.md](docs/RC_UI_git.md)  
 アーキテクチャ設計 → [docs/RC_arch_github.md](docs/RC_arch_github.md)
