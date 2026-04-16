@@ -44,7 +44,7 @@ RC.md の優先度に従い、以下の順で検討。
 | ✅ | T2 | pubspec.lock 変更サマリー |
 | 高 | T3 | テストランナー UI |
 | 中 | T4 | 証明書・キーストア有効期限チェック |
-| 中 | T5 | コマンド実行履歴 |
+| ✅ | T5 | コマンド実行履歴 |
 | 中 | FC1 | Firebase Remote Config 値確認 |
 | 中 | FC2 | App Distribution ワンクリック配布 |
 | 低 | T6 | node_modules / pub cache サイズ分析 |
