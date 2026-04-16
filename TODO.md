@@ -2,7 +2,7 @@
 
 ---
 
-## G1/G2: GitHub 連携（gh CLI 経由）— 実装状況
+## G1/G2: GitHub 連携（gh CLI 経由）— ✅ 完了
 
 ### 完了済み
 

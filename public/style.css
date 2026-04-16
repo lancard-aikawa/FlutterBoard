@@ -2980,18 +2980,13 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
 }
 #git-commit-msg:focus { outline: none; border-color: var(--accent); }
 
-.git-commit-msg-wrap { position: relative; }
 .git-issue-suggest {
-  position: absolute;
-  top: 100%;
-  left: 0; right: 0;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 4px;
-  z-index: 200;
   max-height: 220px;
   overflow-y: auto;
-  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
 .git-issue-suggest-item {
   display: flex;
