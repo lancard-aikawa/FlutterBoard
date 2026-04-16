@@ -13,6 +13,14 @@ function git(args, cwd) {
   });
 }
 
+// git ルートディレクトリを取得（サブディレクトリを cwd に渡された場合の補正用）
+function gitRoot(cwd) {
+  return new Promise(resolve => {
+    execFile('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf-8', timeout: 5000 },
+      (err, stdout) => resolve(err ? cwd : stdout.trim()));
+  });
+}
+
 function gitDetail(args, cwd) {
   return new Promise(resolve => {
     execFile('git', args, { cwd, encoding: 'utf-8', timeout: 15000 }, (err, stdout, stderr) => {
@@ -184,6 +192,7 @@ async function handleGit(req, res, url) {
     }
 
     // staged: git diff --cached, unstaged: git diff, untracked: git diff /dev/null
+    const diffRoot = await gitRoot(cwd);
     let diffArgs;
     if (staged) {
       diffArgs = ['diff', '--cached', '--', file];
@@ -191,7 +200,7 @@ async function handleGit(req, res, url) {
       diffArgs = ['diff', 'HEAD', '--', file];
     }
 
-    const diffOut = await git(diffArgs, cwd);
+    const diffOut = await git(diffArgs, diffRoot);
     res.writeHead(200);
     return res.end(JSON.stringify({ diff: diffOut || '' }));
   }
@@ -201,10 +210,11 @@ async function handleGit(req, res, url) {
     const body = await readBody(req);
     const { path: cwd, file } = body;
     if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const root = await gitRoot(cwd);
     const args = file ? ['add', '--', file] : ['add', '-A'];
-    const out  = await git(args, cwd);
-    res.writeHead(out === null ? 500 : 200);
-    return res.end(JSON.stringify(out === null ? { error: 'git add failed' } : { ok: true }));
+    const r = await gitDetail(args, root);
+    res.writeHead(r.ok ? 200 : 500);
+    return res.end(JSON.stringify(r.ok ? { ok: true } : { error: r.stderr || 'git add failed' }));
   }
 
   // POST /api/git/unstage  { path, file? }
@@ -212,10 +222,11 @@ async function handleGit(req, res, url) {
     const body = await readBody(req);
     const { path: cwd, file } = body;
     if (!cwd) { res.writeHead(400); return res.end(JSON.stringify({ error: 'path required' })); }
+    const root = await gitRoot(cwd);
     const args = file ? ['reset', 'HEAD', '--', file] : ['reset', 'HEAD', '--', '.'];
-    const out  = await git(args, cwd);
-    res.writeHead(out === null ? 500 : 200);
-    return res.end(JSON.stringify(out === null ? { error: 'git reset failed' } : { ok: true }));
+    const r = await gitDetail(args, root);
+    res.writeHead(r.ok ? 200 : 500);
+    return res.end(JSON.stringify(r.ok ? { ok: true } : { error: r.stderr || 'git reset failed' }));
   }
 
   // POST /api/git/do-commit  { path, message }

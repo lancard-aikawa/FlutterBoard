@@ -3043,13 +3043,15 @@ async function loadGitStatus(logOnly = false) {
       });
       li.querySelector('.git-unstage-btn')?.addEventListener('click', async e => {
         e.stopPropagation();
-        await gitOp('/api/git/unstage', { path: currentProjectPath, file: c.file });
-        loadGitStatus();
+        const r = await gitOp('/api/git/unstage', { path: currentProjectPath, file: c.file });
+        showGitResult(gitCommitResult, r.ok, r.ok ? `${c.file}: unstage 完了` : (r.error || `${c.file}: unstage 失敗`));
+        await loadGitStatus();
       });
       li.querySelector('.git-stage-btn')?.addEventListener('click', async e => {
         e.stopPropagation();
-        await gitOp('/api/git/stage', { path: currentProjectPath, file: c.file });
-        loadGitStatus();
+        const r = await gitOp('/api/git/stage', { path: currentProjectPath, file: c.file });
+        showGitResult(gitCommitResult, r.ok, r.ok ? `${c.file}: stage 完了` : (r.error || `${c.file}: stage 失敗`));
+        await loadGitStatus();
       });
       gitChangesList.appendChild(li);
     });
