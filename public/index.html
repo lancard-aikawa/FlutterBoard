@@ -539,6 +539,15 @@
           <div id="deps-pubspec-actions">
             <button id="deps-pubget-btn"  class="btn-secondary" title="flutter pub get を実行してロックファイルに基づいたパッケージを取得">flutter pub get</button>
             <button id="deps-upgrade-btn" class="btn-secondary" title="flutter pub upgrade を実行して pubspec.yaml の制約範囲内で最新バージョンに更新">flutter pub upgrade</button>
+            <button id="lock-diff-btn" class="btn-secondary" title="pubspec.lock の変更をパースして追加・削除・バージョン変更を一覧表示">lock diff ▶</button>
+          </div>
+          <!-- lock diff パネル -->
+          <div id="lock-diff-panel" class="hidden">
+            <div class="lock-diff-header">
+              <span class="lock-diff-base-label">比較: <code id="lock-diff-base-val">HEAD</code></span>
+              <button id="lock-diff-close" class="btn-ghost">✕</button>
+            </div>
+            <div id="lock-diff-body"></div>
           </div>
         </div>
 

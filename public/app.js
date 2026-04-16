@@ -1744,6 +1744,11 @@ const depsTbody        = document.getElementById('deps-tbody');
 const depsRefreshBtn   = document.getElementById('deps-refresh-btn');
 const depsPubgetBtn    = document.getElementById('deps-pubget-btn');
 const depsUpgradeBtn   = document.getElementById('deps-upgrade-btn');
+const lockDiffBtn      = document.getElementById('lock-diff-btn');
+const lockDiffPanel    = document.getElementById('lock-diff-panel');
+const lockDiffBody     = document.getElementById('lock-diff-body');
+const lockDiffBaseVal  = document.getElementById('lock-diff-base-val');
+const lockDiffClose    = document.getElementById('lock-diff-close');
 const depsThreshold    = document.getElementById('deps-threshold');
 const depsThProvenance = document.getElementById('deps-th-provenance');
 const depsThCheck      = document.getElementById('deps-th-check');
@@ -1881,6 +1886,39 @@ function applyDepsTabUi(tab) {
 depsRefreshBtn.onclick = () => checkDeps(true); // force=true でキャッシュ無視
 depsPubgetBtn.onclick  = () => { runCommand('flutter pub get', 'pub get'); document.querySelector('.tab[data-tab="logs"]').click(); };
 depsUpgradeBtn.onclick = () => { runCommand('flutter pub upgrade', 'pub upgrade'); document.querySelector('.tab[data-tab="logs"]').click(); };
+
+// lock diff
+const KIND_CLS  = { MAJOR: 'ld-major', minor: 'ld-minor', patch: 'ld-patch', added: 'ld-added', removed: 'ld-removed' };
+const KIND_LABEL = { MAJOR: 'MAJOR', minor: 'minor', patch: 'patch', added: '追加', removed: '削除' };
+
+async function loadLockDiff(base = 'HEAD') {
+  lockDiffPanel.classList.remove('hidden');
+  lockDiffBaseVal.textContent = base;
+  lockDiffBody.innerHTML = '<span style="color:var(--muted)">取得中…</span>';
+  try {
+    const res  = await fetch(`/api/lock-diff?path=${encodeURIComponent(currentProjectPath)}&base=${encodeURIComponent(base)}`);
+    const data = await res.json();
+    if (data.error) { lockDiffBody.innerHTML = `<span style="color:var(--err)">${escHtml(data.error)}</span>`; return; }
+    if (!data.changes.length) { lockDiffBody.innerHTML = '<span style="color:var(--muted)">差分なし</span>'; return; }
+    lockDiffBody.innerHTML = `
+      <table class="ld-table">
+        <thead><tr><th>パッケージ</th><th>旧バージョン</th><th>新バージョン</th><th>変更</th></tr></thead>
+        <tbody>${data.changes.map(c => `
+          <tr class="${KIND_CLS[c.kind]}">
+            <td class="ld-pkg">${escHtml(c.pkg)}</td>
+            <td class="ld-ver">${c.oldV ? escHtml(c.oldV) : '—'}</td>
+            <td class="ld-ver">${c.newV ? escHtml(c.newV) : '—'}</td>
+            <td><span class="ld-badge ${KIND_CLS[c.kind]}">${KIND_LABEL[c.kind]}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch (e) {
+    lockDiffBody.innerHTML = `<span style="color:var(--err)">エラー: ${escHtml(e.message)}</span>`;
+  }
+}
+
+lockDiffBtn.onclick   = () => { if (currentProjectPath) loadLockDiff('HEAD'); };
+lockDiffClose.onclick = () => lockDiffPanel.classList.add('hidden');
 
 // Header checkbox: select / deselect all
 depsCheckAll.addEventListener('change', () => {

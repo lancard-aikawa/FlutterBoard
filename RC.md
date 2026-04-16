@@ -33,7 +33,7 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ## 第三弾 — 実装候補
 
-### [T1] build_runner 管理 UI
+### [T1] build_runner 管理 UI ✅
 
 - `dart run build_runner build` / `watch` をコマンドランナーから1クリック実行
 - `--delete-conflicting-outputs` 付き再ビルドをボタンで提供
@@ -43,7 +43,7 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ---
 
-### [T2] pubspec.lock 変更サマリー
+### [T2] pubspec.lock 変更サマリー ✅
 
 - `git diff HEAD pubspec.lock`（または任意のブランチ/コミット）をパースして人間が読みやすい形に整形
 - 「パッケージ名 / 旧バージョン → 新バージョン / 変更種別（MAJOR/minor/patch）」を一覧

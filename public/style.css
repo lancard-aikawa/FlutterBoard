@@ -3312,6 +3312,51 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
 .tree-legend-sep     { color: var(--border); }
 .tree-legend-click   { color: var(--muted); font-style: italic; }
 
+/* ===== T2: pubspec.lock diff ===== */
+.lock-diff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .4rem 0 .5rem;
+  font-size: .82rem;
+  color: var(--muted);
+}
+.lock-diff-base-label code { color: var(--accent); }
+#lock-diff-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.ld-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+  margin-top: .25rem;
+}
+.ld-table th {
+  text-align: left;
+  padding: .3rem .5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+.ld-table td { padding: .3rem .5rem; border-bottom: 1px solid var(--border); }
+.ld-pkg { font-family: monospace; }
+.ld-ver { font-family: monospace; color: var(--muted); }
+.ld-badge {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 700;
+  padding: .1rem .35rem;
+  border-radius: 3px;
+}
+.ld-major { background: color-mix(in srgb, var(--err) 10%, transparent); }
+.ld-major .ld-badge { background: var(--err); color: #fff; }
+.ld-minor .ld-badge { background: var(--warn); color: #000; }
+.ld-patch .ld-badge { background: var(--ok);   color: #fff; }
+.ld-added .ld-badge { background: var(--ok);   color: #fff; }
+.ld-removed { opacity: .7; }
+.ld-removed .ld-badge { background: var(--muted); color: var(--bg); }
+
 /* ===== T1: build_runner 管理 UI ===== */
 .br-cmd-grid {
   display: grid;

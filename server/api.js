@@ -21,6 +21,7 @@ const { handleBuildSize }       = require('./buildSize');
 const { handleEmuSnapshot }     = require('./emuSnapshot');
 const { handleGithub }          = require('./github');
 const { handleBuildRunner }     = require('./buildRunner');
+const { handleLockDiff }        = require('./lockDiff');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -118,6 +119,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/build-runner')) {
     return handleBuildRunner(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/lock-diff')) {
+    return handleLockDiff(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
