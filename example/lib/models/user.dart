@@ -8,6 +8,7 @@ class User {
   final String name;
   final String email;
   final String? displayName;
+  final String? uid;
   final DateTime createdAt;
 
   const User({
@@ -15,6 +16,7 @@ class User {
     required this.name,
     required this.email,
     this.displayName,
+    this.uid,
     required this.createdAt,
   });
 

@@ -104,12 +104,15 @@ function renderHistory(history) {
   });
 }
 
-async function selectProject(projectPath) {
+const LAST_PROJECT_KEY = 'fb-last-project-path';
+
+async function selectProject(projectPath, persist = true) {
   const res  = await fetch(`/api/browse?path=${encodeURIComponent(projectPath)}&action=select`);
   const data = await res.json();
   if (data.error) { alert(data.error); return; }
 
   currentProjectPath = data.selected;
+  if (persist) localStorage.setItem(LAST_PROJECT_KEY, currentProjectPath);
   currentNpmDir      = null;
   currentLabel.textContent = data.selected;
   projectPanel.classList.add('hidden');
@@ -122,6 +125,8 @@ async function selectProject(projectPath) {
 
   loadProjectInfo(data.selected);
   loadRoutines(data.selected);
+  loadCmdHistory();
+  refreshProcessList(null);
   loadMdList(data.selected);
   loadEnvList(data.selected);
   loadGitStatus();
@@ -169,10 +174,13 @@ document.querySelectorAll('.cmd-tab').forEach(tab => {
 // プロセス管理
 // =====================================================================
 
-const cmdInput    = document.getElementById('cmd-input');
-const labelInput  = document.getElementById('label-input');
-const runBtn      = document.getElementById('run-btn');
-const processList = document.getElementById('process-list');
+const cmdInput         = document.getElementById('cmd-input');
+const labelInput       = document.getElementById('label-input');
+const runBtn           = document.getElementById('run-btn');
+const processList      = document.getElementById('process-list');
+const cmdHistory       = document.getElementById('cmd-history');
+const cmdHistoryList   = document.getElementById('cmd-history-list');
+const cmdHistoryClear  = document.getElementById('cmd-history-clear');
 const logOutput   = document.getElementById('log-output');
 const logTitle    = document.getElementById('log-title');
 const logClear    = document.getElementById('log-clear');
@@ -275,6 +283,40 @@ runBtn.onclick = async () => {
 };
 cmdInput.addEventListener('keydown', e => { if (e.key === 'Enter') runBtn.click(); });
 
+// ---- コマンド履歴 ----
+
+async function loadCmdHistory() {
+  if (!currentProjectPath) { renderCmdHistory([]); return; }
+  try {
+    const res  = await fetch(`/api/history/list?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    renderCmdHistory(Array.isArray(data) ? data : []);
+  } catch { renderCmdHistory([]); }
+}
+
+function renderCmdHistory(items) {
+  if (!items.length) { cmdHistory.classList.add('hidden'); return; }
+  cmdHistory.classList.remove('hidden');
+  cmdHistoryList.innerHTML = '';
+  items.forEach(item => {
+    const li   = document.createElement('li');
+    li.className = 'cmd-hist-item';
+    const icon = item.exitCode === 0 ? '✓' : item.exitCode === null ? '?' : '✗';
+    const cls  = item.exitCode === 0 ? 'ok' : item.exitCode === null ? 'unk' : 'err';
+    li.innerHTML = `<span class="cmd-hist-icon cmd-hist-${cls}">${icon}</span>`
+                 + `<span class="cmd-hist-cmd">${escHtml(item.cmd)}</span>`;
+    li.title   = item.label || item.cmd;
+    li.onclick = () => { cmdInput.value = item.fullCmd || item.cmd; labelInput.value = item.label || ''; cmdInput.focus(); };
+    cmdHistoryList.appendChild(li);
+  });
+}
+
+cmdHistoryClear.onclick = async () => {
+  if (!currentProjectPath) return;
+  await fetch(`/api/history/clear?path=${encodeURIComponent(currentProjectPath)}`, { method: 'DELETE' });
+  renderCmdHistory([]);
+};
+
 // ---- プロセス一覧を更新（最短 500ms 間隔のスロットル） ----
 const REFRESH_MIN_MS = 500;
 let _refreshLastAt  = 0;
@@ -306,7 +348,9 @@ function refreshProcessList(selectId) {
 
 async function _doRefresh(selectId) {
   _refreshLastAt = Date.now();
-  const res  = await fetch('/api/process/list');
+  const res  = await fetch(currentProjectPath
+    ? `/api/process/list?path=${encodeURIComponent(currentProjectPath)}`
+    : '/api/process/list');
   const list = await res.json();
 
   processList.innerHTML = '';
@@ -324,15 +368,19 @@ function buildProcessItem(p) {
   li.className  = 'proc-item' + (p.id === activeId ? ' active' : '');
   li.dataset.id = p.id;
 
-  const dotClass  = p.running ? 'running' : (p.exitCode !== 0 ? 'error' : 'exited');
-  const elapsed   = formatElapsed(p.startedAt);
-  const ptyBadge  = p.pty ? '<span class="pty-badge">PTY</span>' : '';
-  const vmBadge   = p.vm  ? '<span class="vm-badge">VM</span>'   : '';
+  const dotClass   = p.running ? 'running'
+                   : (p.ghost && p.exitCode === null) ? 'exited'
+                   : (p.exitCode !== 0 ? 'error' : 'exited');
+  const elapsed    = formatElapsed(p.startedAt);
+  const ptyBadge   = p.pty   ? '<span class="pty-badge">PTY</span>'   : '';
+  const vmBadge    = p.vm    ? '<span class="vm-badge">VM</span>'     : '';
+  const ghostBadge = p.ghost ? '<span class="ghost-badge">再起動前</span>' : '';
+  if (p.ghost) li.classList.add('proc-ghost');
 
   li.innerHTML = `
     <div class="proc-top">
       <span class="proc-dot ${dotClass}"></span>
-      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}${vmBadge}</span>
+      <span class="proc-label" title="${escHtml(p.label)}">${escHtml(p.label)}${ptyBadge}${vmBadge}${ghostBadge}</span>
       <span class="proc-actions">
         ${p.running
           ? (p.vm ? `<button class="btn-stop btn-disconnect" title="VM Service から切断（flutter run 本体は停止しない）">⏏</button>`
@@ -354,7 +402,7 @@ function buildProcessItem(p) {
     await fetch(api, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, cwd: p.cwd || null }),
     });
     if (p.running) {
       if (activeId === id) {
@@ -460,6 +508,7 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
       sse.close();
       activeSSE = null;
       refreshProcessList(null);  // ドット色・ボタンを exited に更新
+      loadCmdHistory();           // 履歴リストを更新
     }
   };
   sse.onerror = () => {
@@ -711,7 +760,7 @@ async function attachVM() {
     const res  = await fetch('/api/process/attach-vm', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ label: `VM:${vmUrl}`, vmUrl }),
+      body:    JSON.stringify({ label: `VM:${vmUrl}`, vmUrl, cwd: currentProjectPath }),
     });
     const data = await res.json();
     if (data.ok) {
@@ -3851,6 +3900,7 @@ const combinedAutoscroll  = document.getElementById('combined-autoscroll');
 let combinedActive    = false;
 let combinedPollTimer = null;
 let combinedActiveLevels = new Set(); // 空 = フィルタなし
+let combinedSnapshot  = '';
 
 // プロセスラベルごとに色を割り当て（HSL で均等分散）
 const procColorCache = {};
@@ -3926,13 +3976,12 @@ async function fetchCombined() {
 }
 
 function buildCombinedOutput(entries) {
-  // 既存行数と同じなら差分だけ追加（全再描画を避ける）
-  const existing = combinedOutput.querySelectorAll('.combined-line').length;
-  if (existing === entries.length) return;
+  const snapshot = entries.map(e => `${e.id}:${e.ts}:${e.type}:${e.data || ''}`).join('|');
+  if (snapshot === combinedSnapshot) return;
+  combinedSnapshot = snapshot;
 
-  if (existing === 0) combinedOutput.innerHTML = '';
-
-  for (let i = existing; i < entries.length; i++) {
+  combinedOutput.innerHTML = '';
+  for (let i = 0; i < entries.length; i++) {
     const e    = entries[i];
     const text = (e.data || '').replace(/\n$/, '');
     if (!text) continue;
@@ -4002,6 +4051,7 @@ function enterCombinedView() {
   devtoolsBar.classList.add('hidden');
   combinedPanel.classList.remove('hidden');
   combinedOutput.innerHTML = '';
+  combinedSnapshot = '';
   startCombinedPoll();
 }
 function exitCombinedView() {
@@ -4019,6 +4069,7 @@ combinedViewBtn.onclick = () => {
 
 combinedRefresh.onclick = () => {
   combinedOutput.innerHTML = '';
+  combinedSnapshot = '';
   fetchCombined();
 };
 
@@ -4515,4 +4566,35 @@ document.querySelector('.cmd-tab[data-cmd-tab="buildrunner"]').addEventListener(
 // =====================================================================
 // 初期ロード
 // =====================================================================
-browse('');
+async function restoreLastProject() {
+  const last = localStorage.getItem(LAST_PROJECT_KEY);
+  if (last) {
+    const res = await fetch(`/api/browse?path=${encodeURIComponent(last)}&action=select`);
+    const data = await res.json();
+    if (!data.error && data.selected) {
+      currentProjectPath = data.selected;
+      currentNpmDir      = null;
+      currentLabel.textContent = data.selected;
+      projectPanel.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      depsTbody.innerHTML = `<tr><td colspan="9" class="deps-empty">「更新チェック」を押してください</td></tr>`;
+      depsStatus.textContent = '';
+      depsProjectName.textContent = '';
+      loadProjectInfo(data.selected);
+      loadRoutines(data.selected);
+      loadCmdHistory();
+      refreshProcessList(null);
+      loadMdList(data.selected);
+      loadEnvList(data.selected);
+      loadGitStatus();
+      loadFirebaseEnvStatus(data.selected);
+      loadFvmInfo(data.selected);
+      if (typeof window.ghCheckAfterProjectLoad === 'function') window.ghCheckAfterProjectLoad();
+      return;
+    }
+    localStorage.removeItem(LAST_PROJECT_KEY);
+  }
+  browse('');
+}
+
+restoreLastProject().catch(() => browse(''));

@@ -22,6 +22,7 @@ const { handleEmuSnapshot }     = require('./emuSnapshot');
 const { handleGithub }          = require('./github');
 const { handleBuildRunner }     = require('./buildRunner');
 const { handleLockDiff }        = require('./lockDiff');
+const { handleCmdHistory }      = require('./cmdHistory');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -123,6 +124,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/lock-diff')) {
     return handleLockDiff(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/history')) {
+    return handleCmdHistory(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

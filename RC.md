@@ -75,7 +75,7 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ---
 
-### [T5] コマンド実行履歴
+### [T5] コマンド実行履歴 ＋ サーバー再起動後のカード復元
 
 - 実行したコマンドをプロジェクト別・タイムスタンプ付きで `config/history_<hash>.json` に保存
 - コマンドタブの入力欄の下に最近の履歴リストを表示
@@ -83,6 +83,13 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 - 成功（exit 0）/ 失敗（exit non-0）をアイコンで記録
 - 解決する課題: **「さっき動かしたコマンドが何だったか忘れる」問題**
 - VSCode との差: terminal の history はセッション跨ぎで消える・プロジェクト別管理なし
+
+**再起動後のカード復元（docs/reload_problem.md 対策 A+B）**
+
+- `config/procmeta_<hash>.json` にプロセスのメタ情報（label/cmd/cwd/startedAt/exitCode 等）を保存
+- `/api/process/list` でメモリが空でも JSON から過去のカードを返す（running→unknown 扱い）
+- UI 側は空レスポンス時に既存カードを即消去しない（対策案 A）
+- 解決する課題: **`node --watch` 再起動でログ画面のカードが消える問題**
 
 ---
 

@@ -65,6 +65,13 @@
             <input type="text" id="label-input" placeholder="ラベル（省略可）">
             <button id="run-btn">▶ 実行</button>
           </div>
+          <div id="cmd-history" class="hidden">
+            <div class="cmd-history-header">
+              <span>履歴</span>
+              <button id="cmd-history-clear" class="btn-ghost" title="コマンド履歴をクリア">クリア</button>
+            </div>
+            <ul id="cmd-history-list"></ul>
+          </div>
           <div id="process-list-header">
             <span>実行中 / 履歴</span>
             <label id="autoreload-label">

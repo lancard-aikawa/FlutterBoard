@@ -1,5 +1,48 @@
 const { spawn } = require('child_process');
+const fs   = require('fs');
+const path = require('path');
 const { connectVMService, parseVMEvent } = require('./vmService');
+const { appendCmdHistory } = require('./cmdHistory');
+
+// =====================================================================
+// プロセスメタ永続化（サーバー再起動後のカード復元用）
+// =====================================================================
+
+const crypto     = require('crypto');
+const CONFIG_DIR = path.join(__dirname, '..', 'config');
+const safeHash   = p => crypto.createHash('sha1').update(p || '').digest('hex').slice(0, 16);
+const GLOBAL_PROCMETA_FILE = path.join(CONFIG_DIR, 'procmeta.json');
+
+function procMetaFile(cwd) {
+  return cwd ? path.join(CONFIG_DIR, `procmeta_${safeHash(cwd)}.json`) : GLOBAL_PROCMETA_FILE;
+}
+function loadProcMeta(cwd) {
+  try { return JSON.parse(fs.readFileSync(procMetaFile(cwd), 'utf8')); } catch { return []; }
+}
+function samePath(a, b) {
+  const na = path.normalize(a || '');
+  const nb = path.normalize(b || '');
+  return process.platform === 'win32' ? na.toLowerCase() === nb.toLowerCase() : na === nb;
+}
+function saveProcMetaEntry(id, entry) {
+  const meta = loadProcMeta(entry.cwd);
+  const rec  = { id, label: entry.label, cmd: entry.cmd, cwd: entry.cwd,
+                 startedAt: entry.startedAt, exitCode: entry.exitCode };
+  const idx  = meta.findIndex(m => m.id === id);
+  if (idx >= 0) meta[idx] = rec; else meta.push(rec);
+  try {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(procMetaFile(entry.cwd), JSON.stringify(meta.slice(-50), null, 2));
+  } catch (_) {}
+}
+
+function removeProcMetaEntry(id, cwd = null) {
+  const meta = loadProcMeta(cwd).filter(m => m.id !== id);
+  try {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(procMetaFile(cwd), JSON.stringify(meta, null, 2));
+  } catch (_) {}
+}
 
 // Try to load node-pty; fall back to child_process.spawn if unavailable
 let pty = null;
@@ -172,6 +215,8 @@ function handleProcess(req, res, url) {
         handle.on('exit', (code) => {
           entry.exitCode = (code != null) ? code : 0;
           broadcast('exit', `Process exited (code: ${entry.exitCode})`);
+          saveProcMetaEntry(id, entry);
+          appendCmdHistory(entry);
         });
       } else {
         handle.stdout.on('data', chunk => broadcast('stdout', chunk.toString()));
@@ -179,11 +224,14 @@ function handleProcess(req, res, url) {
         handle.on('close', code => {
           entry.exitCode = code;
           broadcast('exit', `Process exited (code: ${code})`);
+          saveProcMetaEntry(id, entry);
+          appendCmdHistory(entry);
         });
         handle.on('error', err => broadcast('stderr', `Launch error: ${err.message}`));
       }
 
       processes.set(id, entry);  // リスナー登録後にマップへ追加
+      saveProcMetaEntry(id, entry);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ id, pty: isPty }));
@@ -315,8 +363,10 @@ function handleProcess(req, res, url) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }));
       }
-      const { id } = parsed;
+      const { id, cwd: bodyCwd } = parsed;
+      const entry = processes.get(id);
       processes.delete(id);
+      removeProcMetaEntry(id, entry?.cwd ?? bodyCwd ?? null);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
     });
@@ -324,16 +374,47 @@ function handleProcess(req, res, url) {
 
   // GET /api/process/list
   if (pathname === '/api/process/list' && req.method === 'GET') {
-    const list = [...processes.entries()].map(([id, e]) => ({
-      id, label: e.label, cmd: e.cmd,
-      startedAt:    e.startedAt,
-      running:      e.exitCode === null,
-      exitCode:     e.exitCode,
-      pty:          e.isPty,
-      vm:           e.isVm   || false,
-      devToolsUrl:  e.devToolsUrl  || null,
-      vmServiceUrl: e.vmServiceUrl || null,
-    }));
+    const requestedPath = url.searchParams.get('path');
+    const list = [...processes.entries()]
+      .filter(([, e]) => !requestedPath || samePath(e.cwd, requestedPath))
+      .map(([id, e]) => ({
+        id, label: e.label, cmd: e.cmd,
+        cwd:          e.cwd || null,
+        startedAt:    e.startedAt,
+        running:      e.exitCode === null,
+        exitCode:     e.exitCode,
+        pty:          e.isPty,
+        vm:           e.isVm   || false,
+        devToolsUrl:  e.devToolsUrl  || null,
+        vmServiceUrl: e.vmServiceUrl || null,
+      }));
+
+    if (requestedPath) {
+      const seen = new Set(list.map(item => item.id));
+      loadProcMeta(requestedPath).forEach(m => {
+        if (seen.has(m.id)) return;
+        list.push({
+          id: m.id, label: m.label, cmd: m.cmd,
+          cwd: m.cwd || requestedPath,
+          startedAt: m.startedAt, running: false,
+          exitCode: m.exitCode, pty: false, vm: false,
+          devToolsUrl: null, vmServiceUrl: null,
+          ghost: true,
+        });
+      });
+    } else if (processes.size === 0) {
+      const ghosts = loadProcMeta().map(m => ({
+        id: m.id, label: m.label, cmd: m.cmd,
+        cwd: m.cwd || null,
+        startedAt: m.startedAt, running: false,
+        exitCode: m.exitCode, pty: false, vm: false,
+        devToolsUrl: null, vmServiceUrl: null,
+        ghost: true,
+      }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(ghosts));
+    }
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(list));
   }
@@ -347,7 +428,7 @@ function handleProcess(req, res, url) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: false, error: 'Invalid JSON' }));
       }
-      const { label, vmUrl } = parsed;
+      const { label, vmUrl, cwd = null } = parsed;
       if (!vmUrl) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ ok: false, error: 'vmUrl required' }));
@@ -368,7 +449,7 @@ function handleProcess(req, res, url) {
       const entry = {
         handle: null, isPty: false, isVm: true,
         wsConn: null,
-        clients, label: label || `VM:${vmUrl}`, cmd: 'vm-attach', args: [], cwd: null,
+        clients, label: label || `VM:${vmUrl}`, cmd: 'vm-attach', args: [], cwd,
         startedAt:    Date.now(),
         exitCode:     null,
         buffer,
@@ -394,6 +475,7 @@ function handleProcess(req, res, url) {
         onOpen(ws) {
           entry.wsConn = ws;
           processes.set(id, entry);
+          saveProcMetaEntry(id, entry);
           // V2: アイソレート ID を取得（Hot Reload/Restart RPC に使用）
           ws.send({ jsonrpc: '2.0', id: 3, method: 'getVM', params: {} });
           clearTimeout(timer);
@@ -456,6 +538,7 @@ function handleProcess(req, res, url) {
           if (entry.exitCode === null) {
             entry.exitCode = 0;
             broadcast('exit', '[FlutterBoard] VM Service との接続が切断されました\n');
+            saveProcMetaEntry(id, entry);
           }
         },
       });
