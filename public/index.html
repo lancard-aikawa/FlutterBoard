@@ -180,6 +180,7 @@
           <button class="cmd-tab" data-cmd-tab="firebase">Firebase</button>
           <button class="cmd-tab" data-cmd-tab="npm">npm</button>
           <button class="cmd-tab" data-cmd-tab="routine">ルーティン</button>
+          <button class="cmd-tab" data-cmd-tab="buildrunner">build_runner</button>
         </div>
 
         <!-- Flutter パネル -->
@@ -443,6 +444,39 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- build_runner パネル -->
+        <div id="cmd-panel-buildrunner" class="cmd-tab-content hidden">
+          <section class="cmd-section">
+            <h3 class="cmd-section-title">コード生成</h3>
+            <div class="br-cmd-grid">
+              <button class="br-cmd-btn" data-cmd="dart run build_runner build" data-label="build_runner build">
+                <span class="br-cmd-icon">▶</span>
+                <span class="br-cmd-name">build</span>
+                <span class="br-cmd-desc">生成ファイルを一括ビルド</span>
+              </button>
+              <button class="br-cmd-btn" data-cmd="dart run build_runner watch" data-label="build_runner watch">
+                <span class="br-cmd-icon">👁</span>
+                <span class="br-cmd-name">watch</span>
+                <span class="br-cmd-desc">ファイル監視・自動再生成</span>
+              </button>
+              <button class="br-cmd-btn" data-cmd="dart run build_runner build --delete-conflicting-outputs" data-label="build_runner build (clean)">
+                <span class="br-cmd-icon">🔄</span>
+                <span class="br-cmd-name">build (競合削除)</span>
+                <span class="br-cmd-desc">--delete-conflicting-outputs 付きビルド</span>
+              </button>
+            </div>
+          </section>
+          <section class="cmd-section">
+            <div class="br-files-header">
+              <h3 class="cmd-section-title" style="margin:0">生成ファイル一覧</h3>
+              <button id="br-refresh-btn" class="ctx-fetch-btn">更新 ▶</button>
+            </div>
+            <div id="br-files-list">
+              <span class="cmd-empty">プロジェクトを選択すると生成ファイルが表示されます</span>
             </div>
           </section>
         </div>

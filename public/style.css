@@ -3311,3 +3311,61 @@ tr.cmp-removed td { background: color-mix(in srgb, var(--err)   8%, transparent)
 .tree-legend-conflict { color: var(--err); }
 .tree-legend-sep     { color: var(--border); }
 .tree-legend-click   { color: var(--muted); font-style: italic; }
+
+/* ===== T1: build_runner 管理 UI ===== */
+.br-cmd-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .75rem;
+  margin-top: .5rem;
+}
+.br-cmd-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .25rem;
+  padding: .75rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+}
+.br-cmd-btn:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.br-cmd-icon { font-size: 1.1rem; }
+.br-cmd-name { font-size: .85rem; font-weight: 600; color: var(--text); }
+.br-cmd-desc { font-size: .75rem; color: var(--muted); }
+
+.br-files-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}
+.br-files-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+}
+.br-files-table th {
+  text-align: left;
+  padding: .3rem .5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+.br-files-table td { padding: .3rem .5rem; border-bottom: 1px solid var(--border); }
+.br-file-path { font-family: monospace; color: var(--text); }
+.br-file-mtime { color: var(--muted); white-space: nowrap; }
+.br-file-badge {
+  display: inline-block;
+  font-size: .65rem;
+  padding: .1rem .3rem;
+  border-radius: 3px;
+  margin-right: .3rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.br-badge-g       { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+.br-badge-freezed { background: color-mix(in srgb, var(--vm-accent) 20%, transparent); color: var(--vm-accent); }

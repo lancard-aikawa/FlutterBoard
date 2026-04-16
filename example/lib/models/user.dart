@@ -7,12 +7,14 @@ class User {
   final String id;
   final String name;
   final String email;
+  final String? displayName;
   final DateTime createdAt;
 
   const User({
     required this.id,
     required this.name,
     required this.email,
+    this.displayName,
     required this.createdAt,
   });
 

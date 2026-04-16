@@ -4426,6 +4426,55 @@ document.querySelector('.cmd-tab[data-cmd-tab="firebase"]').addEventListener('cl
 });
 
 // =====================================================================
+// build_runner 管理 UI
+// =====================================================================
+const brRefreshBtn  = document.getElementById('br-refresh-btn');
+const brFilesList   = document.getElementById('br-files-list');
+
+document.querySelectorAll('.br-cmd-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    runCommand(btn.dataset.cmd, btn.dataset.label);
+    document.querySelector('.tab[data-tab="logs"]').click();
+  });
+});
+
+async function loadBrFiles() {
+  if (!currentProjectPath) return;
+  brFilesList.innerHTML = '<span class="cmd-empty">取得中…</span>';
+  try {
+    const res  = await fetch(`/api/build-runner/files?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    if (!data.files || data.files.length === 0) {
+      brFilesList.innerHTML = '<span class="cmd-empty">.g.dart / .freezed.dart ファイルが見つかりません</span>';
+      return;
+    }
+    brFilesList.innerHTML = `
+      <table class="br-files-table">
+        <thead><tr><th>ファイル</th><th>最終生成</th></tr></thead>
+        <tbody>${data.files.map(f => {
+          const d = new Date(f.mtime).toLocaleString('ja-JP');
+          const isFreezed = f.file.endsWith('.freezed.dart');
+          return `<tr>
+            <td class="br-file-path">
+              <span class="br-file-badge ${isFreezed ? 'br-badge-freezed' : 'br-badge-g'}">${isFreezed ? 'freezed' : 'g'}</span>
+              ${escHtml(f.file)}
+            </td>
+            <td class="br-file-mtime">${d}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+  } catch (e) {
+    brFilesList.innerHTML = `<span class="cmd-empty" style="color:var(--err)">エラー: ${escHtml(e.message)}</span>`;
+  }
+}
+
+brRefreshBtn.addEventListener('click', loadBrFiles);
+
+document.querySelector('.cmd-tab[data-cmd-tab="buildrunner"]').addEventListener('click', () => {
+  if (currentProjectPath) loadBrFiles();
+});
+
+// =====================================================================
 // 初期ロード
 // =====================================================================
 browse('');
