@@ -1,3 +1,7 @@
+# build_runner 生成ファイル
+*.g.dart
+*.freezed.dart
+
 # Flutter 自動生成プラットフォームファイル
 ios/
 web/
