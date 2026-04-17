@@ -14,3 +14,7 @@ src/app/
 
 # logファイル
 *.log
+
+# Playwright MCP テスト生成物
+.playwright-mcp/
+/phase*.png

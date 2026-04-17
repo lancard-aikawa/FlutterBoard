@@ -24,6 +24,7 @@ const { handleBuildRunner }     = require('./buildRunner');
 const { handleLockDiff }        = require('./lockDiff');
 const { handleCmdHistory }      = require('./cmdHistory');
 const { handleTestRunner }     = require('./testRunner');
+const { handlePreflight }      = require('./preflight');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -133,6 +134,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/test')) {
     return handleTestRunner(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/preflight')) {
+    return handlePreflight(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });
