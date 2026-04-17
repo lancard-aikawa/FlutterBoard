@@ -186,6 +186,99 @@ UI 設計 → [docs/RC_UI_git.md](docs/RC_UI_git.md)
 
 ---
 
+## 第四弾 — 実装候補
+
+### [T8] flutter pub outdated ビューア
+
+- `flutter pub outdated --json` をパースしてパッケージ別に **Current / Resolvable / Latest** を一覧表示
+- 乖離の大きさで色分け（MAJOR=赤 / minor=黄 / patch=緑）、Breaking 可能性をバッジ化
+- 個別パッケージを `flutter pub upgrade <name>` / 全体を `--major-versions` でワンクリック更新
+- 解決する課題: **依存パッケージの老朽度を手動コマンドで毎回確認する手間・どこまで上げるのが安全か判断できない**
+- VSCode との差: Dart 拡張の Code Action は1行1パッケージずつで、全体俯瞰できない
+
+---
+
+### [T9] アセット管理パネル
+
+- `pubspec.yaml` の `flutter.assets` エントリと `assets/` 以下の実ファイルを双方向突合
+- 未登録アセット（実ファイルはあるが pubspec 漏れ）、宙ぶらりん参照（pubspec にあるがファイル無し）を赤/黄で強調
+- 画像ファイルはサムネイル表示、pubspec.yaml への1クリック追記ボタン
+- 解決する課題: **画像追加後に pubspec.yaml への追記を忘れて実行時に気づく典型的バグ**
+- VSCode との差: 画像プレビュー拡張はあるが pubspec との突合チェック機能はない
+
+---
+
+### [T10] L10n / ARB 翻訳抜け検出
+
+- `lib/l10n/*.arb`（または任意ディレクトリ）を横断スキャンしてキー集合を抽出
+- 基準言語（`intl_en.arb` 等）に対して他言語の欠損キーをグリッドでハイライト
+- 欠損率・件数サマリーを各言語ごとに表示、未翻訳キーのみ抽出して CSV エクスポート
+- 解決する課題: **多言語対応で特定言語だけキー翻訳漏れが残り、リリース後にユーザー報告で気づく**
+- VSCode との差: ARB 拡張はあるが複数言語横断の未翻訳一覧ビューは弱い
+
+---
+
+### [T11] バージョン統合ビューア
+
+- `pubspec.yaml` / `android/app/build.gradle`（versionCode/Name）/ `ios/Runner/Info.plist`（CFBundleVersion/ShortVersionString）を1画面に並置
+- 不整合があれば警告、ワンクリックで3ファイル一斉 bump（patch / minor / major / build-only）
+- 最新 git tag `vX.Y.Z+N` との乖離も表示
+- 解決する課題: **リリース前に versionCode 更新を忘れて Play Store リジェクト、3ファイルを手で揃える手間**
+- VSCode との差: 各ファイルを個別に開いて目視同期するしかない
+
+---
+
+### [T12] Android Logcat 統合表示
+
+- `adb logcat` を起動中の `flutter run` と同画面にマージし、タイムスタンプで時系列統合（S4 の横断検索と連携）
+- アプリパッケージフィルタ、ログレベル（V/D/I/W/E/F）、タグフィルタ
+- ANR / FATAL 発生時にバナー通知
+- 解決する課題: **Flutter ログと native クラッシュ情報を別ウィンドウで突き合わせる手間、`adb` コマンド引数の覚え直し**
+- VSCode との差: Android 拡張は Flutter プロジェクトで統合表示できず、ターミナル2窓運用になりがち
+
+---
+
+### [T13] TODO / FIXME コレクター
+
+- プロジェクト全体の `// TODO` / `// FIXME` / `// HACK` / `// XXX` コメントを収集しリスト表示
+- `// TODO(name):` 記法で担当者別グループ化、Git blame で作成者・日付を併記
+- `vscode://` ジャンプリンク、既に Issue 化済みのものは `#番号` でリンク（G1 連携）
+- 解決する課題: **技術負債・先送りメモが散在して棚卸しできない、誰がいつ書いたか追えない**
+- VSCode との差: Todo Tree 拡張はあるが Git blame・Issue 連動がない
+
+---
+
+### [T14] ビルドキャッシュクリア ダッシュボード
+
+- `.dart_tool/` / `build/` / `~/.gradle/caches/` / `~/Library/Developer/Xcode/DerivedData/` / `~/.pub-cache/` のサイズを一覧
+- 任意選択でチェックしてワンクリック削除、削除前後の解放サイズ表示
+- 解決する課題: **「動かない」→ flutter clean → それでも直らない → どのキャッシュを消すか毎回思い出すサイクル**
+- VSCode との差: 標準機能なし、複数ディレクトリ横断のサイズ把握はコマンド手打ち
+
+---
+
+## 第四弾 — 連携フロー改善候補
+
+### [G3] Git tag + GitHub Release 作成フロー
+
+- 最新 pubspec.yaml の version から tag 名（`vX.Y.Z+N`）を自動提案
+- 前回 tag 以降のコミットから CHANGELOG を自動生成（Conventional Commits 対応）
+- `git tag` → `git push --tags` → `gh release create` を連続実行、ドラフト保存にも対応
+- 解決する課題: **リリースごとにタグ付け → CHANGELOG 作成 → GitHub Release 作成を3ステップで手動実行する手間**
+- VSCode との差: 標準機能なし、gh 拡張はコマンド単位の呼び出しのみ
+
+---
+
+### [FC4] Firestore / Auth エミュレータ統合
+
+- `firebase.json` を読んで設定済みエミュレータを検出、起動/停止をワンボタン
+- ローカル Firestore データをテーブル表示、コレクション/ドキュメント単位で簡易編集
+- シードデータの import/export、現在状態のスナップショット保存
+- 解決する課題: **エミュレータ UI（localhost:4000）を常時開いておく必要、起動コマンドや seed の手順を毎回思い出す**
+- VSCode との差: Firebase 拡張にエミュレータ GUI はなく、ブラウザを別窓で開く運用になる
+
+---
+
 ## ナビゲーション設計方針
 
 ### トップタブ構成（確定）
@@ -215,12 +308,14 @@ UI 設計 → [docs/RC_UI_git.md](docs/RC_UI_git.md)
 
 ```
 単体で困る（ツール単体の使いにくさ）
-  高: T1 build_runner 管理 UI / T2 pubspec.lock 変更サマリー / T3 テストランナー UI
-  中: T4 証明書有効期限 / T5 コマンド実行履歴
-  低: T6 サイズ分析
+  高: T1 build_runner / T2 pubspec.lock diff / T3 テストランナー
+       T8 pub outdated ビューア / T11 バージョン統合ビューア / T12 Android Logcat 統合
+  中: T4 証明書有効期限 / T5 コマンド履歴 / T9 アセット管理 / T10 L10n 翻訳抜け
+       T14 ビルドキャッシュクリア
+  低: T6 サイズ分析 / T13 TODO/FIXME コレクター
 
 連携で困る（ツール間往復・コンテキストスイッチ）← FlutterBoard の差別点
-  高: G1 GitHub Issues 連携（analyze → Issue 起票）/ G2 PR+CI 状態表示
-  中: FC1 Remote Config 確認 / FC2 App Distribution 配布 / W2 Firestore Rules サイクル
-  低: FC3 Crashlytics 表示 / W1 workspaces 対応
+  高: G1 GitHub Issues / G2 PR+CI 状態 / G3 Release 作成フロー
+  中: FC1 Remote Config / FC2 App Distribution / FC4 Firestore エミュレータ / W2 Firestore Rules
+  低: FC3 Crashlytics / W1 workspaces
 ```
