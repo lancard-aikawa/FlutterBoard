@@ -25,6 +25,7 @@ const { handleLockDiff }        = require('./lockDiff');
 const { handleCmdHistory }      = require('./cmdHistory');
 const { handleTestRunner }     = require('./testRunner');
 const { handlePreflight }      = require('./preflight');
+const { handleReleaseNotes }  = require('./releaseNotes');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -138,6 +139,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/preflight')) {
     return handlePreflight(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/releasenotes')) {
+    return handleReleaseNotes(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

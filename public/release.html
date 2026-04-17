@@ -39,6 +39,39 @@
       <div id="preflight-summary" class="preflight-summary hidden"></div>
       <div id="preflight-results" class="preflight-results"></div>
     </section>
+
+    <!-- リリースノート自動生成（D3） -->
+    <section id="relnotes-panel" class="relnotes-panel hidden">
+      <div class="relnotes-header">
+        <h2>リリースノート自動生成</h2>
+        <div class="relnotes-actions">
+          <label class="relnotes-from">
+            基準タグ:
+            <select id="relnotes-from-select">
+              <option value="">（最新タグを自動選択）</option>
+            </select>
+          </label>
+          <label class="relnotes-opt">
+            <input type="checkbox" id="relnotes-include-other" checked>
+            その他を含める
+          </label>
+          <button type="button" id="relnotes-gen-btn" class="btn-primary">生成 ▶</button>
+          <span id="relnotes-status" class="relnotes-status"></span>
+        </div>
+      </div>
+      <div id="relnotes-meta" class="relnotes-meta hidden"></div>
+      <div class="relnotes-body hidden" id="relnotes-body">
+        <div class="relnotes-toolbar">
+          <button type="button" id="relnotes-copy-btn" class="btn-secondary">📋 Markdown をコピー</button>
+          <span id="relnotes-copy-status" class="relnotes-copy-status"></span>
+        </div>
+        <textarea id="relnotes-markdown" class="relnotes-markdown" spellcheck="false"></textarea>
+        <details class="relnotes-commits">
+          <summary>対象コミット <span id="relnotes-count">0</span> 件</summary>
+          <ul id="relnotes-commit-list" class="relnotes-commit-list"></ul>
+        </details>
+      </div>
+    </section>
   </main>
 
   <script src="shared/project.js"></script>
