@@ -1,0 +1,91 @@
+/*
+ * FlutterBoard 共通ベーススタイル
+ * 複数エントリページ（index.html / release.html など）で共有する
+ * 最小セット: CSS 変数 + body + header + button 基本
+ * 個別ページ固有のスタイルは style.css / app-xxx.css に置く
+ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #1e1e2e;
+  --surface: #2a2a3e;
+  --border:  #3a3a5c;
+  --accent:  #7c9ef8;
+  --text:    #cdd6f4;
+  --muted:   #6c7086;
+  --ok:        #a6e3a1;
+  --err:       #f38ba8;
+  --warn:      #f9e2af;
+  --vm-accent: #2dd4bf;
+  --header-h:  48px;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===== ヘッダー ===== */
+header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 0 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+header h1 { font-size: 1rem; color: var(--accent); letter-spacing: .05em; }
+
+/* ===== エントリ間ナビゲーション ===== */
+.entry-nav {
+  display: inline-flex;
+  gap: .4rem;
+  margin-left: auto;
+}
+.entry-nav a {
+  padding: .3rem .7rem;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: .82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.entry-nav a:hover { color: var(--text); border-color: var(--text); }
+.entry-nav a.active { color: var(--accent); border-color: var(--accent); }
+
+/* ===== ボタン基本 ===== */
+button {
+  padding: .4rem .9rem;
+  background: var(--accent);
+  color: #1e1e2e;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: .82rem;
+  white-space: nowrap;
+}
+button:hover { opacity: .85; }
+button:active { opacity: .7; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  font-weight: 400;
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--text); }
+
+/* ===== 共通ユーティリティ ===== */
+.hidden { display: none !important; }

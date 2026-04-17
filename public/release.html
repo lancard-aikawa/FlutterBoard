@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlutterBoard — テストリリース</title>
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="release.css">
+</head>
+<body>
+  <header>
+    <h1>FlutterBoard — 🚀 テストリリース</h1>
+    <div id="release-project" class="release-project">プロジェクト未選択</div>
+    <nav class="entry-nav">
+      <a href="/index.html">🛠 開発</a>
+      <a href="/release.html" class="active">🚀 リリース</a>
+    </nav>
+  </header>
+
+  <main class="release-main">
+    <section class="release-placeholder">
+      <h2>テストリリース機能は準備中です</h2>
+      <p>
+        Android Internal Testing / Firebase App Distribution に的を絞った
+        配布支援機能を、このページに段階的に実装していきます。
+      </p>
+      <p class="release-note">
+        初期実装候補: <strong>Pre-flight チェックリスト</strong>（D1）→
+        <strong>リリースノート自動生成</strong>（D3）→
+        <strong>配布 URL / テスター管理</strong>（D4）
+      </p>
+      <div id="release-project-hint" class="release-project-hint hidden"></div>
+    </section>
+  </main>
+
+  <script src="shared/project.js"></script>
+  <script src="app-release.js"></script>
+</body>
+</html>

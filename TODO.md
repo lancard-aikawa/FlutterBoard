@@ -34,7 +34,37 @@
 
 ---
 
-## 次フェーズ候補（未着手）
+## マルチエントリ分離（feature/separate-plan）
+
+app.js 肥大化への対処として、フロントエンドを複数 HTML エントリに分離中。
+テストリリース支援（D 系）は `/release.html` に独立して実装する方針。
+
+### Phase 1 — 骨組み ✅
+
+- `public/shared/base.css` — CSS 変数 + ヘッダ + ボタン + エントリ間ナビの共通スタイル
+- `public/shared/project.js` — localStorage 経由のプロジェクトパス取得ヘルパ
+- `public/release.html` — テストリリース専用ページ（現状は「準備中」表示）
+- `public/release.css` — release.html 固有スタイル
+- `public/app-release.js` — release ページのエントリスクリプト
+- `public/index.html` ヘッダに「🛠 開発 / 🚀 リリース」リンク追加
+- 既存 `app.js` / `style.css` / `server/*` には一切触れず、影響範囲最小
+
+### Phase 2 候補 — release ページ中身の実装
+
+RC.md の D 系候補を以下の順で実装予定。
+
+| 優先 | ID | 概要 | 外部依存 |
+|---|---|---|---|
+| 高 | D1 | Pre-flight チェックリスト | なし（全ローカル静的チェック） |
+| 高 | D3 | リリースノート自動生成 | gh CLI（既存 G3 と共有） |
+| 中 | D4 | 配布 URL / テスター管理ダッシュボード | QR 生成 lib のみ |
+| 低 | D2 | Play Developer API で Internal Testing アップロード | Google Play Developer API 認証 |
+| 低 | D5 | テストトラック状態ビュー | Play Developer API |
+| 低 | D6 | 配布後 24h クラッシュ監視 | Firebase API |
+
+---
+
+## 既存候補（未着手）
 
 RC.md の優先度に従い、以下の順で検討。
 

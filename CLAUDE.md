@@ -21,12 +21,28 @@ server/api.js          — API ルーティング（/api/* を各ハンドラへ
 server/processManager.js — プロセス起動・SSE ログ配信・PTY 管理・VM Service attach
 server/vmService.js    — Dart VM Service WebSocket クライアント（外部依存なし・手動フレーミング）
 server/[feature].js    — 機能ごとのハンドラ（1 機能 = 1 ファイル）
-public/index.html      — シングルページ UI（951 行）
-public/app.js          — フロントエンド JS（4383 行、24 セクション）
-public/style.css       — スタイル（CSS 変数ベース、3081 行）
+public/index.html      — 開発ダッシュボード UI（951 行）
+public/app.js          — /index.html 用フロントエンド JS（4383 行、24 セクション）
+public/style.css       — /index.html 用スタイル（CSS 変数ベース、3081 行）
+public/release.html    — テストリリース専用エントリ（骨組み）
+public/release.css     — /release.html 用スタイル
+public/app-release.js  — /release.html 用エントリスクリプト
+public/shared/         — 複数エントリで共有する最小セット（base.css / project.js）
 src/app/               — app.js の分割編集用（split/merge で生成・結合）
 config/                — プロジェクト別設定の JSON 保存先（gitignore 対象）
 ```
+
+### マルチエントリ構成
+
+フロントエンドは複数の HTML エントリに分かれている。責任と肥大化対策のため、
+新機能は既存 `app.js` に足さず、用途別エントリに載せる方針:
+
+- `/index.html` — 開発ダッシュボード（プロセス/ログ、ツール、Git など従来の全機能）
+- `/release.html` — テストリリース支援（D 系の実装先）
+
+共通要素（ベース CSS、ページ間ナビゲーション、プロジェクト path 取得）は
+`public/shared/` に置き、個別ページは `shared/base.css` + ページ固有 CSS の順に
+読み込む。ページ間は `<a href="/xxx.html">` で単純遷移する（SPA ルーティング不使用）。
 
 ### 重要な制約
 
