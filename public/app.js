@@ -4605,6 +4605,119 @@ document.querySelector('.cmd-tab[data-cmd-tab="buildrunner"]').addEventListener(
 });
 
 // =====================================================================
+// T3: テストランナー UI
+// =====================================================================
+
+const testScanBtn   = document.getElementById('test-scan-btn');
+const testRunAllBtn = document.getElementById('test-run-all-btn');
+const testTree      = document.getElementById('test-tree');
+const testStatus    = document.getElementById('test-status');
+const testResults   = document.getElementById('test-results');
+
+let testFiles = [];
+
+async function loadTestTree() {
+  if (!currentProjectPath) return;
+  testTree.innerHTML = '<span class="cmd-empty">検出中…</span>';
+  testResults.innerHTML = '';
+  testStatus.textContent = '';
+  testRunAllBtn.disabled = true;
+  try {
+    const res  = await fetch(`/api/test/tree?path=${encodeURIComponent(currentProjectPath)}`);
+    const data = await res.json();
+    if (data.error) { testTree.innerHTML = `<span class="cmd-empty">${escHtml(data.error)}</span>`; return; }
+    testFiles = data.files || [];
+    renderTestTree(testFiles);
+    testRunAllBtn.disabled = testFiles.length === 0;
+  } catch (e) {
+    testTree.innerHTML = `<span class="cmd-empty" style="color:var(--err)">エラー: ${escHtml(e.message)}</span>`;
+  }
+}
+
+function renderTestTree(files) {
+  if (!files.length) { testTree.innerHTML = '<span class="cmd-empty">*_test.dart が見つかりません</span>'; return; }
+  testTree.innerHTML = '';
+  const ul = document.createElement('ul');
+  ul.className = 'test-file-list';
+  files.forEach(f => {
+    const li = document.createElement('li');
+    li.className = 'test-file-item';
+    li.innerHTML = `<span class="test-file-name">${escHtml(f)}</span>`
+                 + `<button class="test-run-btn btn-ghost" data-target="${escHtml(f)}" title="このファイルだけ実行">▶</button>`;
+    li.querySelector('.test-run-btn').onclick = () => runTestTarget(f);
+    ul.appendChild(li);
+  });
+  testTree.appendChild(ul);
+}
+
+async function runTestTarget(target) {
+  testStatus.innerHTML = '<span class="test-running">実行中…</span>';
+  testResults.innerHTML = '';
+  // 実行中のボタンを無効化
+  testTree.querySelectorAll('.test-run-btn').forEach(b => b.disabled = true);
+  testRunAllBtn.disabled = true;
+  try {
+    const res  = await fetch('/api/test/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cwd: currentProjectPath, target: target || undefined }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      testStatus.innerHTML = `<span style="color:var(--err)">${escHtml(data.error)}</span>`;
+      return;
+    }
+    renderTestStatus(data);
+    renderTestResults2(data);
+  } catch (e) {
+    testStatus.innerHTML = `<span style="color:var(--err)">エラー: ${escHtml(e.message)}</span>`;
+  } finally {
+    testTree.querySelectorAll('.test-run-btn').forEach(b => b.disabled = false);
+    testRunAllBtn.disabled = testFiles.length === 0;
+  }
+}
+
+function renderTestStatus(data) {
+  const parts = [];
+  if (data.passed)  parts.push(`<span class="test-badge-pass">${data.passed} PASSED</span>`);
+  if (data.failed)  parts.push(`<span class="test-badge-fail">${data.failed} FAILED</span>`);
+  if (data.skipped) parts.push(`<span class="test-badge-skip">${data.skipped} SKIPPED</span>`);
+  testStatus.innerHTML = parts.join(' ');
+}
+
+function renderTestResults2(data) {
+  if (!data.tests || !data.tests.length) { testResults.innerHTML = ''; return; }
+  const rows = data.tests.map(t => {
+    const cls = t.result === 'success' ? 'pass' : t.result === 'skipped' ? 'skip' : 'fail';
+    const icon = t.result === 'success' ? '✓' : t.result === 'skipped' ? '−' : '✗';
+    let detail = '';
+    if (t.error) {
+      const errHtml = escHtml(t.error).replace(/\n/g, '<br>');
+      detail = `<div class="test-error">${errHtml}</div>`;
+    }
+    // vscode:// リンク（行番号がある場合）
+    let nameHtml = escHtml(t.name);
+    if (t.url && t.line) {
+      const filePath = t.url.replace('file:///', '').replace(/\//g, '/');
+      nameHtml = `<a class="test-link" href="vscode://file/${filePath}:${t.line}" title="VSCode で開く">${nameHtml}</a>`;
+    }
+    return `<div class="test-result-row test-${cls}">
+      <span class="test-result-icon">${icon}</span>
+      <span class="test-result-name">${nameHtml}</span>
+      ${detail}
+    </div>`;
+  }).join('');
+  testResults.innerHTML = rows;
+}
+
+testScanBtn.onclick  = loadTestTree;
+testRunAllBtn.onclick = () => runTestTarget(null);
+
+document.querySelector('.cmd-tab[data-cmd-tab="test"]').addEventListener('click', () => {
+  if (currentProjectPath && testFiles.length === 0) loadTestTree();
+});
+
+// =====================================================================
 // 初期ロード
 // =====================================================================
 async function restoreLastProject() {

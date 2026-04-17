@@ -8,6 +8,7 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 | ID | 機能 |
 |----|------|
+| T3 | テストランナー UI（test/ ツリー表示・flutter test --machine パース・vscode:// リンク） |
 | R1 | ログ正規表現フィルタ + ERROR/WARN/INFO レベルフィルタ |
 | R2 | Git 基本操作 UI（stage / unstage / commit / push / pull） |
 | R3 | コマンドシーケンス（flutter clean → pub get → run 等の定型フロー） |
@@ -54,7 +55,7 @@ Flutter / Firebase / Node.js 開発で「困った・面倒」を解消する機
 
 ---
 
-### [T3] テストランナー UI
+### [T3] テストランナー UI ✅
 
 - `test/` 以下のテストファイルをツリー表示
 - 個別ファイル / ディレクトリ / 全テストをワンクリックで実行

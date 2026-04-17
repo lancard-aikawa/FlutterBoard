@@ -192,6 +192,7 @@
           <button class="cmd-tab" data-cmd-tab="npm">npm</button>
           <button class="cmd-tab" data-cmd-tab="routine">ルーティン</button>
           <button class="cmd-tab" data-cmd-tab="buildrunner">build_runner</button>
+          <button class="cmd-tab" data-cmd-tab="test">テスト</button>
         </div>
 
         <!-- Flutter パネル -->
@@ -490,6 +491,17 @@
               <span class="cmd-empty">プロジェクトを選択すると生成ファイルが表示されます</span>
             </div>
           </section>
+        </div>
+
+        <!-- テストパネル -->
+        <div id="cmd-panel-test" class="cmd-tab-content hidden">
+          <div class="test-toolbar">
+            <button id="test-scan-btn" class="btn-secondary" title="test/ ディレクトリを走査して *_test.dart ファイルを検出">テストを検出 ▶</button>
+            <button id="test-run-all-btn" class="btn-secondary" disabled title="全テストを flutter test --machine で実行し結果をパース">全テスト実行</button>
+          </div>
+          <div id="test-tree"></div>
+          <div id="test-status"></div>
+          <div id="test-results"></div>
         </div>
 
       </div>
