@@ -14,6 +14,23 @@
   const summary      = document.getElementById('preflight-summary');
   const results      = document.getElementById('preflight-results');
 
+  // D4: 配布 URL / テスター管理
+  const distPanel        = document.getElementById('dist-panel');
+  const distReleaseForm  = document.getElementById('dist-release-form');
+  const distRelTitle     = document.getElementById('dist-release-title');
+  const distRelUrl       = document.getElementById('dist-release-url');
+  const distRelNote      = document.getElementById('dist-release-note');
+  const distReleaseList  = document.getElementById('dist-release-list');
+  const distRelActions   = document.getElementById('dist-release-actions');
+  const distCopyAnnBtn   = document.getElementById('dist-copy-announce-btn');
+  const distCopyStatus   = document.getElementById('dist-copy-status');
+  const distTesterForm   = document.getElementById('dist-tester-form');
+  const distTesterName   = document.getElementById('dist-tester-name');
+  const distTesterEmail  = document.getElementById('dist-tester-email');
+  const distTesterDevice = document.getElementById('dist-tester-device');
+  const distTesterNote   = document.getElementById('dist-tester-note');
+  const distTesterList   = document.getElementById('dist-tester-list');
+
   // D3: リリースノート
   const rnPanel       = document.getElementById('relnotes-panel');
   const rnFromSelect  = document.getElementById('relnotes-from-select');
@@ -185,6 +202,134 @@
     setTimeout(() => { rnCopyStatus.textContent = ''; }, 2000);
   }
 
+  // --- D4: 配布 URL / テスター管理 ------------------------------------
+
+  let _distReleases = [];
+  let _distTesters  = [];
+
+  function renderReleases(releases) {
+    _distReleases = releases;
+    distReleaseList.innerHTML = releases.length === 0
+      ? '<li class="dist-list-item" style="color:var(--muted)">登録がありません</li>'
+      : releases.map(r => {
+          const dt = new Date(r.createdAt).toLocaleDateString('ja-JP');
+          const urlHtml = r.url
+            ? `<a class="dist-item-url" href="${escHtml(r.url)}" target="_blank" rel="noopener">${escHtml(r.url)}</a>`
+            : '';
+          const noteHtml = r.note ? `<span class="dist-item-note">${escHtml(r.note)}</span>` : '';
+          return `
+            <li class="dist-list-item" data-id="${escHtml(r.id)}">
+              <div class="dist-item-main">
+                <span class="dist-item-title">${escHtml(r.title || '（無題）')}</span>
+                ${urlHtml}
+                <span class="dist-item-meta">${dt}${noteHtml ? ' — ' : ''}${noteHtml}</span>
+              </div>
+              <button type="button" class="dist-del-btn" data-type="release" data-id="${escHtml(r.id)}" title="削除">✕</button>
+            </li>`;
+        }).join('');
+    distRelActions.classList.toggle('hidden', releases.length === 0);
+  }
+
+  function renderTesters(testers) {
+    _distTesters = testers;
+    distTesterList.innerHTML = testers.length === 0
+      ? '<li class="dist-list-item" style="color:var(--muted)">テスターが登録されていません</li>'
+      : testers.map(t => {
+          const parts = [t.email, t.device, t.note].filter(Boolean).map(escHtml).join(' / ');
+          return `
+            <li class="dist-list-item" data-id="${escHtml(t.id)}">
+              <div class="dist-item-main">
+                <span class="dist-item-title">${escHtml(t.name || t.email)}</span>
+                ${parts ? `<span class="dist-item-meta">${parts}</span>` : ''}
+              </div>
+              <button type="button" class="dist-del-btn" data-type="tester" data-id="${escHtml(t.id)}" title="削除">✕</button>
+            </li>`;
+        }).join('');
+  }
+
+  async function loadDist(projectPath) {
+    const [rr, tr] = await Promise.all([
+      fetch(`/api/distributor/releases?path=${encodeURIComponent(projectPath)}`).then(r => r.json()),
+      fetch(`/api/distributor/testers?path=${encodeURIComponent(projectPath)}`).then(r => r.json()),
+    ]);
+    renderReleases(rr.releases || []);
+    renderTesters(tr.testers   || []);
+  }
+
+  async function copyAnnouncement() {
+    const latest = _distReleases[0];
+    const urlLine = latest?.url ? `配布 URL: ${latest.url}` : '';
+    const testerLines = _distTesters.map(t =>
+      [t.name, t.email, t.device].filter(Boolean).join(' / ')
+    ).join('\n');
+    const text = [
+      latest ? `【${latest.title || 'リリース'}】` : '',
+      urlLine,
+      '',
+      testerLines ? `テスター:\n${testerLines}` : '',
+    ].filter(s => s !== '').join('\n').trim();
+    if (!text) return;
+    try { await navigator.clipboard.writeText(text); }
+    catch { /* ignore */ }
+    distCopyStatus.textContent = 'コピーしました ✓';
+    setTimeout(() => { distCopyStatus.textContent = ''; }, 2000);
+  }
+
+  function initDist(projectPath) {
+    distPanel.classList.remove('hidden');
+    loadDist(projectPath);
+
+    distReleaseForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const res = await fetch(
+        `/api/distributor/releases?path=${encodeURIComponent(projectPath)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: distRelTitle.value, url: distRelUrl.value, note: distRelNote.value }) }
+      );
+      const data = await res.json();
+      if (data.ok) {
+        distRelTitle.value = ''; distRelUrl.value = ''; distRelNote.value = '';
+        await loadDist(projectPath);
+      }
+    });
+
+    distTesterForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const res = await fetch(
+        `/api/distributor/testers?path=${encodeURIComponent(projectPath)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: distTesterName.value, email: distTesterEmail.value,
+            device: distTesterDevice.value, note: distTesterNote.value }) }
+      );
+      const data = await res.json();
+      if (data.ok) {
+        distTesterName.value = ''; distTesterEmail.value = '';
+        distTesterDevice.value = ''; distTesterNote.value = '';
+        await loadDist(projectPath);
+      }
+    });
+
+    // 削除ボタン（イベント委譲）
+    distReleaseList.addEventListener('click', async e => {
+      const btn = e.target.closest('.dist-del-btn[data-type="release"]');
+      if (!btn) return;
+      await fetch(`/api/distributor/releases/delete?path=${encodeURIComponent(projectPath)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: btn.dataset.id }) });
+      await loadDist(projectPath);
+    });
+    distTesterList.addEventListener('click', async e => {
+      const btn = e.target.closest('.dist-del-btn[data-type="tester"]');
+      if (!btn) return;
+      await fetch(`/api/distributor/testers/delete?path=${encodeURIComponent(projectPath)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: btn.dataset.id }) });
+      await loadDist(projectPath);
+    });
+
+    distCopyAnnBtn.addEventListener('click', copyAnnouncement);
+  }
+
   // 初期化
   const path = window.FbProject.getProjectPath();
   if (path) {
@@ -197,6 +342,9 @@
     rnGenBtn.addEventListener('click', () => generateReleaseNotes(path));
     rnCopyBtn.addEventListener('click', copyMarkdown);
     loadTags(path);
+
+    // D4
+    initDist(path);
   } else {
     projectLabel.textContent = 'プロジェクト未選択';
     noProject.classList.remove('hidden');

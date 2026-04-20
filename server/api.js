@@ -26,6 +26,7 @@ const { handleCmdHistory }      = require('./cmdHistory');
 const { handleTestRunner }     = require('./testRunner');
 const { handlePreflight }      = require('./preflight');
 const { handleReleaseNotes }  = require('./releaseNotes');
+const { handleDistributor }   = require('./distributor');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -143,6 +144,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/releasenotes')) {
     return handleReleaseNotes(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/distributor')) {
+    return handleDistributor(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

@@ -72,6 +72,42 @@
         </details>
       </div>
     </section>
+
+    <!-- 配布 URL / テスター管理（D4） -->
+    <section id="dist-panel" class="dist-panel hidden">
+      <div class="dist-header">
+        <h2>配布 URL / テスター管理</h2>
+      </div>
+
+      <!-- リリース登録 -->
+      <div class="dist-block">
+        <h3 class="dist-block-title">リリース登録</h3>
+        <form id="dist-release-form" class="dist-form">
+          <input type="text" id="dist-release-title" placeholder="リリース名（例: v1.2.0 内部テスト）" class="dist-input">
+          <input type="url"  id="dist-release-url"   placeholder="配布 URL" class="dist-input">
+          <input type="text" id="dist-release-note"  placeholder="メモ（任意）" class="dist-input">
+          <button type="submit" class="btn-primary">追加</button>
+        </form>
+        <ul id="dist-release-list" class="dist-list"></ul>
+        <div class="dist-release-actions hidden" id="dist-release-actions">
+          <button type="button" id="dist-copy-announce-btn" class="btn-secondary">📋 案内文をコピー</button>
+          <span id="dist-copy-status" class="dist-copy-status"></span>
+        </div>
+      </div>
+
+      <!-- テスター管理 -->
+      <div class="dist-block">
+        <h3 class="dist-block-title">テスター管理</h3>
+        <form id="dist-tester-form" class="dist-form">
+          <input type="text"  id="dist-tester-name"   placeholder="氏名" class="dist-input">
+          <input type="email" id="dist-tester-email"  placeholder="メールアドレス" class="dist-input">
+          <input type="text"  id="dist-tester-device" placeholder="端末（例: Pixel 8）" class="dist-input">
+          <input type="text"  id="dist-tester-note"   placeholder="メモ（任意）" class="dist-input">
+          <button type="submit" class="btn-primary">追加</button>
+        </form>
+        <ul id="dist-tester-list" class="dist-list"></ul>
+      </div>
+    </section>
   </main>
 
   <script src="shared/project.js"></script>
