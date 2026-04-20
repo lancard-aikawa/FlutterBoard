@@ -10,23 +10,25 @@
 </head>
 <body>
   <header>
-    <h1>FlutterBoard</h1>
-    <div class="header-project">
-      <div id="current-project" class="header-project-path">プロジェクト未選択</div>
-      <button id="change-project-btn" class="btn-ghost">変更</button>
-      <div id="fb-env-header" class="hidden">
-        <button id="fb-header-firebase" class="fb-env-pill" title="Firebase プロジェクト切り替え">
-          Firebase: <span id="fb-header-alias">—</span>
-        </button>
-        <button id="fb-header-env" class="fb-env-pill" title=".env ファイル切り替え">
-          ENV: <span id="fb-header-envname">—</span>
-        </button>
-      </div>
-      <span id="fvm-header" class="hidden">
-        <span id="fvm-version-pill" class="fb-env-pill fvm-pill" title="FVM（Flutter Version Manager）で管理されている Flutter SDK バージョン。.fvm/fvm_config.json から読み取り。グローバルの flutter バージョンと異なる場合は黄色で警告表示">
-          FVM: <span id="fvm-version-text">—</span>
+    <div class="header-top">
+      <h1>FlutterBoard</h1>
+      <div class="header-project">
+        <div id="current-project" class="header-project-path">プロジェクト未選択</div>
+        <button id="change-project-btn" class="btn-ghost">変更</button>
+        <div id="fb-env-header" class="hidden">
+          <button id="fb-header-firebase" class="fb-env-pill" title="Firebase プロジェクト切り替え">
+            Firebase: <span id="fb-header-alias">—</span>
+          </button>
+          <button id="fb-header-env" class="fb-env-pill" title=".env ファイル切り替え">
+            ENV: <span id="fb-header-envname">—</span>
+          </button>
+        </div>
+        <span id="fvm-header" class="hidden">
+          <span id="fvm-version-pill" class="fb-env-pill fvm-pill" title="FVM（Flutter Version Manager）で管理されている Flutter SDK バージョン。.fvm/fvm_config.json から読み取り。グローバルの flutter バージョンと異なる場合は黄色で警告表示">
+            FVM: <span id="fvm-version-text">—</span>
+          </span>
         </span>
-      </span>
+      </div>
     </div>
     <nav class="entry-nav">
       <a href="/index.html" class="active">🛠 開発</a>

@@ -18,7 +18,7 @@
   --err:       #f38ba8;
   --warn:      #f9e2af;
   --vm-accent: #2dd4bf;
-  --header-h:  48px;
+  --header-h:  76px;  /* header-top(44px) + tab-row(32px) */
 }
 
 body {
@@ -33,16 +33,22 @@ body {
 
 /* ===== ヘッダー ===== */
 header {
-  height: var(--header-h);
   display: flex;
-  align-items: center;
-  gap: .75rem;
-  padding: 0 1.25rem;
+  flex-direction: column;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-header h1 { font-size: 1rem; color: var(--accent); letter-spacing: .05em; }
+
+/* 上段: タイトル + プロジェクト + 変更 */
+.header-top {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 0 1.25rem;
+}
+.header-top h1 { font-size: 1rem; color: var(--accent); letter-spacing: .05em; }
 
 /* ===== プロジェクト表示 + 変更ボタン グループ ===== */
 .header-project {
@@ -62,25 +68,33 @@ header h1 { font-size: 1rem; color: var(--accent); letter-spacing: .05em; }
   min-width: 0;
 }
 
-/* ===== エントリ間ナビゲーション ===== */
+/* ===== エントリ間ナビゲーション（フォルダタブ） ===== */
 .entry-nav {
   display: inline-flex;
-  gap: .4rem;
-  flex-shrink: 0;
+  gap: 0;
+  padding: 0 1rem;
+  align-self: flex-end;
 }
 .entry-nav a {
-  padding: .3rem .7rem;
-  background: transparent;
+  padding: .4rem 1rem;
+  background: var(--surface);
   color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
   text-decoration: none;
   font-size: .82rem;
   font-weight: 600;
   white-space: nowrap;
+  margin-right: 2px;
 }
-.entry-nav a:hover { color: var(--text); border-color: var(--text); }
-.entry-nav a.active { color: var(--accent); border-color: var(--accent); }
+.entry-nav a:hover { color: var(--text); background: color-mix(in srgb, var(--surface) 70%, var(--bg)); }
+.entry-nav a.active {
+  background: var(--bg);
+  color: var(--accent);
+  border-color: var(--border);
+  margin-bottom: -1px;  /* ヘッダー下ボーダーを貫通 */
+}
 
 /* ===== ボタン基本 ===== */
 button {
