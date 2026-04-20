@@ -612,11 +612,43 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   display: flex; align-items: center; gap: .3rem;
   font-size: .75rem; color: var(--muted); cursor: pointer; white-space: nowrap;
 }
+.log-group-marker-wrap {
+  position: relative; display: flex; align-items: center; gap: 2px;
+}
 .log-group-marker-input {
   width: 110px; padding: .2rem .45rem; font-size: .75rem;
   font-family: 'Cascadia Code', 'Consolas', monospace;
   border-radius: 4px;
 }
+.log-group-history-btn {
+  padding: .15rem .3rem; font-size: .7rem; line-height: 1;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+  color: var(--muted); cursor: pointer;
+}
+.log-group-history-btn:hover { color: var(--text); }
+.log-group-history-panel {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 200;
+  min-width: 180px; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+.log-group-history-panel .history-empty {
+  padding: .4rem .7rem; font-size: .75rem; color: var(--muted);
+}
+.log-group-history-item {
+  display: flex; align-items: center; gap: .3rem;
+  padding: .3rem .5rem; font-size: .75rem;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+}
+.log-group-history-item:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.log-group-history-item .history-label {
+  flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.log-group-history-item .history-del {
+  flex-shrink: 0; background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: .8rem; padding: 0 .2rem; line-height: 1;
+}
+.log-group-history-item .history-del:hover { color: var(--err); }
 
 .log-section { border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 .log-section:last-child { border-bottom: none; }

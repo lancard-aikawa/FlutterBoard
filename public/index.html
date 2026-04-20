@@ -129,7 +129,12 @@
               <label id="log-group-label" title="flutter run のログを画面遷移単位で折り畳む。アプリ側で debugPrint('[FB:SCREEN] ScreenName') を出力すると区切りになる">
                 <input type="checkbox" id="log-group-toggle"> グループ化
               </label>
-              <input type="text" id="log-group-marker" class="log-group-marker-input hidden" placeholder="[FB:SCREEN]" title="セクション区切りマーカー">
+              <datalist id="log-group-marker-datalist"></datalist>
+              <div id="log-group-marker-wrap" class="log-group-marker-wrap hidden">
+                <input type="text" id="log-group-marker" class="log-group-marker-input" placeholder="[FB:SCREEN]" title="セクション区切りマーカー" list="log-group-marker-datalist">
+                <button id="log-group-history-btn" class="log-group-history-btn" title="マーカー履歴">▾</button>
+                <div id="log-group-history-panel" class="log-group-history-panel hidden"></div>
+              </div>
             </div>
           </div>
           <div id="vm-bar" class="hidden">

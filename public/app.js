@@ -526,23 +526,83 @@ function selectProcess(id, label, running, devToolsUrl = null, vmServiceUrl = nu
 }
 
 // ---- グループ化設定 ----
-const logGroupToggle = document.getElementById('log-group-toggle');
-const logGroupMarker = document.getElementById('log-group-marker');
+const logGroupToggle      = document.getElementById('log-group-toggle');
+const logGroupMarker      = document.getElementById('log-group-marker');
+const logGroupMarkerWrap  = document.getElementById('log-group-marker-wrap');
+const logGroupHistoryBtn  = document.getElementById('log-group-history-btn');
+const logGroupHistoryPanel = document.getElementById('log-group-history-panel');
+const logGroupDatalist    = document.getElementById('log-group-marker-datalist');
+
+// マーカー履歴の読み書き
+function loadMarkerHistory() {
+  try { return JSON.parse(localStorage.getItem('log-group-marker-history') || '[]'); } catch { return []; }
+}
+function saveMarkerHistory(list) {
+  localStorage.setItem('log-group-marker-history', JSON.stringify(list));
+}
+function addMarkerHistory(val) {
+  if (!val || val === '[FB:SCREEN]') return;
+  const list = loadMarkerHistory().filter(v => v !== val);
+  list.unshift(val);
+  saveMarkerHistory(list.slice(0, 20));
+  renderMarkerHistory();
+}
+function renderMarkerHistory() {
+  const list = loadMarkerHistory();
+  // datalist 更新
+  logGroupDatalist.innerHTML = list.map(v => `<option value="${v.replace(/"/g, '&quot;')}">`).join('');
+  // パネル更新
+  if (list.length === 0) {
+    logGroupHistoryPanel.innerHTML = '<div class="history-empty">履歴なし</div>';
+    return;
+  }
+  logGroupHistoryPanel.innerHTML = list.map((v, i) => `
+    <div class="log-group-history-item" data-idx="${i}">
+      <span class="history-label" title="${v.replace(/"/g, '&quot;')}">${v}</span>
+      <button class="history-del" data-idx="${i}" title="削除">×</button>
+    </div>`).join('');
+  logGroupHistoryPanel.querySelectorAll('.history-label').forEach(el => {
+    el.addEventListener('click', () => {
+      logGroupMarker.value = loadMarkerHistory()[+el.closest('.log-group-history-item').dataset.idx] || '';
+      localStorage.setItem('log-group-marker', logGroupMarker.value);
+      logGroupHistoryPanel.classList.add('hidden');
+      rebuildLogView();
+    });
+  });
+  logGroupHistoryPanel.querySelectorAll('.history-del').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const list = loadMarkerHistory();
+      list.splice(+btn.dataset.idx, 1);
+      saveMarkerHistory(list);
+      renderMarkerHistory();
+    });
+  });
+}
 
 logGroupToggle.checked = localStorage.getItem('log-group-enabled') === '1';
 logGroupMarker.value   = localStorage.getItem('log-group-marker') || '[FB:SCREEN]';
-logGroupMarker.classList.toggle('hidden', !logGroupToggle.checked);
+logGroupMarkerWrap.classList.toggle('hidden', !logGroupToggle.checked);
+renderMarkerHistory();
 
 logGroupToggle.addEventListener('change', () => {
   const on = logGroupToggle.checked;
   localStorage.setItem('log-group-enabled', on ? '1' : '0');
-  logGroupMarker.classList.toggle('hidden', !on);
+  logGroupMarkerWrap.classList.toggle('hidden', !on);
   rebuildLogView();
 });
 logGroupMarker.addEventListener('change', () => {
-  localStorage.setItem('log-group-marker', logGroupMarker.value.trim() || '[FB:SCREEN]');
+  const val = logGroupMarker.value.trim() || '[FB:SCREEN]';
+  localStorage.setItem('log-group-marker', val);
+  addMarkerHistory(val);
   rebuildLogView();
 });
+
+logGroupHistoryBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  logGroupHistoryPanel.classList.toggle('hidden');
+});
+document.addEventListener('click', () => logGroupHistoryPanel.classList.add('hidden'));
 
 function isGroupingEnabled() {
   return logGroupToggle.checked && logGroupMarker.value.trim().length > 0;
