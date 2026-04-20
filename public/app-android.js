@@ -167,10 +167,11 @@
   });
 
   // key.properties テンプレート作成
+  // storeFile の相対パスは android/app/ 基準（build.gradle と同じディレクトリ）
   const KEY_TEMPLATE = `storePassword=YOUR_STORE_PASSWORD
 keyPassword=YOUR_KEY_PASSWORD
-keyAlias=YOUR_KEY_ALIAS
-storeFile=../keystore/release.jks
+keyAlias=upload
+storeFile=upload-keystore.jks
 `;
   keyCreateBtn.addEventListener('click', async () => {
     if (!currentPath) return;

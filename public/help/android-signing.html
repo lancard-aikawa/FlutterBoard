@@ -55,12 +55,12 @@
     <pre><code>storePassword=&lt;ストアパスワード&gt;
 keyPassword=&lt;キーパスワード&gt;
 keyAlias=upload
-storeFile=&lt;キーストアへの絶対パスまたは相対パス&gt;</code></pre>
+storeFile=upload-keystore.jks</code></pre>
     <ul>
       <li><code>storePassword</code> — keytool で設定した <strong>キーストアのパスワード</strong></li>
       <li><code>keyPassword</code> — キー個別のパスワード。keytool 実行時に Enter のみにした場合は <code>storePassword</code> と同じ値を入力する</li>
       <li><code>keyAlias</code> — keytool の <code>-alias</code> で指定した名前（上記例では <code>upload</code>）</li>
-      <li><code>storeFile</code> — <code>.jks</code> ファイルへのパス（Windows では <code>C:/Users/...</code> のようにスラッシュを使う）</li>
+      <li><code>storeFile</code> — <code>.jks</code> ファイルへのパス。<strong>相対パスは <code>android/app/</code> 基準</strong>（<code>build.gradle</code> と同じディレクトリ）。<code>upload-keystore.jks</code> と書いた場合、ファイルは <code>android/app/upload-keystore.jks</code> に置く。パス区切りは OS によらず <code>/</code> を使う</li>
     </ul>
 
     <h2>手順 3 — android/.gitignore に追加する</h2>
@@ -69,11 +69,12 @@ storeFile=&lt;キーストアへの絶対パスまたは相対パス&gt;</code><
 *.keystore</code></pre>
 
     <h2>手順 4 — build.gradle を更新する</h2>
+    <p><code>storeFile</code> の相対パスは <code>android/app/</code> 基準です（<code>build.gradle</code> と同じディレクトリ）。<code>storeFile=upload-keystore.jks</code> と書いた場合は <code>android/app/upload-keystore.jks</code> にファイルを置きます。パス区切りは <code>/</code> を使ってください。</p>
     <div class="code-legend">
       <span class="hl-add-label">■ 追加する行</span>
       <span class="hl-change-label">■ 変更する行</span>
     </div>
-    <p>Groovy DSL（<code>build.gradle</code>）の場合:</p>
+    <p>Groovy DSL（<code>android/app/build.gradle</code>）の場合:</p>
     <pre><code><span class="hl-add">def keystoreProperties = new Properties()</span>
 <span class="hl-add">def keystorePropertiesFile = rootProject.file('key.properties')</span>
 <span class="hl-add">if (keystorePropertiesFile.exists()) {</span>
@@ -98,7 +99,7 @@ android {
     }
 }</code></pre>
 
-    <p>Kotlin DSL（<code>build.gradle.kts</code>）の場合:</p>
+    <p>Kotlin DSL（<code>android/app/build.gradle.kts</code>）の場合:</p>
     <pre><code><span class="hl-add">import java.util.Properties</span>
 
 <span class="hl-add">val keystoreProperties = Properties()</span>
