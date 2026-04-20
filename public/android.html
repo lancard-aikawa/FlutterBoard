@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlutterBoard — Android 設定</title>
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="android.css">
+</head>
+<body>
+  <header>
+    <div class="header-top">
+      <h1>FlutterBoard</h1>
+      <div class="header-project">
+        <div id="android-project" class="header-project-path">プロジェクト未選択</div>
+      </div>
+    </div>
+    <nav class="entry-nav">
+      <a href="/index.html">🛠 開発</a>
+      <a href="/android.html" class="active">⚙️ Android 設定</a>
+      <a href="/release.html">🚀 Android リリース</a>
+    </nav>
+  </header>
+
+  <main class="android-main">
+
+    <!-- プロジェクト未選択 -->
+    <section id="android-no-project" class="android-placeholder hidden">
+      <p>まず開発ダッシュボードでプロジェクトを選択してください。</p>
+    </section>
+
+    <!-- applicationId パネル -->
+    <section id="appid-panel" class="android-panel hidden">
+      <div class="android-panel-header">
+        <h2>applicationId</h2>
+        <span id="appid-file-label" class="file-label"></span>
+        <a class="help-link"
+           href="https://developer.android.com/studio/build/application-id"
+           target="_blank" rel="noopener" title="Application ID とは（Android Developers）">?</a>
+      </div>
+      <div class="appid-row">
+        <input type="text" id="appid-input" class="android-input appid-input" placeholder="com.example.myapp" spellcheck="false">
+        <button type="button" id="appid-save-btn" class="btn-primary">保存</button>
+        <span id="appid-status" class="save-status"></span>
+      </div>
+      <p class="android-hint">
+        Android アプリの一意識別子です。<code>com.example.*</code> のままだと Play Store に登録できません。<br>
+        KTS 形式では <code>namespace</code>（R クラス用）と <code>applicationId</code>（Play Store 登録用）が別フィールドです。両方変更してください。
+      </p>
+    </section>
+
+    <!-- key.properties パネル -->
+    <section id="keyprops-panel" class="android-panel hidden">
+      <div class="android-panel-header">
+        <h2>key.properties <span class="file-label">android/key.properties</span></h2>
+        <a class="help-link"
+           href="https://docs.flutter.dev/deployment/android#signing-the-app"
+           target="_blank" rel="noopener" title="Android アプリの署名（Flutter Docs）">?</a>
+        <div class="keyprops-actions">
+          <button type="button" id="keyprops-mask-btn" class="btn-ghost btn-sm">👁 表示</button>
+          <button type="button" id="keyprops-save-btn" class="btn-primary">保存</button>
+          <span id="keyprops-status" class="save-status"></span>
+        </div>
+      </div>
+      <div id="keyprops-notfound" class="keyprops-notfound hidden">
+        <p class="android-hint">key.properties が見つかりません。テンプレートを作成しますか？</p>
+        <button type="button" id="keyprops-create-btn" class="btn-primary">テンプレートを作成</button>
+      </div>
+      <textarea id="keyprops-editor" class="android-editor masked" spellcheck="false"></textarea>
+      <p class="android-hint">
+        キーストアのパスワードが含まれます。<code>android/.gitignore</code> に <code>key.properties</code> が記載されているか確認してください。
+      </p>
+    </section>
+
+    <!-- build.gradle パネル -->
+    <section id="gradle-panel" class="android-panel hidden">
+      <div class="android-panel-header">
+        <h2>build.gradle <span id="gradle-file-label" class="file-label"></span></h2>
+        <a class="help-link"
+           href="https://flutter.dev/to/review-gradle-config"
+           target="_blank" rel="noopener" title="Gradle 設定を確認する（Flutter Docs）">?</a>
+        <div class="gradle-actions">
+          <div class="gradle-legend">
+            <span class="legend-item legend-appid">applicationId / namespace</span>
+            <span class="legend-item legend-version">version</span>
+            <span class="legend-item legend-signing">signing</span>
+          </div>
+          <button type="button" id="gradle-edit-btn" class="btn-ghost btn-sm">✏️ 編集</button>
+          <button type="button" id="gradle-save-btn" class="btn-primary hidden">保存</button>
+          <button type="button" id="gradle-cancel-btn" class="btn-ghost btn-sm hidden">キャンセル</button>
+          <span id="gradle-status" class="save-status"></span>
+        </div>
+      </div>
+      <!-- ハイライト表示モード -->
+      <pre id="gradle-view" class="gradle-view"></pre>
+      <!-- 編集モード -->
+      <textarea id="gradle-editor" class="android-editor hidden" spellcheck="false"></textarea>
+      <p class="android-hint">
+        <code>android/app/build.gradle[.kts]</code> のみ表示しています。プロジェクトレベルの <code>android/build.gradle</code> はリポジトリ・プラグイン設定のみで、リリース設定には影響しません。
+      </p>
+    </section>
+
+  </main>
+
+  <script src="shared/project.js"></script>
+  <script src="app-android.js"></script>
+</body>
+</html>
