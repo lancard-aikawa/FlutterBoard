@@ -107,3 +107,16 @@ body {
   vertical-align: top;
 }
 .help-table tr:last-child td { border-bottom: none; }
+
+/* コードブロック内ハイライト */
+.help-body pre .hl-add    { display: block; background: rgba(166,227,161,.12); border-left: 3px solid var(--ok);   padding-left: 4px; margin-left: -4px; }
+.help-body pre .hl-change { display: block; background: rgba(249,226,175,.12); border-left: 3px solid var(--warn); padding-left: 4px; margin-left: -4px; }
+
+.code-legend {
+  display: flex;
+  gap: 1rem;
+  font-size: .75rem;
+  margin-bottom: .4rem;
+}
+.hl-add-label    { color: var(--ok);   font-weight: 600; }
+.hl-change-label { color: var(--warn); font-weight: 600; }

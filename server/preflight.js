@@ -132,8 +132,11 @@ function checkAndroidSigning(projectPath) {
   }
   const text = fs.readFileSync(file, 'utf-8');
 
-  // release { ... } ブロック内の signingConfig を検出
-  const releaseBlock = text.match(/release\s*\{([\s\S]*?)\n\s*\}/);
+  // buildTypes 以降に絞って release ブロックを検索
+  // （signingConfigs.release が先に出てくる Groovy/KTS に対応）
+  const buildTypesIdx = text.indexOf('buildTypes');
+  const searchText    = buildTypesIdx >= 0 ? text.slice(buildTypesIdx) : text;
+  const releaseBlock  = searchText.match(/release\s*\{([\s\S]*?)\n\s*\}/);
   if (!releaseBlock) {
     return { id, label, status: 'warn', value: null, detail: 'buildTypes.release ブロックが見つかりません' };
   }

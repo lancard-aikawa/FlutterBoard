@@ -34,14 +34,14 @@
     <table class="help-table">
       <thead><tr><th>プロンプト</th><th>意味</th><th>入力例</th></tr></thead>
       <tbody>
-        <tr><td>キーストアのパスワードを入力してください</td><td>ストア全体を保護するパスワード（6文字以上）</td><td><code>MyStr0ngPass!</code></td></tr>
+        <tr><td>キーストアのパスワードを入力してください</td><td><code>.jks</code> ファイル全体を保護するパスワード（6文字以上）。これが key.properties の <code>storePassword</code> になる</td><td><code>MyStr0ngPass!</code></td></tr>
+        <tr><td>新規パスワードを再入力してください</td><td>確認のため同じパスワードを再入力</td><td>（同じ値）</td></tr>
         <tr><td>姓名は何ですか</td><td>開発者名またはアプリ名（CN）。Play Store には表示されない</td><td><code>Taro Yamada</code></td></tr>
         <tr><td>組織単位名は何ですか</td><td>チーム・部署名（OU）。不要なら <code>.</code> で省略可</td><td><code>.</code></td></tr>
         <tr><td>組織名は何ですか</td><td>会社・個人名（O）</td><td><code>My Company</code></td></tr>
         <tr><td>都市名または地域名は何ですか</td><td>都市（L）</td><td><code>Tokyo</code></td></tr>
         <tr><td>州名または地域名は何ですか</td><td>都道府県（ST）</td><td><code>Tokyo</code></td></tr>
         <tr><td>この単位に該当する2文字の国コードは何ですか</td><td>国コード（C）</td><td><code>JP</code></td></tr>
-        <tr><td>&lt;キーのパスワードを入力してください&gt;</td><td>キー個別のパスワード。ストアと同じにする場合は Enter</td><td>（Enter）</td></tr>
         <tr><td>CN=... でよろしいですか。 [いいえ]:</td><td>内容確認。<code>y</code> または <code>yes</code>（小文字）を入力する。先頭を大文字にした <code>Y</code> / <code>Yes</code> は JDK によって不可。Enter のみはデフォルトの「いいえ」扱いで最初から再入力になる</td><td><code>y</code></td></tr>
       </tbody>
     </table>
@@ -56,6 +56,12 @@
 keyPassword=&lt;キーパスワード&gt;
 keyAlias=upload
 storeFile=&lt;キーストアへの絶対パスまたは相対パス&gt;</code></pre>
+    <ul>
+      <li><code>storePassword</code> — keytool で設定した <strong>キーストアのパスワード</strong></li>
+      <li><code>keyPassword</code> — キー個別のパスワード。keytool 実行時に Enter のみにした場合は <code>storePassword</code> と同じ値を入力する</li>
+      <li><code>keyAlias</code> — keytool の <code>-alias</code> で指定した名前（上記例では <code>upload</code>）</li>
+      <li><code>storeFile</code> — <code>.jks</code> ファイルへのパス（Windows では <code>C:/Users/...</code> のようにスラッシュを使う）</li>
+    </ul>
 
     <h2>手順 3 — android/.gitignore に追加する</h2>
     <pre><code>key.properties
@@ -63,54 +69,58 @@ storeFile=&lt;キーストアへの絶対パスまたは相対パス&gt;</code><
 *.keystore</code></pre>
 
     <h2>手順 4 — build.gradle を更新する</h2>
+    <div class="code-legend">
+      <span class="hl-add-label">■ 追加する行</span>
+      <span class="hl-change-label">■ 変更する行</span>
+    </div>
     <p>Groovy DSL（<code>build.gradle</code>）の場合:</p>
-    <pre><code>def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file('key.properties')
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-}
+    <pre><code><span class="hl-add">def keystoreProperties = new Properties()</span>
+<span class="hl-add">def keystorePropertiesFile = rootProject.file('key.properties')</span>
+<span class="hl-add">if (keystorePropertiesFile.exists()) {</span>
+<span class="hl-add">    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))</span>
+<span class="hl-add">}</span>
 
 android {
-    signingConfigs {
-        release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
-            storePassword keystoreProperties['storePassword']
-        }
-    }
+<span class="hl-add">    signingConfigs {</span>
+<span class="hl-add">        release {</span>
+<span class="hl-add">            keyAlias keystoreProperties['keyAlias']</span>
+<span class="hl-add">            keyPassword keystoreProperties['keyPassword']</span>
+<span class="hl-add">            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null</span>
+<span class="hl-add">            storePassword keystoreProperties['storePassword']</span>
+<span class="hl-add">        }</span>
+<span class="hl-add">    }</span>
     buildTypes {
         release {
-            signingConfig signingConfigs.release
-            minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+<span class="hl-change">            signingConfig signingConfigs.release</span>
+<span class="hl-add">            minifyEnabled true</span>
+<span class="hl-add">            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'</span>
         }
     }
 }</code></pre>
 
     <p>Kotlin DSL（<code>build.gradle.kts</code>）の場合:</p>
-    <pre><code>import java.util.Properties
+    <pre><code><span class="hl-add">import java.util.Properties</span>
 
-val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(keystorePropertiesFile.inputStream())
-}
+<span class="hl-add">val keystoreProperties = Properties()</span>
+<span class="hl-add">val keystorePropertiesFile = rootProject.file("key.properties")</span>
+<span class="hl-add">if (keystorePropertiesFile.exists()) {</span>
+<span class="hl-add">    keystoreProperties.load(keystorePropertiesFile.inputStream())</span>
+<span class="hl-add">}</span>
 
 android {
-    signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
-        }
-    }
+<span class="hl-add">    signingConfigs {</span>
+<span class="hl-add">        create("release") {</span>
+<span class="hl-add">            keyAlias = keystoreProperties["keyAlias"] as String</span>
+<span class="hl-add">            keyPassword = keystoreProperties["keyPassword"] as String</span>
+<span class="hl-add">            storeFile = keystoreProperties["storeFile"]?.let { file(it) }</span>
+<span class="hl-add">            storePassword = keystoreProperties["storePassword"] as String</span>
+<span class="hl-add">        }</span>
+<span class="hl-add">    }</span>
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+<span class="hl-change">            signingConfig = signingConfigs.getByName("release")</span>
+<span class="hl-add">            isMinifyEnabled = true</span>
+<span class="hl-add">            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")</span>
         }
     }
 }</code></pre>
