@@ -122,17 +122,24 @@
     if (!currentPath) return;
     const newId = appidInput.value.trim();
     if (!newId) { flash(appidStatus, 'ID を入力してください', true); return; }
+    if (!gradleOriginal) { flash(appidStatus, 'build.gradle が読み込まれていません', true); return; }
 
-    // build.gradle の applicationId 行を書き換え
-    const r = await fetch(`/api/android/gradle?path=${encodeURIComponent(currentPath)}`);
-    if (!r.ok) { flash(appidStatus, '読み込み失敗', true); return; }
-    const data = await r.json();
-
-    const updated = data.content.replace(
+    let updated = gradleOriginal.replace(
       /(applicationId\s*=?\s*)"([^"]+)"/,
       (_, pre) => `${pre}"${newId}"`
     );
-    if (updated === data.content) { flash(appidStatus, '変更なし', true); return; }
+    if (updated === gradleOriginal) {
+      flash(appidStatus, 'applicationId 行が見つかりません', true);
+      return;
+    }
+    // KTS の namespace も同期（applicationId と同じ値だった行のみ対象）
+    const oldId = gradleOriginal.match(/applicationId\s*=?\s*"([^"]+)"/)?.[1];
+    if (oldId) {
+      updated = updated.replace(
+        new RegExp(`(namespace\\s*=\\s*)"${oldId.replace(/\./g, '\\.')}"`, 'g'),
+        (_, pre) => `${pre}"${newId}"`
+      );
+    }
 
     const w = await fetch('/api/android/gradle', {
       method: 'POST',
@@ -142,6 +149,7 @@
     if (w.ok) {
       gradleOriginal = updated;
       renderGradle(updated);
+      gradleView.querySelector('.hl-appid')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       flash(appidStatus, '保存しました');
     } else {
       flash(appidStatus, '保存失敗', true);
