@@ -84,3 +84,26 @@ body {
   color: var(--muted);
 }
 .help-note strong { color: var(--text); }
+
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .82rem;
+  margin: .6rem 0 1rem;
+}
+.help-table th {
+  background: rgba(0,0,0,.3);
+  color: var(--muted);
+  font-weight: 600;
+  padding: .4rem .65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.help-table td {
+  padding: .4rem .65rem;
+  border-bottom: 1px solid rgba(58,58,92,.5);
+  color: var(--text);
+  line-height: 1.5;
+  vertical-align: top;
+}
+.help-table tr:last-child td { border-bottom: none; }

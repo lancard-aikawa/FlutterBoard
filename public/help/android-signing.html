@@ -30,7 +30,20 @@
   -keystore ~/upload-keystore.jks \
   -keyalg RSA -keysize 2048 -validity 10000 \
   -alias upload</code></pre>
-    <p>パスワードと組織情報の入力を求められます。<strong>パスワードは安全な場所に保管してください。</strong></p>
+    <p>実行すると以下の順で入力を求められます。<strong>パスワードは安全な場所に保管してください。</strong></p>
+    <table class="help-table">
+      <thead><tr><th>プロンプト</th><th>意味</th><th>入力例</th></tr></thead>
+      <tbody>
+        <tr><td>キーストアのパスワードを入力してください</td><td>ストア全体を保護するパスワード（6文字以上）</td><td><code>MyStr0ngPass!</code></td></tr>
+        <tr><td>姓名は何ですか</td><td>開発者名またはアプリ名（CN）。Play Store には表示されない</td><td><code>Taro Yamada</code></td></tr>
+        <tr><td>組織単位名は何ですか</td><td>チーム・部署名（OU）。不要なら <code>.</code> で省略可</td><td><code>.</code></td></tr>
+        <tr><td>組織名は何ですか</td><td>会社・個人名（O）</td><td><code>My Company</code></td></tr>
+        <tr><td>都市名または地域名は何ですか</td><td>都市（L）</td><td><code>Tokyo</code></td></tr>
+        <tr><td>州名または地域名は何ですか</td><td>都道府県（ST）</td><td><code>Tokyo</code></td></tr>
+        <tr><td>この単位に該当する2文字の国コードは何ですか</td><td>国コード（C）</td><td><code>JP</code></td></tr>
+        <tr><td>&lt;キーのパスワードを入力してください&gt;</td><td>キー個別のパスワード。ストアと同じにする場合は Enter</td><td>（Enter）</td></tr>
+      </tbody>
+    </table>
 
     <h2>手順 2 — key.properties を作成する</h2>
     <p><code>android/</code> 直下に <code>key.properties</code> を作成します（git に入れないこと）。</p>
