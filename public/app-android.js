@@ -188,12 +188,22 @@ storeFile=upload-keystore.jks
   });
 
   // key.properties 保存
+  // storeFile の値にバックスラッシュが含まれると Java Properties が \t 等をエスケープ解釈するため
+  // storeFile= 行のみバックスラッシュをフォワードスラッシュに正規化してから保存する
+  function normalizeKeyProps(raw) {
+    return raw.replace(/^(storeFile\s*=\s*)(.+)$/m, (_, key, val) => key + val.replace(/\\/g, '/'));
+  }
   keySaveBtn.addEventListener('click', async () => {
     if (!currentPath) return;
+    const content = normalizeKeyProps(keyEditor.value);
+    if (content !== keyEditor.value) {
+      keyEditor.value = content;
+      flash(keyStatus, 'storeFile のパス区切りを / に変換しました', false);
+    }
     const w = await fetch('/api/android/keyprops', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ path: currentPath, content: keyEditor.value }),
+      body:    JSON.stringify({ path: currentPath, content }),
     });
     flash(keyStatus, w.ok ? '保存しました' : '保存失敗', !w.ok);
   });

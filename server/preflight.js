@@ -140,7 +140,8 @@ function checkAndroidSigning(projectPath) {
   if (!releaseBlock) {
     return { id, label, status: 'warn', value: null, detail: 'buildTypes.release ブロックが見つかりません' };
   }
-  const block = releaseBlock[1];
+  // コメント行（// ...）を除いてチェック（コメントアウトされた debug 行に誤反応しないため）
+  const block = releaseBlock[1].split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
 
   // debug 署名が使われていないか（Flutter scaffold のプレースホルダ定番）
   if (/signingConfig\s*=?\s*signingConfigs\.(?:getByName\()?["]?debug["]?\)?/.test(block)) {
