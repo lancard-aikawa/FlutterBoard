@@ -27,6 +27,21 @@
       </div>
     </section>
 
+    <!-- テストリリース手順チェックリスト（D-CL） -->
+    <section id="checklist-panel" class="checklist-panel hidden">
+      <div class="checklist-header">
+        <h2>テストリリース手順</h2>
+        <div class="checklist-actions">
+          <button type="button" id="checklist-edit-btn" class="btn-secondary">✏️ 編集</button>
+          <button type="button" id="checklist-save-btn" class="btn-primary hidden">保存</button>
+          <button type="button" id="checklist-cancel-btn" class="btn-secondary hidden">キャンセル</button>
+          <span id="checklist-save-status" class="checklist-save-status"></span>
+        </div>
+      </div>
+      <div id="checklist-view" class="checklist-view"></div>
+      <textarea id="checklist-editor" class="checklist-editor hidden" spellcheck="false"></textarea>
+    </section>
+
     <!-- Pre-flight チェック（D1） -->
     <section id="preflight-panel" class="preflight-panel hidden">
       <div class="preflight-header">

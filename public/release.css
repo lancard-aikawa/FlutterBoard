@@ -53,6 +53,102 @@
   border-radius: 4px;
 }
 
+/* ===== Checklist (D-CL) ===== */
+.checklist-panel {
+  max-width: 900px;
+  margin: 0 auto 2rem;
+}
+.checklist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--border);
+}
+.checklist-header h2 {
+  font-size: 1.1rem;
+  color: var(--accent);
+  letter-spacing: .02em;
+}
+.checklist-actions {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.checklist-save-status {
+  font-size: .8rem;
+  color: var(--ok);
+}
+
+/* レンダリング済みビュー */
+.checklist-view {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.2rem 1.5rem;
+  line-height: 1.75;
+}
+.checklist-view h2 {
+  font-size: 1rem;
+  color: var(--accent);
+  margin: 1.2rem 0 .4rem;
+  padding-bottom: .3rem;
+  border-bottom: 1px solid var(--border);
+}
+.checklist-view h2:first-child { margin-top: 0; }
+.checklist-view h3 {
+  font-size: .9rem;
+  color: var(--text);
+  margin: 1rem 0 .35rem;
+}
+.checklist-view ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 .5rem;
+}
+.checklist-view li {
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  padding: .2rem 0;
+  font-size: .88rem;
+  color: var(--text);
+}
+.checklist-view li.plain::before {
+  content: '•';
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-top: .05rem;
+}
+.checklist-cb {
+  margin-top: .18rem;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+.checklist-view li.checked .checklist-cb-label {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+/* エディタ */
+.checklist-editor {
+  width: 100%;
+  min-height: 420px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  font-family: Consolas, monospace;
+  font-size: .85rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
 /* ===== Pre-flight (D1) ===== */
 .preflight-panel {
   max-width: 900px;

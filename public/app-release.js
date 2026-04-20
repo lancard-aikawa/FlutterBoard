@@ -1,13 +1,21 @@
 'use strict';
 /*
  * release.html エントリスクリプト。
- * - プロジェクトパスを localStorage から取得
- * - D1: Pre-flight チェックの実行とカード表示
+ * D1: Pre-flight / D3: リリースノート / D4: 配布管理 / D-CL: チェックリスト
  */
 
 (function () {
   const projectLabel = document.getElementById('release-project');
   const noProject    = document.getElementById('release-no-project');
+
+  // D-CL: チェックリスト
+  const clPanel      = document.getElementById('checklist-panel');
+  const clView       = document.getElementById('checklist-view');
+  const clEditor     = document.getElementById('checklist-editor');
+  const clEditBtn    = document.getElementById('checklist-edit-btn');
+  const clSaveBtn    = document.getElementById('checklist-save-btn');
+  const clCancelBtn  = document.getElementById('checklist-cancel-btn');
+  const clSaveStatus = document.getElementById('checklist-save-status');
   const preflight    = document.getElementById('preflight-panel');
   const runBtn       = document.getElementById('preflight-run-btn');
   const statusText   = document.getElementById('preflight-status');
@@ -256,6 +264,130 @@
     renderTesters(tr.testers   || []);
   }
 
+  // --- D-CL: チェックリスト ------------------------------------------
+
+  function renderMarkdown(md) {
+    const lines  = md.split('\n');
+    const chunks = [];
+    let inList   = false;
+
+    function closeList() {
+      if (inList) { chunks.push('</ul>'); inList = false; }
+    }
+
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+
+      // 見出し
+      const h3 = line.match(/^###\s+(.+)/);
+      if (h3) { closeList(); chunks.push(`<h3>${escHtml(h3[1])}</h3>`); continue; }
+      const h2 = line.match(/^##\s+(.+)/);
+      if (h2) { closeList(); chunks.push(`<h2>${escHtml(h2[1])}</h2>`); continue; }
+      const h1 = line.match(/^#\s+(.+)/);
+      if (h1) { closeList(); chunks.push(`<h2>${escHtml(h1[1])}</h2>`); continue; }
+
+      // チェックボックス付きリスト
+      const cb = line.match(/^- \[([ xX])\]\s*(.*)/);
+      if (cb) {
+        if (!inList) { chunks.push('<ul>'); inList = true; }
+        const checked  = cb[1].toLowerCase() === 'x';
+        const labelTxt = escHtml(cb[2]);
+        chunks.push(
+          `<li class="${checked ? 'checked' : ''}">` +
+          `<input type="checkbox" class="checklist-cb"${checked ? ' checked' : ''}>` +
+          `<span class="checklist-cb-label">${labelTxt}</span></li>`
+        );
+        continue;
+      }
+
+      // 通常リスト
+      const li = line.match(/^- (.+)/);
+      if (li) {
+        if (!inList) { chunks.push('<ul>'); inList = true; }
+        chunks.push(`<li class="plain"><span>${escHtml(li[1])}</span></li>`);
+        continue;
+      }
+
+      // 空行・その他
+      closeList();
+      if (line.trim()) chunks.push(`<p style="font-size:.85rem;color:var(--muted)">${escHtml(line)}</p>`);
+    }
+    closeList();
+    return chunks.join('\n');
+  }
+
+  async function loadChecklist(projectPath) {
+    try {
+      const res  = await fetch(`/api/checklist?path=${encodeURIComponent(projectPath)}`);
+      const data = await res.json();
+      if (data.content) {
+        clView.innerHTML   = renderMarkdown(data.content);
+        clEditor.value     = data.content;
+        attachCheckboxToggle();
+      }
+    } catch (e) {
+      clView.textContent = `読み込みエラー: ${e.message}`;
+    }
+  }
+
+  function attachCheckboxToggle() {
+    clView.querySelectorAll('.checklist-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        cb.closest('li').classList.toggle('checked', cb.checked);
+      });
+    });
+  }
+
+  function enterEditMode() {
+    clView.classList.add('hidden');
+    clEditor.classList.remove('hidden');
+    clEditBtn.classList.add('hidden');
+    clSaveBtn.classList.remove('hidden');
+    clCancelBtn.classList.remove('hidden');
+  }
+
+  function exitEditMode() {
+    clEditor.classList.add('hidden');
+    clView.classList.remove('hidden');
+    clEditBtn.classList.remove('hidden');
+    clSaveBtn.classList.add('hidden');
+    clCancelBtn.classList.add('hidden');
+  }
+
+  async function saveChecklist(projectPath) {
+    clSaveBtn.disabled = true;
+    try {
+      const res = await fetch(
+        `/api/checklist?path=${encodeURIComponent(projectPath)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: clEditor.value }) }
+      );
+      const data = await res.json();
+      if (data.ok) {
+        clView.innerHTML = renderMarkdown(clEditor.value);
+        attachCheckboxToggle();
+        exitEditMode();
+        clSaveStatus.textContent = '保存しました ✓';
+        setTimeout(() => { clSaveStatus.textContent = ''; }, 2000);
+      }
+    } catch (e) {
+      clSaveStatus.textContent = `保存エラー: ${e.message}`;
+    } finally {
+      clSaveBtn.disabled = false;
+    }
+  }
+
+  function initChecklist(projectPath) {
+    clPanel.classList.remove('hidden');
+    loadChecklist(projectPath);
+    clEditBtn.addEventListener('click', enterEditMode);
+    clCancelBtn.addEventListener('click', () => {
+      clEditor.value = clView.innerHTML ? clEditor.value : '';
+      exitEditMode();
+    });
+    clSaveBtn.addEventListener('click', () => saveChecklist(projectPath));
+  }
+
   async function copyAnnouncement() {
     const latest = _distReleases[0];
     const urlLine = latest?.url ? `配布 URL: ${latest.url}` : '';
@@ -342,6 +474,9 @@
     rnGenBtn.addEventListener('click', () => generateReleaseNotes(path));
     rnCopyBtn.addEventListener('click', copyMarkdown);
     loadTags(path);
+
+    // D-CL
+    initChecklist(path);
 
     // D4
     initDist(path);
