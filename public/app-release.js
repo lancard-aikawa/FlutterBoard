@@ -76,15 +76,19 @@
     summary.classList.remove('hidden');
 
     results.innerHTML = data.checks.map(c => {
-      const badge = BADGES[c.status] || '•';
-      const value = c.value !== null && c.value !== undefined ? escHtml(c.value) : '';
+      const badge  = BADGES[c.status] || '•';
+      const value  = c.value !== null && c.value !== undefined ? escHtml(c.value) : '';
       const detail = c.detail ? `<div class="preflight-detail">${escHtml(c.detail)}</div>` : '';
+      const helpBtn = c.helpKey
+        ? `<button type="button" class="preflight-help-btn" onclick="window.open('/help/${escHtml(c.helpKey)}.html','fb-help','width=660,height=680,scrollbars=yes,resizable=yes')" title="対処方法を見る">?</button>`
+        : '';
       return `
         <div class="preflight-item status-${c.status}">
           <div class="preflight-row">
             <span class="preflight-badge">${badge}</span>
             <span class="preflight-label">${escHtml(c.label)}</span>
             <span class="preflight-value" title="${value}">${value}</span>
+            ${helpBtn}
           </div>
           ${detail}
         </div>

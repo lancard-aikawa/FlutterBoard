@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>print / debugPrint の除去 — FlutterBoard Help</title>
+  <link rel="stylesheet" href="../shared/base.css">
+  <link rel="stylesheet" href="help.css">
+</head>
+<body>
+  <div class="help-header">
+    <h1>print / debugPrint の除去</h1>
+    <span class="help-badge warn">⚠️ 警告</span>
+  </div>
+  <div class="help-body">
+    <h2>問題</h2>
+    <p>
+      <code>lib/</code> 配下の Dart コードに <code>print()</code> または <code>debugPrint()</code> が残っています。
+      リリースビルドに含まれるとコンソールに不要なログが出力され、機密情報が漏洩するリスクがあります。
+    </p>
+
+    <h2>方法 1 — VS Code で一括検索・削除</h2>
+    <ol>
+      <li><strong>Ctrl+Shift+F</strong> で検索パネルを開く</li>
+      <li>検索: <code>\b(print|debugPrint)\s*\(</code>（正規表現モードをオンに）</li>
+      <li>対象フォルダを <code>lib</code> に限定</li>
+      <li>1 件ずつ確認して削除または置換</li>
+    </ol>
+
+    <h2>方法 2 — ターミナルで一覧表示</h2>
+    <pre><code># lib/ 配下の print/debugPrint を行番号付きで表示
+grep -rn "\bprint\|debugPrint" lib/ --include="*.dart"</code></pre>
+
+    <h2>方法 3 — logger パッケージに置き換える（推奨）</h2>
+    <p>本番コードでログが必要な場合は、リリースビルドで自動的に無効化されるロガーを使います。</p>
+    <pre><code># pubspec.yaml に追加
+dependencies:
+  logger: ^2.0.0</code></pre>
+
+    <pre><code>import 'package:logger/logger.dart';
+
+final log = Logger();
+
+// print('message') の代わりに:
+log.d('デバッグメッセージ');   // DEBUG
+log.i('情報メッセージ');       // INFO
+log.w('警告メッセージ');       // WARNING
+log.e('エラーメッセージ');     // ERROR</code></pre>
+
+    <p><code>Logger()</code> はデフォルトでリリースビルドでは出力されません。</p>
+
+    <h2>方法 4 — kReleaseMode で条件付き出力</h2>
+    <pre><code>import 'package:flutter/foundation.dart';
+
+// リリースビルドでは実行されない
+if (kDebugMode) {
+  print('debug only');
+}</code></pre>
+
+    <div class="help-note">
+      <strong>ヒント:</strong> Pre-flight チェックの詳細欄にファイルと行番号が表示されています。
+      そこを参考に直接ジャンプして修正するのが最速です。
+    </div>
+  </div>
+</body>
+</html>

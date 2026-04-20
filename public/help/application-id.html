@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>applicationId の変更 — FlutterBoard Help</title>
+  <link rel="stylesheet" href="../shared/base.css">
+  <link rel="stylesheet" href="help.css">
+</head>
+<body>
+  <div class="help-header">
+    <h1>applicationId の変更</h1>
+    <span class="help-badge warn">⚠️ 警告</span>
+  </div>
+  <div class="help-body">
+    <h2>問題</h2>
+    <p>
+      <code>applicationId</code> が Flutter テンプレートの既定値 <code>com.example.*</code> のままです。
+      この ID は Google Play Store でアプリを一意に識別するため、<strong>リリース前に必ず変更</strong>してください。
+      一度 Play Store に公開した後は変更できません。
+    </p>
+
+    <h2>変更場所</h2>
+    <p>Groovy DSL（<code>android/app/build.gradle</code>）:</p>
+    <pre><code>android {
+    defaultConfig {
+        applicationId "com.yourcompany.yourapp"  // ← ここを変更
+        ...
+    }
+}</code></pre>
+
+    <p>Kotlin DSL（<code>android/app/build.gradle.kts</code>）:</p>
+    <pre><code>android {
+    defaultConfig {
+        applicationId = "com.yourcompany.yourapp"  // ← ここを変更
+        ...
+    }
+}</code></pre>
+
+    <h2>命名規則</h2>
+    <ul>
+      <li>逆ドメイン記法が推奨: <code>com.yourcompany.yourapp</code></li>
+      <li>小文字・数字・アンダースコア・ドットのみ使用可</li>
+      <li>セグメントは英字で始まること（例: <code>com.1app</code> は不可）</li>
+      <li>既に Play Store に登録されている ID は使用不可</li>
+    </ul>
+
+    <h2>iOS の Bundle ID も合わせて変更する</h2>
+    <p>Xcode で <code>ios/Runner.xcworkspace</code> を開き、Runner ターゲットの
+    <strong>Bundle Identifier</strong> を同じ ID に変更してください。</p>
+    <pre><code>open ios/Runner.xcworkspace</code></pre>
+
+    <div class="help-note">
+      <strong>注意:</strong> applicationId を変更すると、既存のインストール済みアプリとは別アプリとして扱われます。
+      テスト端末の既存アプリを一度アンインストールしてから再インストールしてください。
+    </div>
+  </div>
+</body>
+</html>

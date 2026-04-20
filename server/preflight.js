@@ -118,7 +118,7 @@ function checkVersionConsistency(pub, andr, ios) {
       value: allFromFlutter ? 'Android/iOS ともに pubspec 由来（Flutter 標準構成）' : '整合性 OK',
     };
   }
-  return { id, label, status: 'warn', value: '不一致あり', detail: mismatches.join('\n') };
+  return { id, label, status: 'warn', value: '不一致あり', detail: mismatches.join('\n'), helpKey: 'version-mismatch' };
 }
 
 function checkAndroidSigning(projectPath) {
@@ -145,6 +145,7 @@ function checkAndroidSigning(projectPath) {
       id, label, status: 'error',
       value: 'debug 署名のまま',
       detail: 'release ビルドが debug 鍵で署名されます。signingConfigs.release を用意して差し替えてください。',
+      helpKey: 'android-signing',
     };
   }
 
@@ -152,7 +153,7 @@ function checkAndroidSigning(projectPath) {
     return { id, label, status: 'ok', value: 'signingConfigs.release 使用' };
   }
 
-  return { id, label, status: 'warn', value: '判定できず', detail: 'release ブロック内に signingConfig の明示的な指定が見当たりません。build.gradle を確認してください。' };
+  return { id, label, status: 'warn', value: '判定できず', detail: 'release ブロック内に signingConfig の明示的な指定が見当たりません。build.gradle を確認してください。', helpKey: 'android-signing' };
 }
 
 function checkApplicationId(projectPath) {
@@ -173,6 +174,7 @@ function checkApplicationId(projectPath) {
     return {
       id, label, status: 'warn', value: appId,
       detail: 'テンプレート既定の com.example.* のままです。本番用パッケージ ID に変更してください。',
+      helpKey: 'application-id',
     };
   }
   return { id, label, status: 'info', value: appId };
@@ -214,6 +216,7 @@ function countPrintStatements(projectPath) {
     value: `${hits.length} 件の出現`,
     detail: hits.slice(0, 20).map(h => `${h.file}:${h.line}  ${h.text}`).join('\n') + (hits.length > 20 ? `\n… 他 ${hits.length - 20} 件` : ''),
     count: hits.length,
+    helpKey: 'print-statements',
   };
 }
 

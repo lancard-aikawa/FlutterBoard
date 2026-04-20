@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Android release 署名設定 — FlutterBoard Help</title>
+  <link rel="stylesheet" href="../shared/base.css">
+  <link rel="stylesheet" href="help.css">
+</head>
+<body>
+  <div class="help-header">
+    <h1>Android release 署名設定</h1>
+    <span class="help-badge error">❌ エラー</span>
+  </div>
+  <div class="help-body">
+    <h2>問題</h2>
+    <p>
+      <code>buildTypes.release</code> の <code>signingConfig</code> が <code>signingConfigs.debug</code>
+      のままになっています。debug 鍵でビルドされた APK/AAB は Google Play にアップロードできません。
+    </p>
+
+    <h2>手順 1 — キーストアを作成する</h2>
+    <p>まだ release 用キーストアがない場合は作成します。</p>
+    <pre><code>keytool -genkey -v \
+  -keystore ~/upload-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -alias upload</code></pre>
+    <p>パスワードと組織情報の入力を求められます。<strong>パスワードは安全な場所に保管してください。</strong></p>
+
+    <h2>手順 2 — key.properties を作成する</h2>
+    <p><code>android/</code> 直下に <code>key.properties</code> を作成します（git に入れないこと）。</p>
+    <pre><code>storePassword=&lt;ストアパスワード&gt;
+keyPassword=&lt;キーパスワード&gt;
+keyAlias=upload
+storeFile=&lt;キーストアへの絶対パスまたは相対パス&gt;</code></pre>
+
+    <h2>手順 3 — android/.gitignore に追加する</h2>
+    <pre><code>key.properties
+*.jks
+*.keystore</code></pre>
+
+    <h2>手順 4 — build.gradle を更新する</h2>
+    <p>Groovy DSL（<code>build.gradle</code>）の場合:</p>
+    <pre><code>def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}</code></pre>
+
+    <p>Kotlin DSL（<code>build.gradle.kts</code>）の場合:</p>
+    <pre><code>import java.util.Properties
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
+android {
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+}</code></pre>
+
+    <h2>手順 5 — 動作確認</h2>
+    <pre><code>flutter build appbundle --release</code></pre>
+    <p>ビルド成功後、Pre-flight チェックを再実行してください。</p>
+
+    <div class="help-note">
+      <strong>注意:</strong> <code>key.properties</code> とキーストアファイルは絶対に git にコミットしないでください。
+      紛失した場合、Play Console でアプリの鍵を更新する手続きが必要になります。
+    </div>
+  </div>
+</body>
+</html>

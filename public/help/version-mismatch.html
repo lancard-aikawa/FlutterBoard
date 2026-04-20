@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>バージョン不一致の修正 — FlutterBoard Help</title>
+  <link rel="stylesheet" href="../shared/base.css">
+  <link rel="stylesheet" href="help.css">
+</head>
+<body>
+  <div class="help-header">
+    <h1>バージョン不一致の修正</h1>
+    <span class="help-badge warn">⚠️ 警告</span>
+  </div>
+  <div class="help-body">
+    <h2>問題</h2>
+    <p>
+      <code>pubspec.yaml</code>、<code>android/app/build.gradle</code>、<code>ios/Runner/Info.plist</code>
+      の間でバージョン番号が一致していません。ストアへの提出時にリジェクトされる原因になります。
+    </p>
+
+    <h2>推奨: pubspec.yaml で一元管理する（Flutter 標準構成）</h2>
+    <p>Flutter の標準的なセットアップでは、Android と iOS のバージョンを
+    <code>pubspec.yaml</code> から自動的に引き継ぎます。</p>
+
+    <p><strong>pubspec.yaml</strong> — ここだけ変更すれば OK:</p>
+    <pre><code>version: 1.2.0+5
+#         ^^^^^ ^^
+#         versionName  versionCode</code></pre>
+
+    <p><strong>android/app/build.gradle</strong> — Flutter 経由に設定:</p>
+    <pre><code>android {
+    defaultConfig {
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+}</code></pre>
+
+    <p><strong>ios/Runner/Info.plist</strong> — Flutter 経由に設定:</p>
+    <pre><code>&lt;key&gt;CFBundleVersion&lt;/key&gt;
+&lt;string&gt;$(FLUTTER_BUILD_NUMBER)&lt;/string&gt;
+&lt;key&gt;CFBundleShortVersionString&lt;/key&gt;
+&lt;string&gt;$(FLUTTER_BUILD_NAME)&lt;/string&gt;</code></pre>
+
+    <h2>手動で合わせる場合</h2>
+    <p>各ファイルで同じバージョン番号を設定します。</p>
+
+    <ul>
+      <li><code>pubspec.yaml</code>: <code>version: X.Y.Z+N</code></li>
+      <li><code>build.gradle</code>: <code>versionCode N</code> / <code>versionName "X.Y.Z"</code></li>
+      <li><code>Info.plist</code>: <code>CFBundleVersion</code> = N, <code>CFBundleShortVersionString</code> = X.Y.Z</li>
+    </ul>
+
+    <div class="help-note">
+      <strong>ヒント:</strong> Flutter 標準構成（<code>flutter.versionCode</code> / <code>$(FLUTTER_BUILD_NUMBER)</code>）
+      にしておくと、<code>pubspec.yaml</code> の 1 か所だけ変更すれば全プラットフォームに反映されます。
+    </div>
+  </div>
+</body>
+</html>
