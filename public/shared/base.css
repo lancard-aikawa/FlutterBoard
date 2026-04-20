@@ -18,7 +18,7 @@
   --err:       #f38ba8;
   --warn:      #f9e2af;
   --vm-accent: #2dd4bf;
-  --header-h:  76px;  /* header-top(44px) + tab-row(32px) */
+  --header-h:  44px;
 }
 
 body {
@@ -34,19 +34,22 @@ body {
 /* ===== ヘッダー ===== */
 header {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  height: 44px;
+  padding: 0 1.25rem;
+  gap: .75rem;
 }
 
-/* 上段: タイトル + プロジェクト + 変更 */
 .header-top {
-  height: 44px;
   display: flex;
   align-items: center;
   gap: .75rem;
-  padding: 0 1.25rem;
+  flex: 1;
+  min-width: 0;
 }
 .header-top h1 { font-size: 1rem; color: var(--accent); letter-spacing: .05em; }
 
@@ -74,6 +77,7 @@ header {
   gap: 0;
   padding: 0 1rem;
   align-self: flex-end;
+  flex-shrink: 0;
 }
 .entry-nav a {
   padding: .4rem 1rem;
@@ -93,7 +97,7 @@ header {
   background: var(--bg);
   color: var(--accent);
   border-color: var(--border);
-  margin-bottom: -1px;  /* ヘッダー下ボーダーを貫通 */
+  margin-bottom: -1px;
 }
 
 /* ===== ボタン基本 ===== */

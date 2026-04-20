@@ -11,7 +11,7 @@
   --err:       #f38ba8;
   --warn:      #f9e2af;
   --vm-accent: #2dd4bf;   /* teal — VM Service キャプチャの識別色 */
-  --header-h:  76px;
+  --header-h:  44px;
 }
 
 body {
@@ -26,6 +26,8 @@ body {
 
 /* ===== ヘッダー (base.css で定義済み、index.html 固有の上書きのみ) ===== */
 #current-project { font-size: .82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#change-project-btn { color: var(--text); border-color: var(--muted); }
+#change-project-btn:hover { border-color: var(--text); }
 
 /* ===== ボタン基本 ===== */
 button {

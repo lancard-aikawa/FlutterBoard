@@ -14,7 +14,7 @@
       <h1>FlutterBoard</h1>
       <div class="header-project">
         <div id="current-project" class="header-project-path">プロジェクト未選択</div>
-        <button id="change-project-btn" class="btn-ghost">変更</button>
+        <button id="change-project-btn" class="btn-ghost">📂 変更</button>
         <div id="fb-env-header" class="hidden">
           <button id="fb-header-firebase" class="fb-env-pill" title="Firebase プロジェクト切り替え">
             Firebase: <span id="fb-header-alias">—</span>
@@ -32,7 +32,7 @@
     </div>
     <nav class="entry-nav">
       <a href="/index.html" class="active">🛠 開発</a>
-      <a href="/release.html">🚀 リリース</a>
+      <a href="/release.html">🤖 Android リリース</a>
     </nav>
   </header>
 
@@ -63,7 +63,7 @@
         <button class="tab" data-tab="deps" title="pubspec.yaml / package.json / CDN ライブラリのバージョンを pub.dev・npm registry で確認。セキュリティ診断・依存ツリー表示も">依存チェック</button>
         <button class="tab" data-tab="env" title=".env ファイルの内容をマスク表示。2ファイル間のキー差分比較、Firebase 環境（firebase use）の切り替えも">環境変数</button>
         <button class="tab" data-tab="git" title="ブランチ・変更ファイル・コミット履歴を表示。ステージ / コミット / push / pull もここから">Git</button>
-        <button class="tab" data-tab="ports" title="指定ポートの使用状況をリアルタイム監視。競合プロセスをワンクリックで kill できる">ポート</button>
+        <button class="tab" data-tab="ports" title="指定ポートの使用状況をリアルタイム監視。競合プロセスをワンクリックで kill できる">ポート監視</button>
       </nav>
 
       <!-- ログタブ -->
@@ -92,7 +92,7 @@
           </div>
           <ul id="process-list"></ul>
           <div id="vm-attach-form">
-            <input type="text" id="vm-url-input" placeholder="VM Service URL (http://127.0.0.1:PORT/...)" title="flutter run のログに表示される VM Service URL を貼り付け。devtools-bar の「VM Service ↗」リンクをコピーして使用可能">
+            <input type="text" id="vm-url-input" placeholder="VM Service URL" title="flutter run のログに表示される VM Service URL を貼り付け。devtools-bar の「VM Service ↗」リンクをコピーして使用可能">
             <button id="vm-scan-btn" title="実行中の Dart プロセスを自動検出（dart-service ファイルを走査）">🔍</button>
             <button id="vm-attach-btn" title="VM Service に WebSocket 接続してログをキャプチャ">📡 Attach</button>
           </div>
@@ -113,12 +113,12 @@
               <input type="text" id="log-filter" placeholder="Filter..." title="ログをキーワードで絞り込み。隣の「.*」ボタンで正規表現モードに切り替え可能">
               <button id="log-regex-btn" class="btn-ghost log-regex-btn" title="正規表現モード ON/OFF。ON にするとフィルター欄の入力を正規表現として解釈（例: ERROR|WARN）">.*</button>
               <div id="log-level-filters" title="レベルフィルター">
-                <button class="log-level-btn" data-level="error" title="ERROR レベルのログを表示 / 非表示。「ERROR」「error」「Exception」「FATAL」などを含む行が対象">E</button>
-                <button class="log-level-btn" data-level="warn" title="WARNING レベルのログを表示 / 非表示。「WARN」「warn」「Warning」などを含む行が対象">W</button>
-                <button class="log-level-btn" data-level="info" title="INFO レベルのログを表示 / 非表示。ERROR / WARN に該当しない通常の行が対象">I</button>
+                <button class="log-level-btn" data-level="error" title="ERROR レベルのログを表示 / 非表示。「ERROR」「error」「Exception」「FATAL」などを含む行が対象">ERR</button>
+                <button class="log-level-btn" data-level="warn" title="WARNING レベルのログを表示 / 非表示。「WARN」「warn」「Warning」などを含む行が対象">WARN</button>
+                <button class="log-level-btn" data-level="info" title="INFO レベルのログを表示 / 非表示。ERROR / WARN に該当しない通常の行が対象">INFO</button>
               </div>
-              <button id="log-save" title="現在表示中のプロセスのログを .log ファイルとしてダウンロード">Save</button>
-              <button id="log-clear" title="ログ表示をクリア（プロセス本体は停止しない）">Clear</button>
+              <button id="log-save" title="現在表示中のプロセスのログを .log ファイルとしてダウンロード">保存</button>
+              <button id="log-clear" title="ログ表示をクリア（プロセス本体は停止しない）">消去</button>
               <label id="autoscroll-label">
                 <input type="checkbox" id="autoscroll" checked title="新しいログ行が来るたびに自動で末尾にスクロール。手動スクロールで一時停止"> Auto scroll
               </label>
@@ -147,9 +147,9 @@
             <div id="combined-toolbar">
               <input type="text" id="combined-filter" placeholder="フィルタ（正規表現可）..." class="combined-filter-input">
               <div id="combined-level-filters" title="レベルフィルター">
-                <button class="combined-level-btn" data-level="error">E</button>
-                <button class="combined-level-btn" data-level="warn">W</button>
-                <button class="combined-level-btn" data-level="info">I</button>
+                <button class="combined-level-btn" data-level="error">ERR</button>
+                <button class="combined-level-btn" data-level="warn">WARN</button>
+                <button class="combined-level-btn" data-level="info">INFO</button>
               </div>
               <select id="combined-proc-filter" title="プロセスを絞り込み">
                 <option value="">全プロセス</option>
@@ -412,7 +412,7 @@
                 <td class="cmd-category">管理</td>
                 <td>
                   <button class="cmd-btn" data-cmd="firebase projects:list"                data-label="projects:list">projects:list</button>
-                  <button class="cmd-btn" data-cmd="firebase use"                          data-label="firebase use">use (show)</button>
+                  <button class="cmd-btn" data-cmd="firebase use"                          data-label="firebase use">use</button>
                   <button class="cmd-btn" data-cmd="firebase login"                        data-label="firebase login">login</button>
                 </td>
               </tr>
@@ -486,7 +486,7 @@
               </button>
               <button class="br-cmd-btn" data-cmd="dart run build_runner build --delete-conflicting-outputs" data-label="build_runner build (clean)">
                 <span class="br-cmd-icon">🔄</span>
-                <span class="br-cmd-name">build (競合削除)</span>
+                <span class="br-cmd-name">上書きビルド</span>
                 <span class="br-cmd-desc">--delete-conflicting-outputs 付きビルド</span>
               </button>
             </div>
@@ -553,7 +553,7 @@
               日
             </label>
             <button id="deps-refresh-btn" title="現在のサブタブ（pubspec / npm / CDN）のパッケージを pub.dev・npm registry・CDN に問い合わせて最新バージョン情報を取得">更新チェック</button>
-            <button id="deps-compare-btn" class="btn-ghost" title="別のブランチまたは別プロジェクトの pubspec.yaml / package.json と現在のバージョンを横断比較する">比較 ⇄</button>
+            <button id="deps-compare-btn" class="btn-ghost" title="別のブランチまたは別プロジェクトの pubspec.yaml / package.json と現在のバージョンを横断比較する">lock 比較</button>
           </div>
         </div>
 
