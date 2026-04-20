@@ -20,6 +20,12 @@
 
     <h2>手順 1 — キーストアを作成する</h2>
     <p>まだ release 用キーストアがない場合は作成します。</p>
+    <p>PowerShell の場合（行継続は <code>`</code>）:</p>
+    <pre><code>keytool -genkey -v `
+  -keystore $HOME/upload-keystore.jks `
+  -keyalg RSA -keysize 2048 -validity 10000 `
+  -alias upload</code></pre>
+    <p>bash / Git Bash の場合（行継続は <code>\</code>）:</p>
     <pre><code>keytool -genkey -v \
   -keystore ~/upload-keystore.jks \
   -keyalg RSA -keysize 2048 -validity 10000 \
