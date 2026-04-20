@@ -266,6 +266,28 @@
 
   // --- D-CL: チェックリスト ------------------------------------------
 
+  // [text](url) 記法をリンクに変換（それ以外は escHtml）
+  function renderInline(text) {
+    const parts = [];
+    let last = 0;
+    const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push(escHtml(text.slice(last, m.index)));
+      const href     = escHtml(m[2]);
+      const linkText = escHtml(m[1]);
+      const external = !href.startsWith('#');
+      parts.push(
+        `<a href="${href}" class="checklist-link"` +
+        (external ? ' target="_blank" rel="noopener"' : '') +
+        `>${linkText}</a>`
+      );
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push(escHtml(text.slice(last)));
+    return parts.join('');
+  }
+
   function renderMarkdown(md) {
     const lines  = md.split('\n');
     const chunks = [];
@@ -280,22 +302,21 @@
 
       // 見出し
       const h3 = line.match(/^###\s+(.+)/);
-      if (h3) { closeList(); chunks.push(`<h3>${escHtml(h3[1])}</h3>`); continue; }
+      if (h3) { closeList(); chunks.push(`<h3>${renderInline(h3[1])}</h3>`); continue; }
       const h2 = line.match(/^##\s+(.+)/);
-      if (h2) { closeList(); chunks.push(`<h2>${escHtml(h2[1])}</h2>`); continue; }
+      if (h2) { closeList(); chunks.push(`<h2>${renderInline(h2[1])}</h2>`); continue; }
       const h1 = line.match(/^#\s+(.+)/);
-      if (h1) { closeList(); chunks.push(`<h2>${escHtml(h1[1])}</h2>`); continue; }
+      if (h1) { closeList(); chunks.push(`<h2>${renderInline(h1[1])}</h2>`); continue; }
 
       // チェックボックス付きリスト
       const cb = line.match(/^- \[([ xX])\]\s*(.*)/);
       if (cb) {
         if (!inList) { chunks.push('<ul>'); inList = true; }
         const checked  = cb[1].toLowerCase() === 'x';
-        const labelTxt = escHtml(cb[2]);
         chunks.push(
           `<li class="${checked ? 'checked' : ''}">` +
           `<input type="checkbox" class="checklist-cb"${checked ? ' checked' : ''}>` +
-          `<span class="checklist-cb-label">${labelTxt}</span></li>`
+          `<span class="checklist-cb-label">${renderInline(cb[2])}</span></li>`
         );
         continue;
       }
@@ -304,13 +325,13 @@
       const li = line.match(/^- (.+)/);
       if (li) {
         if (!inList) { chunks.push('<ul>'); inList = true; }
-        chunks.push(`<li class="plain"><span>${escHtml(li[1])}</span></li>`);
+        chunks.push(`<li class="plain"><span>${renderInline(li[1])}</span></li>`);
         continue;
       }
 
       // 空行・その他
       closeList();
-      if (line.trim()) chunks.push(`<p style="font-size:.85rem;color:var(--muted)">${escHtml(line)}</p>`);
+      if (line.trim()) chunks.push(`<p style="font-size:.85rem;color:var(--muted)">${renderInline(line)}</p>`);
     }
     closeList();
     return chunks.join('\n');

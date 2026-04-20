@@ -133,6 +133,11 @@
   text-decoration: line-through;
   color: var(--muted);
 }
+.checklist-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+.checklist-link:hover { text-decoration: underline; }
 
 /* エディタ */
 .checklist-editor {

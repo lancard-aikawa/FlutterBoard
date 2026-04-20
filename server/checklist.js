@@ -15,16 +15,16 @@ const CONFIG_DIR = path.resolve(__dirname, '..', 'config');
 
 const DEFAULT_CHECKLIST = `## テストリリース手順
 
-### 1. Pre-flight チェック
+### 1. [Pre-flight チェック](#preflight-panel)
 - [ ] バージョン番号を確認（pubspec / build.gradle / Info.plist が一致しているか）
 - [ ] Android release 署名設定を確認（debug 鍵が使われていないか）
 - [ ] applicationId が com.example.* でないことを確認
 - [ ] print / debugPrint の残存がないことを確認
-- [ ] ▶ Pre-flight チェックを実行して全項目グリーンにする
+- [ ] ▶ [Pre-flight チェックを実行](#preflight-panel)して全項目グリーンにする
 
-### 2. リリースノート作成
+### 2. [リリースノート作成](#relnotes-panel)
 - [ ] 直前タグからのコミット一覧を確認
-- [ ] リリースノートを生成して内容を編集
+- [ ] [リリースノートを生成](#relnotes-panel)して内容を編集
 - [ ] ストア / 案内文用テキストにコピー
 
 ### 3. ビルド
@@ -32,10 +32,10 @@ const DEFAULT_CHECKLIST = `## テストリリース手順
 - [ ] flutter build appbundle --release を実行
 - [ ] ビルド成功・署名を確認
 
-### 4. 配布
+### 4. [配布](#dist-panel)
 - [ ] Firebase App Distribution / Play Internal Testing にアップロード
-- [ ] 配布 URL を本ページに登録
-- [ ] テスターへ案内文を送付
+- [ ] [配布 URL を本ページに登録](#dist-panel)
+- [ ] [テスターへ案内文を送付](#dist-panel)
 
 ### 5. 動作確認
 - [ ] テスターからの動作報告を収集
