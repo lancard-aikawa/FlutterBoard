@@ -2,8 +2,6 @@
 
 Flutter + Firebase プロジェクト向けのローカル Web ダッシュボード。
 
-Node.js 組み込みモジュールのみで動作し、**npm パッケージ依存を最小化**（オプション: `node-pty`）。
-
 ---
 
 ## 必要環境
@@ -36,6 +34,8 @@ npm run dev    ファイル変更で自動再起動（開発用）
 
 各タブの詳細な使い方は **[ユーザーマニュアル](docs/MANUAL.md)** を参照してください。
 
+### 開発ダッシュボード（`/index.html`）
+
 | タブ | 概要 |
 |---|---|
 | コマンド | Flutter / Firebase / npm コマンドのワンクリック実行、シーケンス管理 |
@@ -46,12 +46,29 @@ npm run dev    ファイル変更で自動再起動（開発用）
 | Git | ブランチ・変更・コミット履歴の確認と基本操作 |
 | ポート | 指定ポートの使用状況監視・競合プロセス kill |
 
+### Android 設定（`/android.html`）
+
+| パネル | 概要 |
+|---|---|
+| applicationId | アプリケーション ID の確認・変更 |
+| key.properties | 署名キー設定ファイルの作成・編集（バックスラッシュ自動補正） |
+| build.gradle | 署名設定の確認 |
+
+### Android リリース（`/release.html`）
+
+| パネル | 概要 |
+|---|---|
+| テストリリース手順 | Markdown 形式のカスタムチェックリスト |
+| Pre-flight チェック | バージョン / 署名 / print 残存などを自動検査 |
+| リリースノート自動生成 | git タグ間のコミットから Markdown を生成 |
+| ストアスクリーンショット生成 | Playwright で Flutter Web を自動撮影、DPR 対応・GIF/MP4 変換 |
+| 配布 URL / テスター管理 | Internal Testing の URL・テスター情報を管理 |
+
 ---
 
 ## セキュリティ方針
 
-- npm パッケージ依存を最小化（サプライチェーン攻撃リスクの低減）
-- Node.js 組み込みモジュール（`http`, `fs`, `child_process`, `https` 等）を使用
+- Node.js 組み込みモジュール（`http`, `fs`, `child_process`, `https` 等）を中心に使用
 - サーバーは `127.0.0.1`（ローカルのみ）にバインド
 - 各 API にパストラバーサル防止チェックを実装
 - コマンドは直接 exec せずターミナル入力欄にセット、ユーザーが確認後に実行
@@ -87,22 +104,37 @@ FlutterBoard/
     fvmInfo.js          FVM 連携（S6）
     buildSize.js        ビルドサイズトラッカー（S7）
     emuSnapshot.js      エミュレータ スナップショット（S8）
+    preflight.js        Pre-flight チェック
+    androidConfig.js    Android 署名設定
+    pwCapture.js        Playwright スクリーンショット / 動画生成
   public/
-    index.html
+    index.html          開発ダッシュボード
     app.js
     style.css
+    android.html        Android 設定
+    app-android.js
+    android.css
+    release.html        Android リリース支援
+    app-release.js
+    release.css
+    shared/             複数エントリ共通（base.css / project.js）
+    help/               ヘルプページ（ポップアップ）
+  playwright/
+    capture.js          Playwright キャプチャスクリプト
   config/               実行時に自動生成（.gitignore 済み）
     history.json
     pins_*.json
     seq_*.json
     buildsize_*.json
     ports_watched.json
+  docs/
+    MANUAL.md           ユーザーマニュアル
+    playwright.md       Playwright / ffmpeg インストール手順
   start.cmd
   stop.cmd
   README.md
   TODO.md               実装計画
   RC.md                 機能要望の背景・課題・UI イメージ
-  review.md             コードレビュー & リファクタリング記録
 ```
 
 ---
