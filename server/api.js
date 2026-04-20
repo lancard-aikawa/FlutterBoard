@@ -24,6 +24,10 @@ const { handleBuildRunner }     = require('./buildRunner');
 const { handleLockDiff }        = require('./lockDiff');
 const { handleCmdHistory }      = require('./cmdHistory');
 const { handleTestRunner }     = require('./testRunner');
+const { handlePreflight }      = require('./preflight');
+const { handleReleaseNotes }  = require('./releaseNotes');
+const { handleDistributor }   = require('./distributor');
+const { handleChecklist }     = require('./checklist');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -133,6 +137,22 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/test')) {
     return handleTestRunner(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/preflight')) {
+    return handlePreflight(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/releasenotes')) {
+    return handleReleaseNotes(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/distributor')) {
+    return handleDistributor(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/checklist')) {
+    return handleChecklist(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

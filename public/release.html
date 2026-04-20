@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlutterBoard — テストリリース</title>
+  <link rel="stylesheet" href="shared/base.css">
+  <link rel="stylesheet" href="release.css">
+</head>
+<body>
+  <header>
+    <h1>FlutterBoard — 🚀 テストリリース</h1>
+    <div id="release-project" class="release-project">プロジェクト未選択</div>
+    <nav class="entry-nav">
+      <a href="/index.html">🛠 開発</a>
+      <a href="/release.html" class="active">🚀 リリース</a>
+    </nav>
+  </header>
+
+  <main class="release-main">
+    <!-- プロジェクト未選択時のヒント -->
+    <section id="release-no-project" class="release-placeholder hidden">
+      <h2>テストリリース支援</h2>
+      <p>Android Internal Testing / Firebase App Distribution への提出前チェックを支援します。</p>
+      <div class="release-project-hint">
+        ※ まず開発ダッシュボードでプロジェクトを選択してください。
+      </div>
+    </section>
+
+    <!-- テストリリース手順チェックリスト（D-CL） -->
+    <section id="checklist-panel" class="checklist-panel hidden">
+      <div class="checklist-header">
+        <h2>テストリリース手順</h2>
+        <div class="checklist-actions">
+          <button type="button" id="checklist-edit-btn" class="btn-secondary">✏️ 編集</button>
+          <button type="button" id="checklist-save-btn" class="btn-primary hidden">保存</button>
+          <button type="button" id="checklist-cancel-btn" class="btn-secondary hidden">キャンセル</button>
+          <span id="checklist-save-status" class="checklist-save-status"></span>
+        </div>
+      </div>
+      <div id="checklist-view" class="checklist-view"></div>
+      <textarea id="checklist-editor" class="checklist-editor hidden" spellcheck="false"></textarea>
+    </section>
+
+    <!-- Pre-flight チェック（D1） -->
+    <section id="preflight-panel" class="preflight-panel hidden">
+      <div class="preflight-header">
+        <h2>Pre-flight チェック</h2>
+        <div class="preflight-actions">
+          <button type="button" id="preflight-run-btn" class="btn-primary">チェック実行 ▶</button>
+          <span id="preflight-status" class="preflight-status"></span>
+        </div>
+      </div>
+      <div id="preflight-summary" class="preflight-summary hidden"></div>
+      <div id="preflight-results" class="preflight-results"></div>
+    </section>
+
+    <!-- リリースノート自動生成（D3） -->
+    <section id="relnotes-panel" class="relnotes-panel hidden">
+      <div class="relnotes-header">
+        <h2>リリースノート自動生成</h2>
+        <div class="relnotes-actions">
+          <label class="relnotes-from">
+            基準タグ:
+            <select id="relnotes-from-select">
+              <option value="">（最新タグを自動選択）</option>
+            </select>
+          </label>
+          <label class="relnotes-opt">
+            <input type="checkbox" id="relnotes-include-other" checked>
+            その他を含める
+          </label>
+          <button type="button" id="relnotes-gen-btn" class="btn-primary">生成 ▶</button>
+          <span id="relnotes-status" class="relnotes-status"></span>
+        </div>
+      </div>
+      <div id="relnotes-meta" class="relnotes-meta hidden"></div>
+      <div class="relnotes-body hidden" id="relnotes-body">
+        <div class="relnotes-toolbar">
+          <button type="button" id="relnotes-copy-btn" class="btn-secondary">📋 Markdown をコピー</button>
+          <span id="relnotes-copy-status" class="relnotes-copy-status"></span>
+        </div>
+        <textarea id="relnotes-markdown" class="relnotes-markdown" spellcheck="false"></textarea>
+        <details class="relnotes-commits">
+          <summary>対象コミット <span id="relnotes-count">0</span> 件</summary>
+          <ul id="relnotes-commit-list" class="relnotes-commit-list"></ul>
+        </details>
+      </div>
+    </section>
+
+    <!-- 配布 URL / テスター管理（D4） -->
+    <section id="dist-panel" class="dist-panel hidden">
+      <div class="dist-header">
+        <h2>配布 URL / テスター管理</h2>
+      </div>
+
+      <!-- リリース登録 -->
+      <div class="dist-block">
+        <h3 class="dist-block-title">リリース登録</h3>
+        <form id="dist-release-form" class="dist-form">
+          <input type="text" id="dist-release-title" placeholder="リリース名（例: v1.2.0 内部テスト）" class="dist-input">
+          <input type="url"  id="dist-release-url"   placeholder="配布 URL" class="dist-input">
+          <input type="text" id="dist-release-note"  placeholder="メモ（任意）" class="dist-input">
+          <button type="submit" class="btn-primary">追加</button>
+        </form>
+        <ul id="dist-release-list" class="dist-list"></ul>
+        <div class="dist-release-actions hidden" id="dist-release-actions">
+          <button type="button" id="dist-copy-announce-btn" class="btn-secondary">📋 案内文をコピー</button>
+          <span id="dist-copy-status" class="dist-copy-status"></span>
+        </div>
+      </div>
+
+      <!-- テスター管理 -->
+      <div class="dist-block">
+        <h3 class="dist-block-title">テスター管理</h3>
+        <form id="dist-tester-form" class="dist-form">
+          <input type="text"  id="dist-tester-name"   placeholder="氏名" class="dist-input">
+          <input type="email" id="dist-tester-email"  placeholder="メールアドレス" class="dist-input">
+          <input type="text"  id="dist-tester-device" placeholder="端末（例: Pixel 8）" class="dist-input">
+          <input type="text"  id="dist-tester-note"   placeholder="メモ（任意）" class="dist-input">
+          <button type="submit" class="btn-primary">追加</button>
+        </form>
+        <ul id="dist-tester-list" class="dist-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="shared/project.js"></script>
+  <script src="app-release.js"></script>
+</body>
+</html>
