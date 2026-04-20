@@ -3,14 +3,6 @@
  * 共通スタイル（変数・ヘッダ・ボタン）は shared/base.css を参照。
  */
 
-.release-project {
-  font-size: .82rem;
-  color: var(--muted);
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .release-main {
   flex: 1;

@@ -44,11 +44,29 @@ header {
 }
 header h1 { font-size: 1rem; color: var(--accent); letter-spacing: .05em; }
 
+/* ===== プロジェクト表示 + 変更ボタン グループ ===== */
+.header-project {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.header-project-path {
+  font-size: .82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 /* ===== エントリ間ナビゲーション ===== */
 .entry-nav {
   display: inline-flex;
   gap: .4rem;
-  margin-left: auto;
+  flex-shrink: 0;
 }
 .entry-nav a {
   padding: .3rem .7rem;
