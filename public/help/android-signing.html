@@ -42,8 +42,13 @@
         <tr><td>州名または地域名は何ですか</td><td>都道府県（ST）</td><td><code>Tokyo</code></td></tr>
         <tr><td>この単位に該当する2文字の国コードは何ですか</td><td>国コード（C）</td><td><code>JP</code></td></tr>
         <tr><td>&lt;キーのパスワードを入力してください&gt;</td><td>キー個別のパスワード。ストアと同じにする場合は Enter</td><td>（Enter）</td></tr>
+        <tr><td>CN=... でよろしいですか。 [いいえ]:</td><td>内容確認。<code>y</code> または <code>yes</code>（小文字）を入力する。先頭を大文字にした <code>Y</code> / <code>Yes</code> は JDK によって不可。Enter のみはデフォルトの「いいえ」扱いで最初から再入力になる</td><td><code>y</code></td></tr>
       </tbody>
     </table>
+    <div class="help-note">
+      <strong>確認プロンプトの注意:</strong> <code>[いいえ]:</code> には <code>y</code> または <code>yes</code>（小文字）を入力してください。
+      <code>Y</code> / <code>Yes</code> のように先頭を大文字にすると受け付けない JDK があります。Enter のみは「いいえ」扱いで最初から再入力になります。
+    </div>
 
     <h2>手順 2 — key.properties を作成する</h2>
     <p><code>android/</code> 直下に <code>key.properties</code> を作成します（git に入れないこと）。</p>
