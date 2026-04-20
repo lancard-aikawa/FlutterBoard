@@ -365,6 +365,16 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
 }
 #logfile-open-btn:hover { background: var(--surface); color: var(--text); }
 #logfile-open-btn.loading { opacity: .5; pointer-events: none; }
+.log-help-link {
+  padding: 4px 8px;
+  text-align: center;
+}
+.log-help-link a {
+  font-size: .75rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+.log-help-link a:hover { color: var(--accent); text-decoration: underline; }
 .logfile-badge {
   display: inline-block;
   font-size: .6rem;

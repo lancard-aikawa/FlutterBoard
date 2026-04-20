@@ -56,6 +56,46 @@ if (kDebugMode) {
   print('debug only');
 }</code></pre>
 
+    <h2 id="flutterboard-logging">FlutterBoard でのログ表示について</h2>
+    <p>FlutterBoard がキャプチャできるログの種類は出力先によって異なります。</p>
+    <table class="help-table">
+      <thead>
+        <tr><th>ログ手段</th><th>出力先</th><th>FlutterBoard での表示</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>print()</code> / <code>debugPrint()</code></td>
+          <td>stdout</td>
+          <td>✅ 常に表示</td>
+        </tr>
+        <tr>
+          <td><code>logger.d/i/w/e()</code>（デフォルト設定）</td>
+          <td>stdout（debugPrint 経由）</td>
+          <td>✅ 常に表示</td>
+        </tr>
+        <tr>
+          <td><code>developer.log()</code></td>
+          <td>VM Service <code>Logging</code> ストリーム</td>
+          <td>⚠️ VM Service attach 時のみ表示</td>
+        </tr>
+        <tr>
+          <td><code>Logger(output: DeveloperConsoleOutput())</code></td>
+          <td>VM Service <code>Logging</code> ストリーム</td>
+          <td>⚠️ VM Service attach 時のみ表示</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      <code>developer.log()</code> は <code>print()</code> と異なり stdout を経由せず、
+      Dart VM Service の <code>Logging</code> ストリームに送られます。
+      FlutterBoard で表示するには、ログタブの <strong>「VM attach」</strong> から
+      VM Service URL を入力して接続してください。
+    </p>
+    <p>
+      <code>flutter run</code> 起動時にログ欄の上部に表示される
+      <code>http://127.0.0.1:xxxxx/...</code> の URL が VM Service URL です。
+    </p>
+
     <div class="help-note">
       <strong>ヒント:</strong> Pre-flight チェックの詳細欄にファイルと行番号が表示されています。
       そこを参考に直接ジャンプして修正するのが最速です。

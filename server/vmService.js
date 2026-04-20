@@ -111,10 +111,11 @@ function connectVMService(vmServiceUrl, { onOpen, onMessage, onClose }) {
     socket.on('close', () => { if (!closed) { closed = true; onClose(); } });
     socket.on('error', () => { if (!closed) { closed = true; onClose(); } });
 
-    // Stdout / Stderr ストリームを購読
+    // Stdout / Stderr / Logging ストリームを購読
     let rpcId = 1;
     ws.send({ jsonrpc: '2.0', id: rpcId++, method: 'streamListen', params: { streamId: 'Stdout' } });
     ws.send({ jsonrpc: '2.0', id: rpcId++, method: 'streamListen', params: { streamId: 'Stderr' } });
+    ws.send({ jsonrpc: '2.0', id: rpcId++, method: 'streamListen', params: { streamId: 'Logging' } });
 
     onOpen(ws);
   });
@@ -171,6 +172,17 @@ function parseVMEvent(json) {
   try { msg = JSON.parse(json); } catch { return null; }
   if (msg.method !== 'streamNotify') return null;
   const { streamId, event } = msg.params || {};
+
+  // developer.log() → Logging ストリームの Logging イベント
+  if (streamId === 'Logging' && event?.kind === 'Logging') {
+    const rec = event.logRecord || {};
+    const name = rec.name?.valueAsString || '';
+    const message = rec.message?.valueAsString || '';
+    const text = name ? `[${name}] ${message}\n` : `${message}\n`;
+    return { type: 'stdout', text };
+  }
+
+  // print() / debugPrint() → Stdout/Stderr の WriteEvent
   if (event?.kind !== 'WriteEvent' || !event.bytes) return null;
   const text = Buffer.from(event.bytes, 'base64').toString('utf8');
   return { type: streamId === 'Stderr' ? 'stderr' : 'stdout', text };
