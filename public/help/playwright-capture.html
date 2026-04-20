@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ストアスクリーンショット生成 — FlutterBoard Help</title>
+  <link rel="stylesheet" href="../shared/base.css">
+  <link rel="stylesheet" href="help.css">
+</head>
+<body>
+  <div class="help-header">
+    <h1>ストアスクリーンショット / 動画生成</h1>
+  </div>
+  <div class="help-body">
+
+    <h2>概要</h2>
+    <p>
+      Playwright を使って Flutter Web アプリを自動撮影し、Play Store / App Store 向けの
+      スクリーンショットや動画を生成します。
+    </p>
+
+    <h2>必要なツール</h2>
+    <table class="help-table">
+      <tr><th>ツール</th><th>用途</th><th>必須</th></tr>
+      <tr><td>Playwright</td><td>ブラウザ自動操作・撮影</td><td>✅ 必須</td></tr>
+      <tr><td>ffmpeg</td><td>WebM → GIF / MP4 変換</td><td>動画変換時のみ</td></tr>
+    </table>
+
+    <h2>手順 1 — Playwright をインストールする</h2>
+    <p>Flutter プロジェクトのルートで実行します。</p>
+    <pre><code>npm install -D playwright
+npx playwright install chromium</code></pre>
+    <p>パネル上部のバッジが <strong>Playwright ✓</strong> になれば準備完了です。</p>
+
+    <h2>手順 2 — ffmpeg をインストールする（任意）</h2>
+    <p>GIF・MP4 変換が不要な場合はスキップできます。</p>
+    <p><strong>winget（Windows 11 標準）</strong></p>
+    <pre><code>winget install Gyan.FFmpeg</code></pre>
+    <p><strong>Chocolatey</strong></p>
+    <pre><code>choco install ffmpeg</code></pre>
+    <p>インストール後、新しいターミナルを開いて <code>ffmpeg -version</code> で確認してください。</p>
+
+    <h2>手順 3 — Flutter Web アプリを起動する</h2>
+    <p>
+      撮影対象は <strong>Flutter Web ターゲット</strong> のアプリです。
+      <code>--web-port</code> でポートを固定してから起動してください。
+    </p>
+    <pre><code>flutter run -d chrome --web-port=8080</code></pre>
+    <div class="help-note">
+      <strong>ポートを固定する理由：</strong>
+      <code>--web-port</code> を省略するとポートが毎回ランダムになり、
+      ベース URL の設定が毎回必要になります。<br>
+      ログに表示される <code>ws://127.0.0.1:xxxxx/…</code>（VM Service）や
+      <code>http://127.0.0.1:9100</code>（DevTools）は撮影対象の URL では<strong>ありません</strong>。
+    </div>
+
+    <h2>手順 4 — パネルを設定する</h2>
+
+    <p><strong>ベース URL</strong></p>
+    <p>
+      Flutter Web アプリの URL を入力します。
+      <code>flutter run --web-port=8080</code> の場合は <code>http://localhost:8080</code> です。
+    </p>
+
+    <p><strong>撮影ルート</strong></p>
+    <p>
+      撮影したい画面をルートとして追加します。<br>
+      「名前」は出力ファイル名になります（例: <code>home</code> → <code>home.png</code>）。<br>
+      「パス」はベース URL からの相対パスです（例: <code>/</code>、<code>/settings</code>）。
+    </p>
+    <table class="help-table">
+      <tr><th>名前</th><th>パス</th><th>説明</th></tr>
+      <tr><td>home</td><td>/</td><td>トップ画面</td></tr>
+      <tr><td>settings</td><td>/settings</td><td>設定画面</td></tr>
+    </table>
+
+    <p><strong>Viewport</strong></p>
+    <p>撮影するデバイスサイズを選択します。複数選択可能です。</p>
+    <table class="help-table">
+      <tr><th>プリセット</th><th>CSS サイズ</th><th>DPR</th><th>物理解像度</th><th>用途</th></tr>
+      <tr><td>Phone</td><td>360 × 800</td><td>3</td><td>1080 × 2400</td><td>Play Store スマートフォン向け</td></tr>
+      <tr><td>7" Tablet</td><td>600 × 960</td><td>2</td><td>1200 × 1920</td><td>Play Store 7インチタブレット向け</td></tr>
+      <tr><td>10" Tablet</td><td>800 × 1280</td><td>2</td><td>1600 × 2560</td><td>Play Store 10インチタブレット向け</td></tr>
+    </table>
+    <div class="help-note">
+      <strong>DPR（デバイスピクセル比）とは：</strong>
+      CSS ピクセルに対する物理ピクセルの倍率です。DPR=3 の場合、
+      CSS 360px が物理 1080px に相当し、実機スマートフォンと同じ見た目でレンダリングされます。
+    </div>
+
+    <p><strong>出力オプション</strong></p>
+    <table class="help-table">
+      <tr><th>オプション</th><th>説明</th></tr>
+      <tr><td>動画 (WebM)</td><td>各画面の読み込みを録画。ffmpeg があれば変換も可</td></tr>
+      <tr><td>GIF 変換</td><td>WebM → GIF（ffmpeg 必要。ファイルサイズに注意）</td></tr>
+      <tr><td>MP4 変換</td><td>WebM → MP4（ffmpeg 必要。Play Store プロモ動画向け）</td></tr>
+    </table>
+
+    <h2>手順 5 — 撮影する</h2>
+    <ol>
+      <li>「設定を保存」で設定を保存する</li>
+      <li>Flutter Web アプリが起動していることを確認する</li>
+      <li>「撮影開始 ▶」を押す（最大 120 秒）</li>
+      <li>完了後、ギャラリーに画像が表示される</li>
+      <li>各画像の「PNG ↓」ボタンでダウンロードできる</li>
+    </ol>
+
+    <p>出力先: <code>（プロジェクト）/screenshots/store/（タイムスタンプ）/</code></p>
+
+    <h2>よくあるエラー</h2>
+
+    <p><strong>SecurityError: Failed to execute 'replaceState' on 'History'</strong></p>
+    <p>
+      Flutter Web の URL Strategy 起因のエラーです。スクリーンショット自体は取得できますが、
+      アプリがエラー画面を表示している場合があります。
+    </p>
+    <p>根本解決は <code>main.dart</code> でハッシュ形式の URL Strategy に切り替えることです。</p>
+    <pre><code>import 'package:flutter_web_plugins/url_strategy.dart';
+
+void main() {
+  useHashUrlStrategy();
+  runApp(const MyApp());
+}</code></pre>
+
+    <p><strong>Playwright が見つかりません</strong></p>
+    <p>手順 1 のインストールを行い、サーバーを再起動してから再試行してください。</p>
+
+    <p><strong>タイムアウト（120秒超）</strong></p>
+    <p>
+      Flutter Web アプリが起動していないか、ベース URL が間違っています。
+      Chrome で直接 URL を開いて確認してください。
+    </p>
+
+  </div>
+</body>
+</html>

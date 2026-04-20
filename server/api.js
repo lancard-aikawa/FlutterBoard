@@ -29,6 +29,7 @@ const { handleReleaseNotes }  = require('./releaseNotes');
 const { handleDistributor }   = require('./distributor');
 const { handleChecklist }     = require('./checklist');
 const { handleAndroidConfig } = require('./androidConfig');
+const { handlePwCapture }    = require('./pwCapture');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -158,6 +159,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/android')) {
     return handleAndroidConfig(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/pw')) {
+    return handlePwCapture(req, res, url);
   }
 
   res.writeHead(404, { 'Content-Type': 'application/json' });

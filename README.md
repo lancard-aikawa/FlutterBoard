@@ -15,6 +15,8 @@ Node.js 組み込みモジュールのみで動作し、**npm パッケージ依
 | Flutter SDK | Flutter コマンド実行・依存チェック |
 | Firebase CLI | Firebase コマンド実行 |
 | `node-pty`（任意） | PTY モード（Hot Reload / stdin 送信） |
+| Playwright（任意） | ストアスクリーンショット / 動画生成 → [インストール手順](docs/playwright.md) |
+| ffmpeg（任意） | WebM → GIF / MP4 変換（Playwright 連携時） → [インストール手順](docs/playwright.md) |
 
 ---
 

@@ -47,7 +47,6 @@ config/                — プロジェクト別設定の JSON 保存先（gitig
 ### 重要な制約
 
 - **Express 禁止** — 素の `node:http` のみ使用
-- **npm 依存は最小限** — 追加パッケージは原則導入しない。唯一の依存は `node-pty`（PTY モード用、なくても動く）
 - **CommonJS** — `require` / `module.exports`。ESM は使わない
 - **フロントエンドはバンドルなし** — `<script src="app.js">` を直接読み込む。import/export 不使用
 
