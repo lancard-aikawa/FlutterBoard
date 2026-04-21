@@ -134,7 +134,7 @@ FlutterBoard/
   stop.cmd
   README.md
   TODO.md               実装計画
-  RC.md                 機能要望の背景・課題・UI イメージ
+  RC/                   機能要望の背景・課題・UI イメージ（RC.md・RC_pw.md 等）
 ```
 
 ---
