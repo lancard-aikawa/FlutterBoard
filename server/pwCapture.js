@@ -28,8 +28,35 @@ function runCmd(cmd, args, opts = {}) {
     execFile(cmd, args, {
       encoding: 'utf-8', shell: process.platform === 'win32',
       timeout: opts.timeout || 10000,
+      cwd: opts.cwd,
     }, (err, stdout, stderr) => resolve({ ok: !err, stdout: stdout.trim(), stderr: stderr.trim(), err }));
   });
+}
+
+const TOOLS_CONFIG = path.join(CONFIG_DIR, 'tools.json');
+
+function loadToolsConfig() {
+  try { return JSON.parse(fs.readFileSync(TOOLS_CONFIG, 'utf-8')); } catch { return {}; }
+}
+
+function saveToolsConfig(data) {
+  if (!fs.existsSync(CONFIG_DIR)) fs.mkdirSync(CONFIG_DIR, { recursive: true });
+  fs.writeFileSync(TOOLS_CONFIG, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+// Windows では where.exe でフルパスを解決し、見つかった絶対パスを返す
+async function findExe(name) {
+  if (process.platform !== 'win32') return name;
+  const r = await runCmd('where.exe', [name], { timeout: 5000 });
+  if (!r.ok) return null;
+  return r.stdout.split(/\r?\n/)[0].trim() || null;
+}
+
+// 手動設定 → where.exe 自動検索 の順で解決
+async function getFfmpegPath() {
+  const saved = loadToolsConfig().ffmpegPath;
+  if (saved) return saved;
+  return findExe('ffmpeg');
 }
 
 function configPath(projectPath) {
@@ -48,21 +75,24 @@ function defaultConfig() {
 }
 
 async function checkStatus() {
-  const [pwCheck, ffCheck] = await Promise.all([
-    runCmd('node', ['-e', "require('playwright');console.log('ok')"], { timeout: 5000 }),
-    runCmd('ffmpeg', ['-version'], { timeout: 5000 }),
+  const [pwCheck, ffmpegPath] = await Promise.all([
+    runCmd('node', ['-e', "require('playwright');console.log('ok')"], { timeout: 5000, cwd: path.join(__dirname, '..') }),
+    getFfmpegPath(),
   ]);
   return {
-    playwright: pwCheck.ok && pwCheck.stdout.includes('ok'),
-    ffmpeg:     ffCheck.ok,
+    playwright:  pwCheck.ok && pwCheck.stdout.includes('ok'),
+    ffmpeg:      !!ffmpegPath,
+    ffmpegPath:  ffmpegPath || '',
   };
 }
 
 async function convertVideo(webmPath, format, ffmpegArgs) {
+  const ffmpegPath = await getFfmpegPath();
+  if (!ffmpegPath) return null;
   const ext  = format === 'gif' ? '.gif' : '.mp4';
   const dest = webmPath.replace(/\.webm$/, ext);
   const args = [...ffmpegArgs, '-y', '-i', webmPath, dest];
-  const r = await runCmd('ffmpeg', args, { timeout: 60000 });
+  const r = await runCmd(ffmpegPath, args, { timeout: 60000 });
   return r.ok ? dest : null;
 }
 
@@ -75,6 +105,22 @@ async function handlePwCapture(req, res, url) {
     const status = await checkStatus();
     res.writeHead(200);
     return res.end(JSON.stringify(status));
+  }
+
+  // GET /api/pw/tools
+  if (pathname === '/api/pw/tools' && req.method === 'GET') {
+    res.writeHead(200);
+    return res.end(JSON.stringify(loadToolsConfig()));
+  }
+
+  // POST /api/pw/tools  { ffmpegPath }
+  if (pathname === '/api/pw/tools' && req.method === 'POST') {
+    const body = await readBody(req);
+    const current = loadToolsConfig();
+    if ('ffmpegPath' in body) current.ffmpegPath = body.ffmpegPath.trim();
+    saveToolsConfig(current);
+    res.writeHead(200);
+    return res.end(JSON.stringify({ ok: true }));
   }
 
   // GET /api/pw/presets

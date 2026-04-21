@@ -30,6 +30,8 @@ const { handleDistributor }   = require('./distributor');
 const { handleChecklist }     = require('./checklist');
 const { handleAndroidConfig } = require('./androidConfig');
 const { handlePwCapture }    = require('./pwCapture');
+const { handlePwSmoke }      = require('./pwSmoke');
+const { handleProjectConfig } = require('./projectConfig');
 
 function handleApi(req, res, url) {
   const pathname = url.pathname;
@@ -43,6 +45,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/process')) {
     return handleProcess(req, res, url);
+  }
+
+  if (pathname === '/api/project/config') {
+    return handleProjectConfig(req, res, url);
   }
 
   if (pathname.startsWith('/api/project')) {
@@ -159,6 +165,10 @@ function handleApi(req, res, url) {
 
   if (pathname.startsWith('/api/android')) {
     return handleAndroidConfig(req, res, url);
+  }
+
+  if (pathname.startsWith('/api/pwsmoke')) {
+    return handlePwSmoke(req, res, url);
   }
 
   if (pathname.startsWith('/api/pw')) {

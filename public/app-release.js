@@ -4,7 +4,7 @@
  * D1: Pre-flight / D3: リリースノート / D4: 配布管理 / D-CL: チェックリスト
  */
 
-(function () {
+(async function () {
   const projectLabel = document.getElementById('release-project');
   const noProject    = document.getElementById('release-no-project');
 
@@ -52,6 +52,20 @@
   const rnMarkdown    = document.getElementById('relnotes-markdown');
   const rnCount       = document.getElementById('relnotes-count');
   const rnCommitList  = document.getElementById('relnotes-commit-list');
+
+  // PW1: Web スモークテスト
+  const smokeSection    = document.getElementById('smoke-section');
+  const smokePrereqs    = document.getElementById('smoke-prereqs');
+  const smokeBaseUrl      = document.getElementById('smoke-base-url');
+  const smokePort         = document.getElementById('smoke-port');
+  const smokePortApplyBtn = document.getElementById('smoke-port-apply-btn');
+  const smokeAddRouteBtn = document.getElementById('smoke-add-route-btn');
+  const smokeRouteList  = document.getElementById('smoke-route-list');
+
+  const smokeRunBtn     = document.getElementById('smoke-run-btn');
+  const smokeSaveCfgBtn = document.getElementById('smoke-save-cfg-btn');
+  const smokeRunStatus  = document.getElementById('smoke-run-status');
+  const smokeResults    = document.getElementById('smoke-results');
 
   function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({
@@ -487,6 +501,173 @@
     distCopyAnnBtn.addEventListener('click', copyAnnouncement);
   }
 
+  // --- PW1: Web スモークテスト ------------------------------------------
+
+  function syncPortFromUrl(url) {
+    const m = url.match(/:(\d+)(?:\/|$)/);
+    if (m) smokePort.value = m[1];
+  }
+
+  function smokeFlash(msg, isErr = false) {
+    smokeRunStatus.textContent = msg;
+    smokeRunStatus.style.color = isErr ? 'var(--err)' : 'var(--muted)';
+  }
+
+  function addSmokeRouteRow(name = '', routePath = '/') {
+    const row = document.createElement('div');
+    row.className = 'pw-route-row';
+    row.innerHTML = `
+      <input type="text" class="pw-route-name" placeholder="ルート名" value="${escHtml(name)}">
+      <input type="text" class="pw-route-path" placeholder="/path" value="${escHtml(routePath)}">
+      <button type="button" class="pw-route-del pw-btn-sm btn-secondary">✕</button>
+    `;
+    row.querySelector('.pw-route-del').addEventListener('click', () => row.remove());
+    smokeRouteList.appendChild(row);
+  }
+
+  function getSmokeRoutes() {
+    return [...smokeRouteList.querySelectorAll('.pw-route-row')].map(row => ({
+      name: row.querySelector('.pw-route-name').value.trim() || 'ページ',
+      path: row.querySelector('.pw-route-path').value.trim() || '/',
+    })).filter(r => r.path);
+  }
+
+  function renderSmokeResults(data) {
+    if (!data.results) {
+      smokeResults.innerHTML = `<div class="preflight-item status-error"><div class="preflight-row"><span class="preflight-badge">❌</span><span class="preflight-label">${escHtml(data.error || '不明なエラー')}</span></div></div>`;
+      smokeResults.classList.remove('hidden');
+      return;
+    }
+    const BADGES = { ok: '✅', warn: '⚠️', error: '❌' };
+    smokeResults.innerHTML = data.results.map(r => {
+      const lines = [];
+      if (r.loadError) lines.push(`読み込みエラー: ${r.loadError}`);
+      if (r.httpStatus) lines.push(`HTTP ${r.httpStatus}`);
+      if (r.consoleErrors && r.consoleErrors.length)
+        lines.push(`コンソールエラー: ${r.consoleErrors.join(' / ')}`);
+      const detail = lines.length
+        ? `<div class="preflight-detail">${escHtml(lines.join('\n'))}</div>` : '';
+      return `
+        <div class="preflight-item status-${r.status}">
+          <div class="preflight-row">
+            <span class="preflight-badge">${BADGES[r.status] || '•'}</span>
+            <span class="preflight-label">${escHtml(r.name)}</span>
+            <span class="preflight-value">${escHtml(r.route)}</span>
+          </div>
+          ${detail}
+        </div>`;
+    }).join('');
+    smokeResults.classList.remove('hidden');
+  }
+
+  async function initSmoke(projectPath, webPort = 8080) {
+    let status;
+    try {
+      const res = await fetch(`/api/pwsmoke/status?path=${encodeURIComponent(projectPath)}`);
+      status = await res.json();
+    } catch { return; }
+
+    if (!status.hasWebTarget) return; // Flutter Web 非対応プロジェクトは非表示
+
+    smokeSection.classList.remove('hidden');
+
+    // 前提条件バッジ
+    smokePrereqs.innerHTML = [
+      `<span class="smoke-prereq ${status.playwrightInstalled ? 'ok' : 'ng'}">Playwright ${status.playwrightInstalled ? '✅' : '❌ 未インストール'}</span>`,
+      `<span class="smoke-prereq ${status.hasWebBuild ? 'ok' : 'ng'}">Web ビルド ${status.hasWebBuild ? '✅' : '⚠️ 未ビルド'}</span>`,
+    ].join('');
+
+    // 共通 webPort でポート・URL を初期化（保存ルートは別途読み込む）
+    smokePort.value    = webPort;
+    smokeBaseUrl.value = `http://localhost:${webPort}`;
+
+    // ルート設定を読み込む（baseUrl は共通設定優先）
+    try {
+      const cfgRes = await fetch(`/api/pwsmoke/config?path=${encodeURIComponent(projectPath)}`);
+      const cfg = await cfgRes.json();
+      (cfg.routes || [{ name: 'ホーム', path: '/' }]).forEach(r => addSmokeRouteRow(r.name, r.path));
+    } catch {
+      addSmokeRouteRow('ホーム', '/');
+    }
+
+    async function saveWebPort(port) {
+      await fetch('/api/project/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, webPort: port }),
+      });
+    }
+
+    smokePortApplyBtn.addEventListener('click', async () => {
+      const port = parseInt(smokePort.value, 10);
+      if (port > 0 && port <= 65535) {
+        smokeBaseUrl.value = `http://localhost:${port}`;
+        // PW2 の URL も同期（localhost URL の場合のみ）
+        const pwUrl = document.getElementById('pw-base-url');
+        if (pwUrl && /^http:\/\/localhost:/i.test(pwUrl.value)) {
+          pwUrl.value = `http://localhost:${port}`;
+        }
+        await saveWebPort(port);
+      }
+    });
+
+    smokeAddRouteBtn.addEventListener('click', () => addSmokeRouteRow());
+
+    smokeSaveCfgBtn.addEventListener('click', async () => {
+      const baseUrl = smokeBaseUrl.value.trim();
+      const cfg = { baseUrl, routes: getSmokeRoutes() };
+      await fetch('/api/pwsmoke/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, ...cfg }),
+      });
+      // localhost URL ならポートを共通設定にも反映
+      const m = baseUrl.match(/:(\d+)(?:\/|$)/);
+      if (m) await saveWebPort(parseInt(m[1], 10));
+      smokeFlash('設定を保存しました');
+    });
+
+    smokeRunBtn.addEventListener('click', async () => {
+      if (!status.playwrightInstalled) {
+        smokeFlash('Playwright が未インストールです。npm install -D playwright を実行してください。', true);
+        return;
+      }
+      const routes = getSmokeRoutes();
+      if (!routes.length) { smokeFlash('ルートを1件以上設定してください', true); return; }
+
+      // 設定を保存してから実行
+      const cfg = { baseUrl: smokeBaseUrl.value.trim(), routes };
+      await fetch('/api/pwsmoke/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, ...cfg }),
+      });
+
+      smokeRunBtn.disabled = true;
+      smokeResults.classList.add('hidden');
+      smokeFlash('実行中… (最大60秒)');
+
+      try {
+        const res  = await fetch('/api/pwsmoke/run', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: projectPath }),
+        });
+        const data = await res.json();
+        if (!data.ok && !data.results) {
+          const msg = data.error === 'ERR_NO_PLAYWRIGHT'
+            ? 'Playwright が未インストールです'
+            : `エラー: ${data.error || '不明'}`;
+          smokeFlash(msg, true);
+          return;
+        }
+        const label = { ok: '全ルート OK', warn: '警告あり', error: '失敗あり' }[data.summary] || '完了';
+        smokeFlash(label, data.summary === 'error');
+        renderSmokeResults(data);
+      } catch (e) {
+        smokeFlash(`通信エラー: ${e.message}`, true);
+      } finally {
+        smokeRunBtn.disabled = false;
+      }
+    });
+  }
+
   // --- PW2: ストアスクリーンショット生成 --------------------------------
 
   const pwPanel        = document.getElementById('pw-panel');
@@ -505,6 +686,9 @@
   const pwSessionSel      = document.getElementById('pw-session-select');
   const pwSessionDelBtn   = document.getElementById('pw-session-delete-btn');
   const pwGallery         = document.getElementById('pw-gallery');
+  const pwFfmpegPath      = document.getElementById('pw-ffmpeg-path');
+  const pwFfmpegPathSave  = document.getElementById('pw-ffmpeg-path-save');
+  const pwFfmpegPathMsg   = document.getElementById('pw-ffmpeg-path-msg');
 
   // CSS サイズ × DPR = 物理解像度（サーバー側 VIEWPORT_PRESETS と一致させる）
   const VP_PRESETS = [
@@ -645,7 +829,7 @@
     }
   }
 
-  async function initPw(projectPath) {
+  async function initPw(projectPath, webPort = 8080) {
     pwPanel.classList.remove('hidden');
 
     // ステータスバッジ表示
@@ -663,8 +847,26 @@
       [pwOptGif, pwOptMp4].forEach(cb => { cb.disabled = true; cb.closest('.pw-opt-label').style.opacity = '.45'; });
     }
 
-    // 設定読み込み
+    // ffmpeg パス入力欄の初期値・保存
+    pwFfmpegPath.value = status.ffmpegPath || '';
+    pwFfmpegPathSave.addEventListener('click', async () => {
+      const r = await fetch('/api/pw/tools', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ffmpegPath: pwFfmpegPath.value.trim() }),
+      });
+      if (r.ok) {
+        pwFfmpegPathMsg.textContent = '保存しました。ページを再読み込みすると反映されます。';
+        pwFfmpegPathMsg.style.color = 'var(--ok)';
+      } else {
+        pwFfmpegPathMsg.textContent = '保存に失敗しました';
+        pwFfmpegPathMsg.style.color = 'var(--err)';
+      }
+      setTimeout(() => { pwFfmpegPathMsg.textContent = ''; }, 3000);
+    });
+
+    // 設定読み込み（baseUrl は共通 webPort を優先）
     const cfg = await fetch(`/api/pw/config?path=${encodeURIComponent(projectPath)}`).then(r => r.json()).catch(() => ({}));
+    cfg.baseUrl = `http://localhost:${webPort}`;
     applyConfig(cfg);
 
     // ベース URL — フォーカスアウト時に末尾スラッシュを除去して視覚的にも補正
@@ -798,8 +1000,19 @@
     // D-CL
     initChecklist(path);
 
+    // 共通 Web ポートを先読みして PW1/PW2 に渡す
+    let sharedWebPort = 8080;
+    try {
+      const pcRes = await fetch(`/api/project/config?path=${encodeURIComponent(path)}`);
+      const pc    = await pcRes.json();
+      if (pc.webPort) sharedWebPort = pc.webPort;
+    } catch { /* ignore */ }
+
+    // PW1
+    initSmoke(path, sharedWebPort);
+
     // PW2
-    initPw(path);
+    initPw(path, sharedWebPort);
 
     // D4
     initDist(path);

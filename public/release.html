@@ -58,6 +58,41 @@
       </div>
       <div id="preflight-summary" class="preflight-summary hidden"></div>
       <div id="preflight-results" class="preflight-results"></div>
+
+      <!-- Web スモークテスト（PW1） -->
+      <div id="smoke-section" class="smoke-section hidden">
+        <div class="smoke-section-header">
+          <h3>Web スモークテスト</h3>
+          <div id="smoke-prereqs" class="smoke-prereqs"></div>
+        </div>
+        <div class="smoke-config">
+          <div class="smoke-config-row">
+            <label class="smoke-label">ベース URL</label>
+            <div class="smoke-url-wrap">
+              <input type="url" id="smoke-base-url" class="smoke-input-url" placeholder="http://localhost:8080">
+              <div class="smoke-port-row">
+                <span class="smoke-port-label">ポート指定:</span>
+                <input type="number" id="smoke-port" class="smoke-port-input" value="8080" min="1" max="65535">
+                <button type="button" id="smoke-port-apply-btn" class="btn-secondary pw-btn-sm">適用</button>
+                <span class="smoke-port-hint">Flutter: <code>--web-port=8080</code></span>
+              </div>
+            </div>
+          </div>
+          <div class="smoke-config-row smoke-routes-block">
+            <div class="smoke-routes-header">
+              <label class="smoke-label">確認ルート</label>
+              <button type="button" id="smoke-add-route-btn" class="btn-secondary pw-btn-sm">+ 追加</button>
+            </div>
+            <div id="smoke-route-list" class="smoke-route-list"></div>
+          </div>
+        </div>
+        <div class="smoke-actions">
+          <button type="button" id="smoke-run-btn" class="btn-primary">スモークテスト実行 ▶</button>
+          <button type="button" id="smoke-save-cfg-btn" class="btn-secondary">設定保存</button>
+          <span id="smoke-run-status" class="smoke-run-status"></span>
+        </div>
+        <div id="smoke-results" class="smoke-results hidden"></div>
+      </div>
     </section>
 
     <!-- リリースノート自動生成（D3） -->
@@ -143,6 +178,15 @@
             <label class="pw-opt-label"><input type="checkbox" id="pw-opt-video"> 動画 (WebM)</label>
             <label class="pw-opt-label pw-opt-ffmpeg"><input type="checkbox" id="pw-opt-gif"> GIF 変換 <span class="pw-ffmpeg-badge">ffmpeg</span></label>
             <label class="pw-opt-label pw-opt-ffmpeg"><input type="checkbox" id="pw-opt-mp4"> MP4 変換 <span class="pw-ffmpeg-badge">ffmpeg</span></label>
+          </div>
+        </div>
+
+        <div class="pw-config-row" id="pw-ffmpeg-path-row">
+          <label class="pw-label">ffmpeg パス</label>
+          <div class="pw-ffmpeg-path-wrap">
+            <input type="text" id="pw-ffmpeg-path" class="pw-input-url" placeholder="例: C:\Users\...\ffmpeg.exe（空欄で自動検索）">
+            <button type="button" id="pw-ffmpeg-path-save" class="btn-secondary pw-btn-sm">保存</button>
+            <span id="pw-ffmpeg-path-msg" class="pw-run-status"></span>
           </div>
         </div>
       </div>

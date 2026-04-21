@@ -564,6 +564,9 @@
 .pw-config-row { display: flex; align-items: flex-start; gap: .75rem; }
 .pw-label { min-width: 90px; font-size: .8rem; color: var(--muted); padding-top: .3rem; }
 .pw-baseurl-wrap { flex: 1; display: flex; flex-direction: column; gap: .35rem; }
+.pw-ffmpeg-path-wrap { flex: 1; display: flex; align-items: center; gap: .5rem; }
+.pw-ffmpeg-path-wrap .pw-input-url { flex: 1; }
+.pw-ffmpeg-path-wrap .pw-run-status { font-size: .78rem; }
 .pw-input-url {
   width: 100%; padding: .3rem .6rem; font-size: .85rem; border-radius: 4px;
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
@@ -677,3 +680,118 @@
   border-radius: 6px;
 }
 .pw-gallery-error-item { font-size: .8rem; color: var(--err); padding: .1rem 0; }
+
+/* ===== PW1: Web スモークテスト ===== */
+.smoke-section {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.smoke-section-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: .9rem;
+}
+.smoke-section-header h3 {
+  font-size: .95rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.smoke-prereqs {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+.smoke-prereq {
+  font-size: .78rem;
+  padding: .15rem .45rem;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.smoke-prereq.ok  { border-color: var(--ok);   color: var(--ok); }
+.smoke-prereq.ng  { border-color: var(--warn);  color: var(--warn); }
+.smoke-config {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  margin-bottom: .9rem;
+}
+.smoke-config-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+.smoke-label {
+  font-size: .82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  min-width: 5.5rem;
+}
+.smoke-url-wrap { display: flex; flex-direction: column; gap: .35rem; }
+.smoke-input-url {
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+  padding: .35rem .55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: .85rem;
+}
+.smoke-input-url:focus { outline: none; border-color: var(--accent); }
+.smoke-port-row {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.smoke-port-label { font-size: .78rem; color: var(--muted); }
+.smoke-port-input {
+  width: 5rem;
+  padding: .25rem .4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .82rem;
+}
+.smoke-port-input:focus { outline: none; border-color: var(--accent); }
+.smoke-port-hint {
+  font-size: .73rem;
+  color: var(--muted);
+  margin-left: .25rem;
+}
+.smoke-port-hint code {
+  font-family: Consolas, monospace;
+  color: var(--muted);
+}
+.smoke-routes-block { align-items: flex-start; flex-direction: column; gap: .4rem; }
+.smoke-routes-header {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.smoke-route-list {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  width: 100%;
+}
+.smoke-run-status { font-size: .82rem; color: var(--muted); }
+.smoke-actions {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .75rem;
+  flex-wrap: wrap;
+}
+.smoke-results {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
