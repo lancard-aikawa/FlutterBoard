@@ -1231,6 +1231,22 @@ input[type="text"]:focus { outline: none; border-color: var(--accent); }
   width: 90px;
   flex: none;
 }
+.ctx-web-port-row { margin-bottom: .35rem; }
+.ctx-port-input {
+  width: 5.5rem;
+  padding: .22rem .45rem;
+  font-size: .8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+.ctx-port-input:focus { border-color: var(--accent); outline: none; }
+.ctx-port-hint {
+  font-size: .72rem;
+  color: var(--muted);
+}
+.ctx-port-hint code { font-family: Consolas, monospace; }
 
 .ctx-mode-btns {
   display: flex;

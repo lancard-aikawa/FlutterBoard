@@ -124,6 +124,7 @@ async function selectProject(projectPath, persist = true) {
   depsProjectName.textContent = '';
 
   loadProjectInfo(data.selected);
+  loadProjectConfig(data.selected);
   loadRoutines(data.selected);
   loadCmdHistory();
   refreshProcessList(null);
@@ -976,6 +977,14 @@ async function sendStdin(text) {
 
 let projectInfo = null;
 
+async function loadProjectConfig(projectPath) {
+  try {
+    const res = await fetch(`/api/project/config?path=${encodeURIComponent(projectPath)}`);
+    const cfg = await res.json();
+    if (cfg.webPort && ctxWebPort) ctxWebPort.value = cfg.webPort;
+  } catch { /* ignore */ }
+}
+
 async function loadProjectInfo(projectPath) {
   const res  = await fetch(`/api/project/info?path=${encodeURIComponent(projectPath)}`);
   projectInfo = await res.json();
@@ -1408,6 +1417,17 @@ const ctxFlavorSelect = document.getElementById('ctx-flavor');
 const ctxRunSet       = document.getElementById('ctx-run-set');
 const ctxAttachSet    = document.getElementById('ctx-attach-set');
 const ctxBuildSet     = document.getElementById('ctx-build-set');
+const ctxWebPort      = document.getElementById('ctx-web-port');
+
+ctxWebPort.addEventListener('change', async () => {
+  const port = parseInt(ctxWebPort.value, 10);
+  if (port > 0 && port <= 65535 && currentProjectPath) {
+    await fetch('/api/project/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentProjectPath, webPort: port }),
+    });
+  }
+});
 
 let ctxFlutterMode = ''; // '' = debug | '--release' | '--profile'
 
@@ -1474,6 +1494,10 @@ function buildFlutterCmd(base) {
   if (flavor) cmd += ` --flavor ${flavor}`;
   if (entry && entry !== 'lib/main.dart') cmd += ` -t ${entry}`;
   if (ctxFlutterMode) cmd += ` ${ctxFlutterMode}`;
+  if (/web|chrome|edge/i.test(device)) {
+    const port = parseInt(ctxWebPort.value, 10) || 8080;
+    cmd += ` --web-port=${port}`;
+  }
   return cmd;
 }
 

@@ -4,7 +4,7 @@
  * D1: Pre-flight / D3: リリースノート / D4: 配布管理 / D-CL: チェックリスト
  */
 
-(function () {
+(async function () {
   const projectLabel = document.getElementById('release-project');
   const noProject    = document.getElementById('release-no-project');
 
@@ -52,6 +52,20 @@
   const rnMarkdown    = document.getElementById('relnotes-markdown');
   const rnCount       = document.getElementById('relnotes-count');
   const rnCommitList  = document.getElementById('relnotes-commit-list');
+
+  // PW1: Web スモークテスト
+  const smokeSection    = document.getElementById('smoke-section');
+  const smokePrereqs    = document.getElementById('smoke-prereqs');
+  const smokeBaseUrl      = document.getElementById('smoke-base-url');
+  const smokePort         = document.getElementById('smoke-port');
+  const smokePortApplyBtn = document.getElementById('smoke-port-apply-btn');
+  const smokeAddRouteBtn = document.getElementById('smoke-add-route-btn');
+  const smokeRouteList  = document.getElementById('smoke-route-list');
+
+  const smokeRunBtn     = document.getElementById('smoke-run-btn');
+  const smokeSaveCfgBtn = document.getElementById('smoke-save-cfg-btn');
+  const smokeRunStatus  = document.getElementById('smoke-run-status');
+  const smokeResults    = document.getElementById('smoke-results');
 
   function escHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({
@@ -487,6 +501,489 @@
     distCopyAnnBtn.addEventListener('click', copyAnnouncement);
   }
 
+  // --- PW1: Web スモークテスト ------------------------------------------
+
+  function syncPortFromUrl(url) {
+    const m = url.match(/:(\d+)(?:\/|$)/);
+    if (m) smokePort.value = m[1];
+  }
+
+  function smokeFlash(msg, isErr = false) {
+    smokeRunStatus.textContent = msg;
+    smokeRunStatus.style.color = isErr ? 'var(--err)' : 'var(--muted)';
+  }
+
+  function addSmokeRouteRow(name = '', routePath = '/') {
+    const row = document.createElement('div');
+    row.className = 'pw-route-row';
+    row.innerHTML = `
+      <input type="text" class="pw-route-name" placeholder="ルート名" value="${escHtml(name)}">
+      <input type="text" class="pw-route-path" placeholder="/path" value="${escHtml(routePath)}">
+      <button type="button" class="pw-route-del pw-btn-sm btn-secondary">✕</button>
+    `;
+    row.querySelector('.pw-route-del').addEventListener('click', () => row.remove());
+    smokeRouteList.appendChild(row);
+  }
+
+  function getSmokeRoutes() {
+    return [...smokeRouteList.querySelectorAll('.pw-route-row')].map(row => ({
+      name: row.querySelector('.pw-route-name').value.trim() || 'ページ',
+      path: row.querySelector('.pw-route-path').value.trim() || '/',
+    })).filter(r => r.path);
+  }
+
+  function renderSmokeResults(data) {
+    if (!data.results) {
+      smokeResults.innerHTML = `<div class="preflight-item status-error"><div class="preflight-row"><span class="preflight-badge">❌</span><span class="preflight-label">${escHtml(data.error || '不明なエラー')}</span></div></div>`;
+      smokeResults.classList.remove('hidden');
+      return;
+    }
+    const BADGES = { ok: '✅', warn: '⚠️', error: '❌' };
+    smokeResults.innerHTML = data.results.map(r => {
+      const lines = [];
+      if (r.loadError) lines.push(`読み込みエラー: ${r.loadError}`);
+      if (r.httpStatus) lines.push(`HTTP ${r.httpStatus}`);
+      if (r.consoleErrors && r.consoleErrors.length)
+        lines.push(`コンソールエラー: ${r.consoleErrors.join(' / ')}`);
+      const detail = lines.length
+        ? `<div class="preflight-detail">${escHtml(lines.join('\n'))}</div>` : '';
+      return `
+        <div class="preflight-item status-${r.status}">
+          <div class="preflight-row">
+            <span class="preflight-badge">${BADGES[r.status] || '•'}</span>
+            <span class="preflight-label">${escHtml(r.name)}</span>
+            <span class="preflight-value">${escHtml(r.route)}</span>
+          </div>
+          ${detail}
+        </div>`;
+    }).join('');
+    smokeResults.classList.remove('hidden');
+  }
+
+  async function initSmoke(projectPath, webPort = 8080) {
+    let status;
+    try {
+      const res = await fetch(`/api/pwsmoke/status?path=${encodeURIComponent(projectPath)}`);
+      status = await res.json();
+    } catch { return; }
+
+    if (!status.hasWebTarget) return; // Flutter Web 非対応プロジェクトは非表示
+
+    smokeSection.classList.remove('hidden');
+
+    // 前提条件バッジ
+    smokePrereqs.innerHTML = [
+      `<span class="smoke-prereq ${status.playwrightInstalled ? 'ok' : 'ng'}">Playwright ${status.playwrightInstalled ? '✅' : '❌ 未インストール'}</span>`,
+      `<span class="smoke-prereq ${status.hasWebBuild ? 'ok' : 'ng'}">Web ビルド ${status.hasWebBuild ? '✅' : '⚠️ 未ビルド'}</span>`,
+    ].join('');
+
+    // 共通 webPort でポート・URL を初期化（保存ルートは別途読み込む）
+    smokePort.value    = webPort;
+    smokeBaseUrl.value = `http://localhost:${webPort}`;
+
+    // ルート設定を読み込む（baseUrl は共通設定優先）
+    try {
+      const cfgRes = await fetch(`/api/pwsmoke/config?path=${encodeURIComponent(projectPath)}`);
+      const cfg = await cfgRes.json();
+      (cfg.routes || [{ name: 'ホーム', path: '/' }]).forEach(r => addSmokeRouteRow(r.name, r.path));
+    } catch {
+      addSmokeRouteRow('ホーム', '/');
+    }
+
+    async function saveWebPort(port) {
+      await fetch('/api/project/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, webPort: port }),
+      });
+    }
+
+    smokePortApplyBtn.addEventListener('click', async () => {
+      const port = parseInt(smokePort.value, 10);
+      if (port > 0 && port <= 65535) {
+        smokeBaseUrl.value = `http://localhost:${port}`;
+        // PW2 の URL も同期（localhost URL の場合のみ）
+        const pwUrl = document.getElementById('pw-base-url');
+        if (pwUrl && /^http:\/\/localhost:/i.test(pwUrl.value)) {
+          pwUrl.value = `http://localhost:${port}`;
+        }
+        await saveWebPort(port);
+      }
+    });
+
+    smokeAddRouteBtn.addEventListener('click', () => addSmokeRouteRow());
+
+    smokeSaveCfgBtn.addEventListener('click', async () => {
+      const baseUrl = smokeBaseUrl.value.trim();
+      const cfg = { baseUrl, routes: getSmokeRoutes() };
+      await fetch('/api/pwsmoke/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, ...cfg }),
+      });
+      // localhost URL ならポートを共通設定にも反映
+      const m = baseUrl.match(/:(\d+)(?:\/|$)/);
+      if (m) await saveWebPort(parseInt(m[1], 10));
+      smokeFlash('設定を保存しました');
+    });
+
+    smokeRunBtn.addEventListener('click', async () => {
+      if (!status.playwrightInstalled) {
+        smokeFlash('Playwright が未インストールです。npm install -D playwright を実行してください。', true);
+        return;
+      }
+      const routes = getSmokeRoutes();
+      if (!routes.length) { smokeFlash('ルートを1件以上設定してください', true); return; }
+
+      // 設定を保存してから実行
+      const cfg = { baseUrl: smokeBaseUrl.value.trim(), routes };
+      await fetch('/api/pwsmoke/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, ...cfg }),
+      });
+
+      smokeRunBtn.disabled = true;
+      smokeResults.classList.add('hidden');
+      smokeFlash('実行中… (最大60秒)');
+
+      try {
+        const res  = await fetch('/api/pwsmoke/run', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: projectPath }),
+        });
+        const data = await res.json();
+        if (!data.ok && !data.results) {
+          const msg = data.error === 'ERR_NO_PLAYWRIGHT'
+            ? 'Playwright が未インストールです'
+            : `エラー: ${data.error || '不明'}`;
+          smokeFlash(msg, true);
+          return;
+        }
+        const label = { ok: '全ルート OK', warn: '警告あり', error: '失敗あり' }[data.summary] || '完了';
+        smokeFlash(label, data.summary === 'error');
+        renderSmokeResults(data);
+      } catch (e) {
+        smokeFlash(`通信エラー: ${e.message}`, true);
+      } finally {
+        smokeRunBtn.disabled = false;
+      }
+    });
+  }
+
+  // --- PW2: ストアスクリーンショット生成 --------------------------------
+
+  const pwPanel        = document.getElementById('pw-panel');
+  const pwToolStatus   = document.getElementById('pw-tool-status');
+  const pwBaseUrl      = document.getElementById('pw-base-url');
+  const pwAddRouteBtn  = document.getElementById('pw-add-route-btn');
+  const pwRouteList    = document.getElementById('pw-route-list');
+  const pwViewportList = document.getElementById('pw-viewport-list');
+  const pwOptVideo     = document.getElementById('pw-opt-video');
+  const pwOptGif       = document.getElementById('pw-opt-gif');
+  const pwOptMp4       = document.getElementById('pw-opt-mp4');
+  const pwRunBtn       = document.getElementById('pw-run-btn');
+  const pwSaveCfgBtn   = document.getElementById('pw-save-cfg-btn');
+  const pwRunStatus    = document.getElementById('pw-run-status');
+  const pwResults         = document.getElementById('pw-results');
+  const pwSessionSel      = document.getElementById('pw-session-select');
+  const pwSessionDelBtn   = document.getElementById('pw-session-delete-btn');
+  const pwGallery         = document.getElementById('pw-gallery');
+  const pwFfmpegPath      = document.getElementById('pw-ffmpeg-path');
+  const pwFfmpegPathSave  = document.getElementById('pw-ffmpeg-path-save');
+  const pwFfmpegPathMsg   = document.getElementById('pw-ffmpeg-path-msg');
+
+  // CSS サイズ × DPR = 物理解像度（サーバー側 VIEWPORT_PRESETS と一致させる）
+  const VP_PRESETS = [
+    { name: 'phone',    label: 'Phone',      css: '360×800',  dpr: 3, physical: '1080×2400' },
+    { name: 'tablet7',  label: '7" Tablet',  css: '600×960',  dpr: 2, physical: '1200×1920' },
+    { name: 'tablet10', label: '10" Tablet', css: '800×1280', dpr: 2, physical: '1600×2560' },
+  ];
+
+  // Viewport チェックボックス生成（物理解像度と DPR を表示）
+  VP_PRESETS.forEach(vp => {
+    const lbl = document.createElement('label');
+    lbl.className = 'pw-vp-label';
+    lbl.title = `CSS: ${vp.css}px / DPR: ${vp.dpr} / 物理: ${vp.physical}px`;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = vp.name; cb.id = `pw-vp-${vp.name}`;
+    const text = document.createElement('span');
+    text.innerHTML = `${vp.label} <span class="pw-vp-physical">${vp.physical}</span>`;
+    lbl.append(cb, text);
+    pwViewportList.appendChild(lbl);
+  });
+
+  function getSelectedViewports() {
+    return VP_PRESETS.map(vp => document.getElementById(`pw-vp-${vp.name}`))
+      .filter(cb => cb.checked).map(cb => cb.value);
+  }
+
+  function addRouteRow(name = '', routePath = '') {
+    const row = document.createElement('div');
+    row.className = 'pw-route-item';
+    row.innerHTML = `
+      <input type="text" class="pw-route-name" placeholder="名前" value="${escHtml(name)}">
+      <input type="text" class="pw-route-path" placeholder="/path" value="${escHtml(routePath)}">
+      <button type="button" class="pw-route-del" title="削除">✕</button>`;
+    row.querySelector('.pw-route-del').addEventListener('click', () => row.remove());
+    pwRouteList.appendChild(row);
+  }
+
+  function getRoutes() {
+    return [...pwRouteList.querySelectorAll('.pw-route-item')].map(row => ({
+      name: row.querySelector('.pw-route-name').value.trim(),
+      path: row.querySelector('.pw-route-path').value.trim(),
+    })).filter(r => r.name && r.path);
+  }
+
+  function applyConfig(cfg) {
+    pwBaseUrl.value = cfg.baseUrl || 'http://localhost:8080';
+    pwRouteList.innerHTML = '';
+    (cfg.routes || [{ name: 'home', path: '/' }]).forEach(r => addRouteRow(r.name, r.path));
+    VP_PRESETS.forEach(vp => {
+      const cb = document.getElementById(`pw-vp-${vp.name}`);
+      cb.checked = (cfg.viewports || ['phone']).includes(vp.name);
+    });
+    pwOptVideo.checked = cfg.recordVideo || false;
+    pwOptGif.checked   = cfg.convertGif  || false;
+    pwOptMp4.checked   = cfg.convertMp4  || false;
+  }
+
+  function buildConfig() {
+    return {
+      baseUrl:     pwBaseUrl.value.trim().replace(/\/+$/, ''),
+      routes:      getRoutes(),
+      viewports:   getSelectedViewports(),
+      recordVideo: pwOptVideo.checked,
+      convertGif:  pwOptGif.checked,
+      convertMp4:  pwOptMp4.checked,
+    };
+  }
+
+  function pwFlash(msg, isErr = false) {
+    pwRunStatus.textContent = msg;
+    pwRunStatus.style.color = isErr ? 'var(--err)' : 'var(--muted)';
+  }
+
+  function renderGallery(results, outputDir) {
+    pwGallery.innerHTML = '';
+
+    // エラー項目を先に表示
+    const errors = results.filter(r => r.type === 'error');
+    if (errors.length) {
+      const errBlock = document.createElement('div');
+      errBlock.className = 'pw-gallery-errors';
+      errBlock.innerHTML = errors.map(e =>
+        `<div class="pw-gallery-error-item">❌ ${escHtml(e.viewport || '')} / ${escHtml(e.route || '')}：${escHtml(e.message || '不明なエラー')}</div>`
+      ).join('');
+      pwGallery.appendChild(errBlock);
+    }
+
+    const successes = results.filter(r => r.type !== 'error');
+    if (!successes.length) {
+      if (!errors.length) pwGallery.innerHTML = '<div class="pw-gallery-empty">生成ファイルがありません</div>';
+      return;
+    }
+
+    const byVp = {};
+    for (const r of successes) {
+      if (!byVp[r.viewport]) byVp[r.viewport] = [];
+      byVp[r.viewport].push(r);
+    }
+    for (const [vp, items] of Object.entries(byVp)) {
+      const block = document.createElement('div');
+      block.className = 'pw-gallery-vp';
+      const vpLabel = VP_PRESETS.find(v => v.name === vp)?.label || vp;
+      block.innerHTML = `<div class="pw-gallery-vp-label">${escHtml(vpLabel)}</div>`;
+      const grid = document.createElement('div');
+      grid.className = 'pw-gallery-grid';
+      for (const item of items) {
+        const card = document.createElement('div');
+        card.className = 'pw-gallery-item';
+        const fileUrl = `/api/pw/file?path=${encodeURIComponent(item.file)}`;
+        const media = item.type === 'screenshot'
+          ? `<img class="pw-gallery-thumb" src="${fileUrl}" loading="lazy" alt="${escHtml(item.route)}">`
+          : item.type === 'video' || item.type === 'webm'
+            ? `<video class="pw-gallery-video" src="${fileUrl}" controls muted loop playsinline></video>`
+            : item.type === 'gif'
+              ? `<img class="pw-gallery-thumb" src="${fileUrl}" alt="${escHtml(item.route)}">`
+              : `<img class="pw-gallery-thumb" src="${fileUrl}" loading="lazy" alt="${escHtml(item.route)}">`;
+        const typeLabel = { screenshot: 'PNG', video: 'WebM', gif: 'GIF', mp4: 'MP4' }[item.type] || item.type.toUpperCase();
+        card.innerHTML = `
+          ${media}
+          <div class="pw-gallery-item-label">${escHtml(item.route)}</div>
+          <div class="pw-gallery-item-actions">
+            <a class="pw-gallery-dl" href="${fileUrl}" download title="ダウンロード">${typeLabel} ↓</a>
+            <button type="button" class="pw-gallery-del" title="このファイルを削除">🗑</button>
+          </div>`;
+        card.querySelector('.pw-gallery-del').addEventListener('click', async () => {
+          if (!confirm(`${item.route}.${typeLabel.toLowerCase()} を削除しますか？`)) return;
+          const r = await fetch('/api/pw/file/delete', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: projectPath, filePath: item.file }),
+          });
+          if (r.ok) { card.remove(); }
+          else { pwFlash('削除に失敗しました', true); }
+        });
+        grid.appendChild(card);
+      }
+      block.appendChild(grid);
+      pwGallery.appendChild(block);
+    }
+  }
+
+  async function initPw(projectPath, webPort = 8080) {
+    pwPanel.classList.remove('hidden');
+
+    // ステータスバッジ表示
+    const status = await fetch('/api/pw/status').then(r => r.json()).catch(() => ({}));
+    pwToolStatus.innerHTML = [
+      { key: 'playwright', label: 'Playwright' },
+      { key: 'ffmpeg',     label: 'ffmpeg' },
+    ].map(({ key, label }) => {
+      const cls = status[key] ? 'ok' : 'ng';
+      const txt = status[key] ? '✓' : '✗';
+      return `<span class="pw-tool-badge ${cls}">${label} ${txt}</span>`;
+    }).join('');
+
+    if (!status.ffmpeg) {
+      [pwOptGif, pwOptMp4].forEach(cb => { cb.disabled = true; cb.closest('.pw-opt-label').style.opacity = '.45'; });
+    }
+
+    // ffmpeg パス入力欄の初期値・保存
+    pwFfmpegPath.value = status.ffmpegPath || '';
+    pwFfmpegPathSave.addEventListener('click', async () => {
+      const r = await fetch('/api/pw/tools', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ffmpegPath: pwFfmpegPath.value.trim() }),
+      });
+      if (r.ok) {
+        pwFfmpegPathMsg.textContent = '保存しました。ページを再読み込みすると反映されます。';
+        pwFfmpegPathMsg.style.color = 'var(--ok)';
+      } else {
+        pwFfmpegPathMsg.textContent = '保存に失敗しました';
+        pwFfmpegPathMsg.style.color = 'var(--err)';
+      }
+      setTimeout(() => { pwFfmpegPathMsg.textContent = ''; }, 3000);
+    });
+
+    // 設定読み込み（baseUrl は共通 webPort を優先）
+    const cfg = await fetch(`/api/pw/config?path=${encodeURIComponent(projectPath)}`).then(r => r.json()).catch(() => ({}));
+    cfg.baseUrl = `http://localhost:${webPort}`;
+    applyConfig(cfg);
+
+    // ベース URL — フォーカスアウト時に末尾スラッシュを除去して視覚的にも補正
+    pwBaseUrl.addEventListener('blur', () => {
+      pwBaseUrl.value = pwBaseUrl.value.trim().replace(/\/+$/, '');
+    });
+
+    // ルート追加
+    pwAddRouteBtn.addEventListener('click', () => addRouteRow('', '/'));
+
+    // 設定保存
+    pwSaveCfgBtn.addEventListener('click', async () => {
+      const r = await fetch('/api/pw/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, ...buildConfig() }),
+      });
+      pwFlash(r.ok ? '設定を保存しました' : '保存失敗', !r.ok);
+      setTimeout(() => pwFlash(''), 2000);
+    });
+
+    // セッション選択
+    async function showSession(ts) {
+      if (!ts) { pwGallery.classList.add('hidden'); return; }
+      try {
+        const data = await fetch(`/api/pw/session?path=${encodeURIComponent(projectPath)}&ts=${encodeURIComponent(ts)}`).then(r => r.json());
+        if (data.results) {
+          renderGallery(data.results, data.outputDir);
+          pwGallery.classList.remove('hidden');
+        }
+      } catch (e) {
+        pwFlash(`読み込みエラー: ${e.message}`, true);
+      }
+    }
+
+    async function loadSessions(autoShow = false) {
+      const data = await fetch(`/api/pw/results?path=${encodeURIComponent(projectPath)}`).then(r => r.json()).catch(() => ({ sessions: [] }));
+      const emptyOpt = '<option value="">（セッションを選択）</option>';
+      pwSessionSel.innerHTML = emptyOpt + data.sessions.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+      // セッションがあればドロップダウンを見せる（ギャラリーは選択まで非表示）
+      if (data.sessions.length) {
+        pwResults.classList.remove('hidden');
+        pwGallery.classList.add('hidden');
+      } else {
+        pwResults.classList.add('hidden');
+      }
+      if (autoShow && data.sessions.length) {
+        pwSessionSel.value = data.sessions[0];
+        pwGallery.classList.remove('hidden');
+        await showSession(pwSessionSel.value);
+      }
+    }
+
+    pwSessionSel.addEventListener('change', () => showSession(pwSessionSel.value));
+
+    await loadSessions(); // 初期表示は空欄、ユーザーが選択して表示
+
+    // セッション削除
+    pwSessionDelBtn.addEventListener('click', async () => {
+      const ts = pwSessionSel.value;
+      if (!ts) return;
+      if (!confirm(`セッション「${ts}」を削除しますか？\n（フォルダごと削除されます）`)) return;
+      const r = await fetch('/api/pw/session/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, ts }),
+      });
+      if (r.ok) {
+        pwGallery.innerHTML = '';
+        await loadSessions(); // 残セッションがあればドロップダウン維持、なければ全体非表示
+      } else {
+        pwFlash('削除に失敗しました', true);
+      }
+    });
+
+    // 撮影実行
+    pwRunBtn.addEventListener('click', async () => {
+      if (!status.playwright) {
+        pwFlash('Playwright が見つかりません。npm install -D playwright を実行してください。', true);
+        return;
+      }
+      const cfg = buildConfig();
+      if (!cfg.routes.length) { pwFlash('ルートを1件以上設定してください', true); return; }
+      if (!cfg.viewports.length) { pwFlash('Viewport を1件以上選択してください', true); return; }
+
+      pwRunBtn.disabled = true;
+      pwFlash('撮影中… (最大120秒)');
+
+      // 保存してから実行
+      await fetch('/api/pw/config', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: projectPath, ...cfg }),
+      });
+
+      try {
+        const res  = await fetch('/api/pw/capture', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: projectPath }),
+        });
+        const data = await res.json();
+        if (!data.ok) {
+          const msg = data.error === 'playwright_not_installed'
+            ? 'Playwright が見つかりません。npm install -D playwright を実行してください。'
+            : `エラー: ${data.error || '不明'}`;
+          pwFlash(msg, true);
+          return;
+        }
+        pwFlash(`完了（${(data.results || []).length} ファイル生成）`);
+        renderGallery(data.results || [], data.outputDir);
+        pwResults.classList.remove('hidden');
+        await loadSessions();
+      } catch (e) {
+        pwFlash(`通信エラー: ${e.message}`, true);
+      } finally {
+        pwRunBtn.disabled = false;
+      }
+    });
+  }
+
   // 初期化
   const path = window.FbProject.getProjectPath();
   if (path) {
@@ -502,6 +999,20 @@
 
     // D-CL
     initChecklist(path);
+
+    // 共通 Web ポートを先読みして PW1/PW2 に渡す
+    let sharedWebPort = 8080;
+    try {
+      const pcRes = await fetch(`/api/project/config?path=${encodeURIComponent(path)}`);
+      const pc    = await pcRes.json();
+      if (pc.webPort) sharedWebPort = pc.webPort;
+    } catch { /* ignore */ }
+
+    // PW1
+    initSmoke(path, sharedWebPort);
+
+    // PW2
+    initPw(path, sharedWebPort);
 
     // D4
     initDist(path);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutterboard_example/custom_log.dart';
 
 void main() {
   runApp(const MyApp());
@@ -31,10 +32,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  //CustomLog logger = CustomLog.developer();
+  CustomLog logger = CustomLog.logger();
 
   void _incrementCounter() {
-    debugPrint("[FB:SCREEN] Test click: $_counter");
-    debugPrint("$_counter clicked");
+    logger.log("[FB:SCREEN] Test click: $_counter");
+    logger.log("$_counter clicked");
     //
     setState(() {
       _counter++;

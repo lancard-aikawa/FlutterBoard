@@ -272,6 +272,11 @@
               <span class="ctx-builder-title">実行ビルダー</span>
               <button id="ctx-flutter-fetch" class="ctx-fetch-btn">デバイス取得 ↺</button>
             </div>
+            <div class="ctx-row ctx-web-port-row">
+              <span class="ctx-label">Web ポート</span>
+              <input type="number" id="ctx-web-port" class="ctx-port-input" value="8080" min="1" max="65535">
+              <span class="ctx-port-hint"><code>--web-port=N</code>（web / chrome デバイス選択時に自動付与）</span>
+            </div>
             <div id="ctx-flutter-body" class="ctx-builder-body hidden">
               <div class="ctx-row">
                 <span class="ctx-label">デバイス</span>
